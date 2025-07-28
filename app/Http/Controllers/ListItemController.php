@@ -15,7 +15,6 @@ class ListItemController extends Controller
      */
     public function index(Request $request)
     {
-        ray('hier');
         $offset = $request->get('from');
         $limit = $request->get('till');
         $listItems = ListItem::select('*');
