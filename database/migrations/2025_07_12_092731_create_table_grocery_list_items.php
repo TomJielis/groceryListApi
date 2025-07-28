@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('list_item', function (Blueprint $table) {
+        Schema::create('list_items', function (Blueprint $table) {
             $table->id();
             $table->string('name');
             $table->unsignedInteger('quantity')->default(1);
