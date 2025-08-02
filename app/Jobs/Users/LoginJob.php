@@ -5,7 +5,6 @@ namespace App\Jobs\Users;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -37,32 +36,27 @@ class LoginJob implements ShouldQueue
     public function handle()
     {
         $request = $this->request;
-
-        if ( ! Auth::attempt($request->only('username', 'password'))) {
+        if ( ! Auth::attempt($request->only('email', 'password'))) {
+            ray('Invalid login attempt', $request->only('email', 'password'));
             return response()->json([
                 'message' => 'Invalid login details',
             ], 401);
         }
 
         /** @var User $user */
-        $user = User::where('username', $request['username'])
+        $user = User::where('email', $request['email'])
                     ->firstOrFail();
 
+        // Delete existing tokens for the user
         PersonalAccessToken::where('tokenable_id', '=', $user->id)
                            ->delete();
-        $token = $user->createToken('auth_token')->plainTextToken;
-        $userName = $user->firstname . (isset($user->prefix) ? ' ' . $user->prefix : '') . ' ' . $user->lastname;
+        $user = \auth()->user();
+        $token = csrf_token();
 
         return [
             'access_token' => $token,
             'token_type'   => 'Bearer',
-            'user'         => [
-                'id'                => $user->id,
-                'name'              => $userName,
-                'email'             => $user->email,
-                'username'          => $user->username,
-                'email_verified_at' => $user->email_verified_at,
-            ],
+            'user'         => $user,
         ];
     }
 }
