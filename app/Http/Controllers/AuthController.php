@@ -35,9 +35,8 @@ class AuthController extends Controller
      *
      * @return JsonResponse
      */
-    public function register(RegisterUserRequest $request): JsonResponse
+    public function register(Request $request): JsonResponse
     {
-        ray($request->all());
         $user = dispatch_sync(new StoreUserJob($request->all()));
 
         return response()->json([
@@ -52,6 +51,7 @@ class AuthController extends Controller
      */
     public function login(Request $request)
     {
+        ray($request->all());
         $user = (new LoginJob($request))->handle();
 
         return response()->json($user);

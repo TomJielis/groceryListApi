@@ -19,13 +19,12 @@ Route::group(['as' => 'api.'], function () {
     foreach (File::Files(__DIR__ . '/custom') as $file) {
         require $file->getPathname();
     }
+
+    route::get('create-csrf-token',[AuthController::class, 'createCsrfToken']);
+
+    Route::post('/register', [AuthController::class, 'register']);
+    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/password-reset', [AuthController::class, 'passwordReset']);
+    Route::post('/valid-code', [AuthController::class, 'validCode']);
+    Route::post('/set-new-password', [AuthController::class, 'setNewPassword']);
 });
-
-
-route::get('create-csrf-token',[AuthController::class, 'createCsrfToken']);
-
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
-Route::post('/password-reset', [AuthController::class, 'passwordReset']);
-Route::post('/valid-code', [AuthController::class, 'validCode']);
-Route::post('/set-new-password', [AuthController::class, 'setNewPassword']);

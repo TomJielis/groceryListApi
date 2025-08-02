@@ -26,23 +26,23 @@ class RegisterUserRequest extends FormRequest
      */
     public function rules()
     {
-        return [
-            'username'  => 'required|string|max:255|unique:users',
-            'password'  => 'required|string|min:8',
-            'firstname' => 'required|string',
-            'prefix'    => 'string',
-            'lastname'  => 'required|string',
-            'email'     => 'required|string|email|max:255|unique:users',
-        ];
+//        return [
+//            'username'  => 'required|string|max:255|unique:users',
+//            'password'  => 'required|string|min:8',
+//            'firstname' => 'required|string',
+//            'prefix'    => 'string',
+//            'lastname'  => 'required|string',
+//            'email'     => 'required|string|email|max:255|unique:users',
+//        ];
     }
 
     public function failedValidation(Validator $validator)
     {
-        throw new HttpResponseException(response()->json([
-            'success'   => false,
-            'message'   => 'Validation errors',
-            'data'      => $validator->errors()
-        ]));
+//        throw new HttpResponseException(response()->json([
+//            'success'   => false,
+//            'message'   => 'Validation errors',
+//            'data'      => $validator->errors()
+//        ]));
     }
 
     /**
@@ -52,12 +52,12 @@ class RegisterUserRequest extends FormRequest
      */
     public function messages()
     {
-        return [
-            'username.required' => 'username is required!',
-            'password.required' => 'Password is required!',
-            'firstname.required' => 'Firstname is required!',
-            'lastname.required' => 'Lastname is required!',
-            'email.required' => 'Email is required!'
-        ];
+//        return [
+//            'username.required' => 'username is required!',
+//            'password.required' => 'Password is required!',
+//            'firstname.required' => 'Firstname is required!',
+//            'lastname.required' => 'Lastname is required!',
+//            'email.required' => 'Email is required!'
+//        ];
     }
 }
