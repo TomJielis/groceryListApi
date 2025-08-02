@@ -35,30 +35,20 @@ class StoreUserJob implements ShouldQueue
     public function handle()
     {
         $userData = $this->userData;
-
         /** User $user */
         $user = new User();
-        $user->username = $userData['username'];
+        $user->name = $userData['name'];
         $user->password = Hash::make($userData['password']);
-        $user->language = isset($userData['language']) ? $userData['language'] : 'nl';
-        $user->firstname = $userData['firstname'];
-        $user->prefix = isset($userData['prefix']) ? $userData['prefix'] : null;
-        $user->lastname = $userData['lastname'];
         $user->email = $userData['email'];
+
         $user->save();
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+//        $token = $user->createToken('auth_token')->plainTextToken;
 
-        $userName = $user->firstname . (isset($user->prefix) ? ' ' . $user->prefix : '')  . ' ' . $user->lastname;
         $userData = [
-            'access_token' => $token,
+//            'access_token' => $token,
             'token_type'   => 'Bearer',
-            'user'         => [
-                'name'     => $userName,
-                'email'    => $user->email,
-                'username' => $user->username,
-                'email_verified_at' => $user->email_verified_at,
-            ],
+            'user'    => $user,
         ];
 
         return $userData;
