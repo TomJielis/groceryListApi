@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ListItem;
+use App\Models\GroceryListItem;
 use Illuminate\Http\Request;
 
-class ListItemController extends Controller
+class GroceryListItemController extends Controller
 {
 
     /**
@@ -17,7 +17,7 @@ class ListItemController extends Controller
     {
         $offset = $request->get('from');
         $limit = $request->get('till');
-        $listItems = ListItem::select('*');
+        $listItems = GroceryListItem::select('*');
 
         if(isset($offset) && isset($limit)){
             $listItems->limit($limit)
@@ -32,15 +32,14 @@ class ListItemController extends Controller
 
     public function store(Request $request): \Illuminate\Http\JsonResponse
     {
-        ray($request->all());
-        $listItem = ListItem::create($request->all());
+        $listItem = GroceryListItem::create($request->all());
 
         return response()->json([
             'data' => $listItem,
         ]);
     }
 
-    public function increase(Request $request, ListItem $listItem): \Illuminate\Http\JsonResponse
+    public function increase(Request $request, GroceryListItem $listItem): \Illuminate\Http\JsonResponse
     {
         $listItem->increment('quantity', $request->get('amount', 1));
 
@@ -49,7 +48,7 @@ class ListItemController extends Controller
         ]);
     }
 
-    public function decrease(Request $request, ListItem $listItem): \Illuminate\Http\JsonResponse
+    public function decrease(Request $request, GroceryListItem $listItem): \Illuminate\Http\JsonResponse
     {
         $amount = $request->get('amount', 1);
         $listItem->decrement('quantity', $amount);
@@ -59,7 +58,7 @@ class ListItemController extends Controller
         ]);
     }
 
-    public function delete(Request $request, ListItem $listItem): \Illuminate\Http\JsonResponse
+    public function delete(Request $request, GroceryListItem $listItem): \Illuminate\Http\JsonResponse
     {
         $listItem->delete();
 

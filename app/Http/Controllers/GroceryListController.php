@@ -1,0 +1,50 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\GroceryList;
+use App\Models\GroceryListItem;
+use Illuminate\Http\Request;
+
+class GroceryListController extends Controller
+{
+
+    /**
+     * @param Request $request
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function index(Request $request)
+    {
+        $offset = $request->get('from');
+        $limit = $request->get('till');
+        $listItems = GroceryList::select('*');
+
+        if(isset($offset) && isset($limit)){
+            $listItems->limit($limit)
+                    ->offset($offset);
+        }
+
+
+        return response()->json([
+            'data' => $listItems->get(),
+        ]);
+    }
+
+    public function store(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $data = $request->all();
+        $data['created_by'] = 1; // Assuming you want to associate the list with the authenticated user
+        ray($data);
+        $listItem = GroceryList::create(
+            [
+                'name' => $data['name'],
+                'created_by' => $data['created_by'] ?? 1, // Default to 1 if not provided
+            ]
+        );
+
+        return response()->json([
+            'data' => $listItem,
+        ]);
+    }
+}
