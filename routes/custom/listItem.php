@@ -7,4 +7,5 @@ Route::group(['prefix' => 'list-item', 'as' => 'list-item.'], function () {
 
     Route::get('index', [ListItemController::class, 'index']);
     Route::post('store', [ListItemController::class, 'store']);
+    Route::delete('{listItem}/delete', [ListItemController::class, 'delete']);
 });

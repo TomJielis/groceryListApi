@@ -39,4 +39,13 @@ class ListItemController extends Controller
             'data' => $listItem,
         ]);
     }
+
+    public function delete(Request $request, ListItem $listItem): \Illuminate\Http\JsonResponse
+    {
+        $listItem->delete();
+
+        return response()->json([
+            'message' => 'List item deleted successfully',
+        ]);
+    }
 }
