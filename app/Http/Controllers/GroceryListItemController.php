@@ -17,7 +17,11 @@ class GroceryListItemController extends Controller
     {
         $offset = $request->get('from');
         $limit = $request->get('till');
+        $listId = $request->get('listId');
         $listItems = GroceryListItem::select('*');
+        if(isset($listId)){
+            $listItems->where('list_id', $listId);
+        }
 
         if(isset($offset) && isset($limit)){
             $listItems->limit($limit)
@@ -32,6 +36,7 @@ class GroceryListItemController extends Controller
 
     public function store(Request $request): \Illuminate\Http\JsonResponse
     {
+        ray($request->all());
         $listItem = GroceryListItem::create($request->all());
 
         return response()->json([

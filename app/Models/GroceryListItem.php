@@ -24,5 +24,6 @@ class GroceryListItem extends Model
     protected $fillable = [
         'name',
         'quantity',
+        'list_id'
     ];
 }
