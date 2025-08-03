@@ -40,6 +40,25 @@ class ListItemController extends Controller
         ]);
     }
 
+    public function increase(Request $request, ListItem $listItem): \Illuminate\Http\JsonResponse
+    {
+        $listItem->increment('quantity', $request->get('amount', 1));
+
+        return response()->json([
+            'data' => $listItem,
+        ]);
+    }
+
+    public function decrease(Request $request, ListItem $listItem): \Illuminate\Http\JsonResponse
+    {
+        $amount = $request->get('amount', 1);
+        $listItem->decrement('quantity', $amount);
+
+        return response()->json([
+            'data' => $listItem,
+        ]);
+    }
+
     public function delete(Request $request, ListItem $listItem): \Illuminate\Http\JsonResponse
     {
         $listItem->delete();
