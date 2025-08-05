@@ -18,7 +18,9 @@ class GroceryListController extends Controller
     {
         $offset = $request->get('from');
         $limit = $request->get('till');
-        $listItems = GroceryList::select('*');
+        $listItems = GroceryList::select('*')
+            ->withCount('groceryListItems')
+            ->withCount('groceryListItemsChecked');
 
         if(isset($offset) && isset($limit)){
             $listItems->limit($limit)
@@ -35,7 +37,7 @@ class GroceryListController extends Controller
     {
         $data = $request->all();
         $data['created_by'] = 1; // Assuming you want to associate the list with the authenticated user
-        ray($data);
+
         $listItem = GroceryList::create(
             [
                 'name' => $data['name'],

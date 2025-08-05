@@ -25,4 +25,15 @@ class GroceryList extends Model
         'name',
         'created_by',
     ];
+
+
+    public function groceryListItems()
+    {
+        return $this->hasMany(GroceryListItem::class, 'list_id', 'id');
+    }
+
+    public function groceryListItemsChecked()
+    {
+        return $this->groceryListItems()->where('checked', true);
+    }
 }
