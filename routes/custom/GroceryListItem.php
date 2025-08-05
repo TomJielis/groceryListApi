@@ -7,6 +7,7 @@ Route::group(['prefix' => 'grocery-list-item', 'as' => 'grocery-list-item.'], fu
 
     Route::POST('index', [GroceryListItemController::class, 'index']);
     Route::post('store', [GroceryListItemController::class, 'store']);
+    Route::post('{listItem}/checked', [GroceryListItemController::class, 'checked']);
     Route::post('{listItem}/increase', [GroceryListItemController::class, 'increase']);
     Route::post('{listItem}/decrease', [GroceryListItemController::class, 'decrease']);
     Route::delete('{listItem}/delete', [GroceryListItemController::class, 'delete']);
