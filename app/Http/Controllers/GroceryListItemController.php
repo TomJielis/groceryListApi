@@ -19,8 +19,9 @@ class GroceryListItemController extends Controller
         $limit = $request->get('till');
         $listId = $request->get('listId');
         $listItems = GroceryListItem::select('*');
+
         if(isset($listId)){
-            $listItems->where('list_id', $listId);
+            $listItems->where('list_items.list_id', $listId);
         }
 
         if(isset($offset) && isset($limit)){

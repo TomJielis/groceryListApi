@@ -37,7 +37,6 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $user = (new LoginJob($request))->handle();
-        ray($user);
         return response()->json($user);
     }
 
