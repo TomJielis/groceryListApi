@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('list_items', function (Blueprint $table) {
-            $table->boolean('checked')->after('list_id');
+            $table->boolean('checked')->default(false)->after('list_id');
         });
     }
 
