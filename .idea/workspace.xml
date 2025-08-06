@@ -6,8 +6,8 @@
   <component name="ChangeListManager">
     <list default="true" id="eca1d0c2-352d-4d1d-8cfe-d3b3b50c710f" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/Models/GroceryListItem.php" beforeDir="false" afterPath="$PROJECT_DIR$/app/Models/GroceryListItem.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/database/migrations/2025_08_05_161333_add_column_checked_to_list_item_table.php" beforeDir="false" afterPath="$PROJECT_DIR$/database/migrations/2025_08_05_161333_add_column_checked_to_list_item_table.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/Http/Controllers/GroceryListController.php" beforeDir="false" afterPath="$PROJECT_DIR$/app/Http/Controllers/GroceryListController.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/routes/custom/GroceryList.php" beforeDir="false" afterPath="$PROJECT_DIR$/routes/custom/GroceryList.php" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

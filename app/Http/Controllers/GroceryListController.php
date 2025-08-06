@@ -49,4 +49,14 @@ class GroceryListController extends Controller
             'data' => $listItem,
         ]);
     }
+
+    public function delete(Request $request, GroceryList $groceryList): \Illuminate\Http\JsonResponse
+    {
+        ray($groceryList);
+//        $groceryList->delete();
+
+        return response()->json([
+            'message' => 'List item deleted successfully',
+        ]);
+    }
 }
