@@ -12,6 +12,7 @@ use App\Transformers\Users\UserRequestTransformer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Tymon\JWTAuth\Facades\JWTAuth;
 
 class AuthController extends Controller
 {
@@ -36,8 +37,22 @@ class AuthController extends Controller
      */
     public function login(Request $request)
     {
-        $user = (new LoginJob($request))->handle();
-        return response()->json($user);
+        $credentials = $request->only('email', 'password');
+
+        if (!$token = JWTAuth::attempt($credentials)) {
+            return response()->json(['error' => 'Invalid credentials'], 401);
+        }
+
+        return response()->json([
+            'data' => [
+                'access_token' => $token,
+                'token_type' => 'bearer',
+                'expires_in' => auth('api')->factory()->getTTL() * 60,
+                'auth_user' => auth()->user(),
+            ]
+        ]);
+//        $user = (new LoginJob($request))->handle();
+//        return response()->json($user);
     }
 
     public function update(UpdateUserRequest $request, UserRequestTransformer $transformer, User $user){

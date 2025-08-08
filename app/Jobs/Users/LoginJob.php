@@ -35,6 +35,7 @@ class LoginJob implements ShouldQueue
      */
     public function handle()
     {
+        ray('hier');
         $request = $this->request;
         if ( ! Auth::attempt($request->only('email', 'password'))) {
             ray('Invalid login attempt', $request->only('email', 'password'));
