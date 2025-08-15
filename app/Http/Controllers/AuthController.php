@@ -51,8 +51,6 @@ class AuthController extends Controller
                 'auth_user' => auth()->user(),
             ]
         ]);
-//        $user = (new LoginJob($request))->handle();
-//        return response()->json($user);
     }
 
     public function update(UpdateUserRequest $request, UserRequestTransformer $transformer, User $user){
