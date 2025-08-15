@@ -19,7 +19,7 @@ Route::group(['as' => 'api.'], function () {
     foreach (File::Files(__DIR__ . '/custom') as $file) {
         require $file->getPathname();
     }
-
-    Route::post('/register', [AuthController::class, 'register']);
-    Route::post('/login', [AuthController::class, 'login']);
 });
+
+Route::post('/register', [AuthController::class, 'register'])->withoutMiddleware('auth:sanctum');
+Route::post('/login', [AuthController::class, 'login'])->withoutMiddleware('auth:sanctum');

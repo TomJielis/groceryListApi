@@ -52,8 +52,7 @@ class GroceryListController extends Controller
 
     public function delete(Request $request, GroceryList $groceryList): \Illuminate\Http\JsonResponse
     {
-        ray($groceryList);
-//        $groceryList->delete();
+        $groceryList->delete();
 
         return response()->json([
             'message' => 'List item deleted successfully',

@@ -57,6 +57,10 @@ class GroceryListItemController extends Controller
 
     public function increase(Request $request, GroceryListItem $listItem): \Illuminate\Http\JsonResponse
     {
+
+        ray($request->user());
+        dd($request);
+
         $listItem->increment('quantity', $request->get('amount', 1));
 
         return response()->json([
