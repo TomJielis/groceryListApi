@@ -26,6 +26,14 @@ class GroceryList extends Model
         'created_by',
     ];
 
+    protected static function boot()
+    {
+        parent::boot();
+        static::addGlobalScope('user', function (\Illuminate\Database\Eloquent\Builder $builder) {
+            $builder->where('created_by', auth()->user()->id);
+        });
+    }
+
 
     public function groceryListItems()
     {
