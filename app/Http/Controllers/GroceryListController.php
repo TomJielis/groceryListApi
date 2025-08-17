@@ -3,7 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\GroceryList;
+use App\Models\GroceryListInvites;
+use App\Models\GroceryListInvitesStatus;
 use App\Models\GroceryListItem;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class GroceryListController extends Controller
@@ -47,6 +50,40 @@ class GroceryListController extends Controller
 
         return response()->json([
             'data' => $listItem,
+        ]);
+    }
+
+    public function share(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $data = $request->all();
+        $groceryList = GroceryList::find($data['groceryListId']);
+
+        if (!$groceryList) {
+            return response()->json(['message' => 'Grocery list not found'], 404);
+        }
+
+        $user = User::where('email','=', $data['email'])->first();
+        if(!$user){
+            return response()->json(['message' => 'User not found'], 404);
+        }
+
+        if($user->id === auth()->user()->id){
+            return response()->json(['message' => 'You cannot share the list with yourself'], 400);
+        }
+
+        GroceryListInvites::create(
+            [
+                'grocery_list_id' => $groceryList->id,
+                'user_id' => $user->id,
+                'status' => GroceryListInvitesStatus::ACCEPTED,
+            ]
+        );
+
+
+
+        return response()->json([
+            'message' => 'Grocery list shared successfully',
+            'data' => $groceryList,
         ]);
     }
 

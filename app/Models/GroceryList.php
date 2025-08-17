@@ -30,7 +30,12 @@ class GroceryList extends Model
     {
         parent::boot();
         static::addGlobalScope('user', function (\Illuminate\Database\Eloquent\Builder $builder) {
-            $builder->where('created_by', auth()->user()->id);
+            $builder->where('grocery_lists.created_by', auth()->id());
+
+            $builder->orWhereHas('groceryListInvites', function ($query) {
+                $query->where('user_id', auth()->id())
+                      ->where('status', GroceryListInvitesStatus::ACCEPTED);
+            });
         });
     }
 
@@ -43,5 +48,10 @@ class GroceryList extends Model
     public function groceryListItemsChecked()
     {
         return $this->groceryListItems()->where('checked', true);
+    }
+
+    public function groceryListInvites()
+    {
+        return $this->hasMany(GroceryListInvites::class, 'grocery_list_id', 'id');
     }
 }
