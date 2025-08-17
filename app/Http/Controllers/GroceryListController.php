@@ -36,7 +36,7 @@ class GroceryListController extends Controller
     public function store(Request $request): \Illuminate\Http\JsonResponse
     {
         $data = $request->all();
-        $data['created_by'] = 1; // Assuming you want to associate the list with the authenticated user
+        $data['created_by'] = auth()->user()->id; // Assuming you want to associate the list with the authenticated user
 
         $listItem = GroceryList::create(
             [

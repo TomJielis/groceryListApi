@@ -37,7 +37,15 @@ class GroceryListItemController extends Controller
 
     public function store(Request $request): \Illuminate\Http\JsonResponse
     {
-        $listItem = GroceryListItem::create($request->all());
+        $data = $request->all();
+        $listItem = GroceryListItem::create(
+            [
+                'name' => $data['name'],
+                'quantity' => $data['quantity'] ?? 1,
+                'list_id' => $data['list_id'] ?? null,
+                'created_by' => $data['created_by'] ?? 1,
+            ]
+        );
 
         return response()->json([
             'data' => $listItem,
