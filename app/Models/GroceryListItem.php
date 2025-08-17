@@ -16,6 +16,11 @@ class GroceryListItem extends Model
      */
     protected $table = 'list_items';
 
+    protected static function boot()
+    {
+        parent::boot();
+    }
+
     /**
      * The attributes that are mass assignable.
      *

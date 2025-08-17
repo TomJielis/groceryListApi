@@ -18,7 +18,20 @@ class GroceryListItemController extends Controller
         $offset = $request->get('from');
         $limit = $request->get('till');
         $listId = $request->get('listId');
-        $listItems = GroceryListItem::select('*');
+        $listItems = GroceryListItem::select('list_items.*');
+
+        $listItems->join('grocery_lists', 'grocery_lists.id', '=', 'list_items.list_id')
+            ->leftJoin('grocery_list_invites', 'grocery_list_invites.grocery_list_id', '=', 'grocery_lists.id')
+
+            ->where(function ($subQuery) {
+                $subQuery->where('grocery_lists.created_by', auth()->user()->id)
+                    ->orWhere(function($query){
+                        $query->where('grocery_list_invites.user_id','=', auth()->user()->id)
+                           ->where('grocery_list_invites.status', 'accepted');
+                    });
+            });
+
+        $listItems->where('list_items.checked',false);
 
         if(isset($listId)){
             $listItems->where('list_items.list_id', $listId);
