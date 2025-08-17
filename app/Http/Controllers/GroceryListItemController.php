@@ -31,8 +31,6 @@ class GroceryListItemController extends Controller
                     });
             });
 
-        $listItems->where('list_items.checked',false);
-
         if(isset($listId)){
             $listItems->where('list_items.list_id', $listId);
         }
