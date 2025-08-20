@@ -37,7 +37,6 @@ class LoginJob implements ShouldQueue
     {
         $request = $this->request;
         if ( ! Auth::attempt($request->only('email', 'password'))) {
-            ray('Invalid login attempt', $request->only('email', 'password'));
             throw new \Exception('Invalid login attempt');
         }
 
@@ -51,7 +50,6 @@ class LoginJob implements ShouldQueue
         $user = \auth()->user();
         $token = $user->createToken('nuxt-frontend')->plainTextToken;
 
-        ray($token);
         return [
             'access_token' => $token,
             'token_type'   => 'Bearer',
