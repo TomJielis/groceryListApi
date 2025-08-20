@@ -1,0 +1,6 @@
+# Node.js
+node_modules/
+.env
+bun.lock
+package-lock.json
+.nuxt

@@ -37,7 +37,6 @@ class UpdateUserJob implements ShouldQueue
     {
         $userData = $this->userData;
         $user = $this->user;
-        ray($user);
         $user->firstname = $userData->firstname;
         $user->prefix = $userData->prefix;
         $user->lastname = $userData->lastname;
