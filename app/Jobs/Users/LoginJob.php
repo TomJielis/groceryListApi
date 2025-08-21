@@ -35,7 +35,10 @@ class LoginJob implements ShouldQueue
      */
     public function handle()
     {
+        \log::info('LoginJob started');
         $request = $this->request;
+        \log::info($request->all() ?? 'no request data');
+
         if ( ! Auth::attempt($request->only('email', 'password'))) {
             throw new \Exception('Invalid login attempt');
         }
