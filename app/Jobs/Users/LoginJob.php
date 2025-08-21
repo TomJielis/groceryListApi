@@ -2,6 +2,7 @@
 
 namespace App\Jobs\Users;
 
+use Illuminate\Support\Facades\Log;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Bus\Queueable;
@@ -35,26 +36,27 @@ class LoginJob implements ShouldQueue
      */
     public function handle()
     {
-        \log::info('LoginJob started');
-        $request = $this->request;
-        \log::info($request->all() ?? 'no request data');
+        Log::info('starting.');
 
+        // Validate the request data
+        $request = $this->request;
         if ( ! Auth::attempt($request->only('email', 'password'))) {
+            Log::info('password invalid.');
+
             throw new \Exception('Invalid login attempt');
         }
 
         /** @var User $user */
         $user = User::where('email', $request['email'])
                     ->firstOrFail();
-
-        \Log::info($user->id ?? 'no user');
-
+        Log::info('userId ' . $user->id);
         // Delete existing tokens for the user
         PersonalAccessToken::where('tokenable_id', '=', $user->id)
                            ->delete();
         $user = \auth()->user();
         $token = $user->createToken('nuxt-frontend')->plainTextToken;
-        \Log::info($token ?? 'no token');
+
+        Log::info('token created: ' . $token);
 
         return [
             'access_token' => $token,
