@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\GroceryList;
 use App\Models\GroceryListInvites;
 use App\Models\GroceryListInvitesStatus;
-use App\Models\GroceryListItem;
 use App\Models\User;
 use Illuminate\Http\Request;
 
@@ -62,9 +61,9 @@ class GroceryListController extends Controller
             return response()->json(['message' => 'Grocery list not found'], 404);
         }
 
-        $user = User::where('email','=', $data['email'])->first();
+        $user = User::where('email', $data['email'])->first();
         if(!$user){
-            throw new \Exception('User not found ' . $data['email']);
+            throw new \Exception($data['email']);
         }
 
         if($user->id === auth()->user()->id){
