@@ -58,7 +58,7 @@ class GroceryListItemController extends Controller
         } else {
             $listItem = GroceryListItem::create(
                 [
-                    'name' => $data['name'],
+                    'name' => ucfirst($data['name']),
                     'quantity' => $data['quantity'] ?? 1,
                     'list_id' => $data['list_id'] ?? null,
                     'created_by' => $data['created_by'] ?? 1,
