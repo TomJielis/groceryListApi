@@ -49,10 +49,11 @@ class LoginJob implements ShouldQueue
         /** @var User $user */
         $user = User::where('email', $request['email'])
                     ->firstOrFail();
-        Log::info('userId ' . $user->id);
+
         // Delete existing tokens for the user
-        PersonalAccessToken::where('tokenable_id', '=', $user->id)
-                           ->delete();
+//        PersonalAccessToken::where('tokenable_id', '=', $user->id)
+//                           ->delete();
+
         $user = \auth()->user();
         $token = $user->createToken('nuxt-frontend')->plainTextToken;
 
