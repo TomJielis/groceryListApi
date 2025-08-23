@@ -32,8 +32,6 @@ class GroceryListItemController extends Controller
 
         if (isset($listId)) {
             $listItems->where('list_items.list_id', $listId);
-        } else {
-            $listItems->where('list_items.checked', false);
         }
 
         if (isset($offset) && isset($limit)) {
