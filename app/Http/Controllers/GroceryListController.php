@@ -64,7 +64,7 @@ class GroceryListController extends Controller
 
         $user = User::where('email','=', $data['email'])->first();
         if(!$user){
-            throw new \Exception('User not found');
+            throw new \Exception('User not found ' . $data['email']);
         }
 
         if($user->id === auth()->user()->id){
