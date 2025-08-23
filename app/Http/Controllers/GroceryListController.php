@@ -64,11 +64,11 @@ class GroceryListController extends Controller
 
         $user = User::where('email','=', $data['email'])->first();
         if(!$user){
-            return response()->json(['message' => 'User not found'], 404);
+            throw new \Exception('User not found');
         }
 
         if($user->id === auth()->user()->id){
-            return response()->json(['message' => 'You cannot share the list with yourself'], 400);
+            throw new \Exception('You cannot share the list with yourself');
         }
 
         GroceryListInvites::create(
