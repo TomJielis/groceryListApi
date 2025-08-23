@@ -22,24 +22,23 @@ class GroceryListItemController extends Controller
 
         $listItems->join('grocery_lists', 'grocery_lists.id', '=', 'list_items.list_id')
             ->leftJoin('grocery_list_invites', 'grocery_list_invites.grocery_list_id', '=', 'grocery_lists.id')
-
             ->where(function ($subQuery) {
                 $subQuery->where('grocery_lists.created_by', auth()->user()->id)
-                    ->orWhere(function($query){
-                        $query->where('grocery_list_invites.user_id','=', auth()->user()->id)
-                           ->where('grocery_list_invites.status', 'accepted');
+                    ->orWhere(function ($query) {
+                        $query->where('grocery_list_invites.user_id', '=', auth()->user()->id)
+                            ->where('grocery_list_invites.status', 'accepted');
                     });
             });
 
-        if(isset($listId)){
+        if (isset($listId)) {
             $listItems->where('list_items.list_id', $listId);
-        }else{
+        } else {
             $listItems->where('list_items.checked', false);
         }
 
-        if(isset($offset) && isset($limit)){
+        if (isset($offset) && isset($limit)) {
             $listItems->limit($limit)
-                    ->offset($offset);
+                ->offset($offset);
         }
 
 
@@ -51,14 +50,23 @@ class GroceryListItemController extends Controller
     public function store(Request $request): \Illuminate\Http\JsonResponse
     {
         $data = $request->all();
-        $listItem = GroceryListItem::create(
-            [
-                'name' => $data['name'],
-                'quantity' => $data['quantity'] ?? 1,
-                'list_id' => $data['list_id'] ?? null,
-                'created_by' => $data['created_by'] ?? 1,
-            ]
-        );
+        $listItem = GroceryListItem::where('name', $data['name'])
+            ->where('list_id', $data['list_id'])
+            ->first();
+
+        if ($listItem) {
+            $listItem->checked = false;
+            $listItem->save();
+        } else {
+            $listItem = GroceryListItem::create(
+                [
+                    'name' => $data['name'],
+                    'quantity' => $data['quantity'] ?? 1,
+                    'list_id' => $data['list_id'] ?? null,
+                    'created_by' => $data['created_by'] ?? 1,
+                ]
+            );
+        }
 
         return response()->json([
             'data' => $listItem,
