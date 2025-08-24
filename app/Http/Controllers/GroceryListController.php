@@ -87,6 +87,16 @@ class GroceryListController extends Controller
         ]);
     }
 
+    public function favorite(Request $request, GroceryList $groceryList): \Illuminate\Http\JsonResponse
+    {
+        $user = auth()->user();
+        $user->favorite_list_id = $groceryList->id;
+        $user->save();
+        return response()->json([
+            'message' => 'List is favorite',
+        ]);
+    }
+
     public function delete(Request $request, GroceryList $groceryList): \Illuminate\Http\JsonResponse
     {
         $groceryList->groceryListInvites()->delete();
