@@ -23,3 +23,4 @@ Route::group(['as' => 'api.'], function () {
 
 Route::post('/register', [AuthController::class, 'register'])->withoutMiddleware('auth:sanctum');
 Route::post('/login', [AuthController::class, 'login'])->withoutMiddleware('auth:sanctum');
+Route::post('/me', [AuthController::class, 'me']);
