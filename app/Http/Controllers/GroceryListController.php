@@ -87,10 +87,10 @@ class GroceryListController extends Controller
         ]);
     }
 
-    public function favorite(Request $request, GroceryList $groceryList): \Illuminate\Http\JsonResponse
+    public function favorite(Request $request): \Illuminate\Http\JsonResponse
     {
         $user = auth()->user();
-        $user->favorite_list_id = $groceryList->id;
+        $user->favorite_list_id = $request->get('listId') ?? null;
         $user->save();
         return response()->json([
             'message' => 'List is favorite',

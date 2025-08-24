@@ -7,6 +7,6 @@ Route::group(['prefix' => 'grocery-list', 'as' => 'grocery-list.'], function () 
     Route::get('index', [GroceryListController::class, 'index']);
     Route::post('store', [GroceryListController::class, 'store']);
     Route::post('share', [GroceryListController::class, 'share']);
-    Route::post('{groceryList}/favorite', [GroceryListController::class, 'favorite']);
+    Route::post('favorite', [GroceryListController::class, 'favorite']);
     Route::delete('{groceryList}/delete', [GroceryListController::class, 'delete']);
 });
