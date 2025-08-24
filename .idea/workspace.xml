@@ -4,11 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="eca1d0c2-352d-4d1d-8cfe-d3b3b50c710f" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/Http/Controllers/GroceryListController.php" beforeDir="false" afterPath="$PROJECT_DIR$/app/Http/Controllers/GroceryListController.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/routes/custom/GroceryList.php" beforeDir="false" afterPath="$PROJECT_DIR$/routes/custom/GroceryList.php" afterDir="false" />
-    </list>
+    <list default="true" id="eca1d0c2-352d-4d1d-8cfe-d3b3b50c710f" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -223,7 +219,7 @@
       <workItem from="1755936953208" duration="2940000" />
       <workItem from="1755963071536" duration="2028000" />
       <workItem from="1755973704804" duration="2125000" />
-      <workItem from="1756031769304" duration="3229000" />
+      <workItem from="1756031769304" duration="3579000" />
     </task>
     <servers />
   </component>
