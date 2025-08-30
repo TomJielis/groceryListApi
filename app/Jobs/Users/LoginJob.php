@@ -40,19 +40,24 @@ class LoginJob implements ShouldQueue
 
         // Validate the request data
         $request = $this->request;
-        if ( ! Auth::attempt($request->only('email', 'password'))) {
-            Log::info('password invalid.');
+//        if ( ! Auth::attempt($request->only('email', 'password'))) {
+//            Log::info('password invalid.');
+//
+//            throw new \Exception('Invalid login attempt');
+//        }
+        $pincode = $request->input('pincode');
 
-            throw new \Exception('Invalid login attempt');
+        if($pincode)
+        {
+            match ($pincode){
+                '1234' => $mail = 'nerisesilie@gmail.com',
+                '1233' => $mail = 'tomjielis@hotmail.com'
+            };
+
         }
 
-        /** @var User $user */
-        $user = User::where('email', $request['email'])
-                    ->firstOrFail();
-
-        // Delete existing tokens for the user
-//        PersonalAccessToken::where('tokenable_id', '=', $user->id)
-//                           ->delete();
+        $user = User::where('email', $mail)->first();
+        \auth()->login($user);
 
         $user = \auth()->user();
         $token = $user->createToken('nuxt-frontend')->plainTextToken;
