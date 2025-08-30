@@ -36,28 +36,13 @@ class LoginJob implements ShouldQueue
      */
     public function handle()
     {
-        Log::info('starting.');
-
         // Validate the request data
         $request = $this->request;
-//        if ( ! Auth::attempt($request->only('email', 'password'))) {
-//            Log::info('password invalid.');
-//
-//            throw new \Exception('Invalid login attempt');
-//        }
-        $pincode = $request->input('pincode');
+        if ( ! Auth::attempt($request->only('email', 'password'))) {
+            Log::info('password invalid.');
 
-        if($pincode)
-        {
-            match ($pincode){
-                '1234' => $mail = 'nerisesilie@gmail.com',
-                '0000' => $mail = 'tomjielis@hotmail.com'
-            };
-
+            throw new \Exception('Invalid login attempt');
         }
-
-        $user = User::where('email', $mail)->first();
-        \auth()->login($user);
 
         $user = \auth()->user();
         $token = $user->createToken('nuxt-frontend')->plainTextToken;
