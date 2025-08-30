@@ -54,6 +54,7 @@ class GroceryListItemController extends Controller
 
         if ($listItem) {
             $listItem->checked = false;
+            $listItem->quantity = 1;
             $listItem->save();
         } else {
             $listItem = GroceryListItem::create(
