@@ -51,7 +51,7 @@ class LoginJob implements ShouldQueue
         {
             match ($pincode){
                 '1234' => $mail = 'nerisesilie@gmail.com',
-                '1233' => $mail = 'tomjielis@hotmail.com'
+                '0000' => $mail = 'tomjielis@hotmail.com'
             };
 
         }
