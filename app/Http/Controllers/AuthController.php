@@ -22,11 +22,8 @@ class AuthController extends Controller
      */
     public function register(Request $request): JsonResponse
     {
-        $user = dispatch_sync(new StoreUserJob($request->all()));
-
-        return response()->json([
-            $user,
-        ]);
+        $user = (new StoreUserJob($request->all()))->handle();
+        return response()->json($user);
     }
 
     /**
@@ -38,15 +35,6 @@ class AuthController extends Controller
     {
         $user = (new LoginJob($request))->handle();
         return response()->json($user);
-    }
-
-    public function update(UpdateUserRequest $request, UserRequestTransformer $transformer, User $user){
-       $userData = $transformer->transform($request);
-       $user = (new UpdateUserJob($userData, $user))->handle();
-
-       return response()->json([
-           'user' => $user
-       ]);
     }
 
     /**

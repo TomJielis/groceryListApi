@@ -40,17 +40,15 @@ class StoreUserJob implements ShouldQueue
         $user->name = $userData['name'];
         $user->password = Hash::make($userData['password']);
         $user->email = $userData['email'];
-
         $user->save();
 
-//        $token = $user->createToken('auth_token')->plainTextToken;
+        $token = $user->createToken('auth_token')->plainTextToken;
 
-        $userData = [
-//            'access_token' => $token,
-            'token_type'   => 'Bearer',
-            'user'    => $user,
+
+        return [
+            'access_token' => $token,
+            'token_type' => 'Bearer',
+            'user' => $user,
         ];
-
-        return $userData;
     }
 }
