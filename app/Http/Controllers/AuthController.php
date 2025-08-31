@@ -58,8 +58,6 @@ class AuthController extends Controller
     {
        $user = Auth::user();
 
-       ray($user);
-
         return response()->json([
             'user' => $user
         ]);

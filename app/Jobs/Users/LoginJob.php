@@ -38,21 +38,21 @@ class LoginJob implements ShouldQueue
     {
         // Validate the request data
         $request = $this->request;
-        if ( ! Auth::attempt($request->only('email', 'password'))) {
-            Log::info('password invalid.');
-
-            throw new \Exception('Invalid login attempt');
+        if (!Auth::attempt($request->only('email', 'password'))) {
+            return [
+                'error' => 'Invalid login attempt',
+                'success' => false,
+                'status' => 401,
+            ];
         }
 
         $user = \auth()->user();
         $token = $user->createToken('nuxt-frontend')->plainTextToken;
 
-        Log::info('token created: ' . $token);
-
         return [
             'access_token' => $token,
-            'token_type'   => 'Bearer',
-            'user'         => $user,
+            'token_type' => 'Bearer',
+            'user' => $user,
         ];
     }
 }
