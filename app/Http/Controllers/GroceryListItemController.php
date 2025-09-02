@@ -18,9 +18,9 @@ class GroceryListItemController extends Controller
         $offset = $request->get('from');
         $limit = $request->get('till');
         $listId = $request->get('listId');
-        $listItems = GroceryListItem::select('list_items.*');
+        $listItems = GroceryListItem::select('grocery_list_items.*');
 
-        $listItems->join('grocery_lists', 'grocery_lists.id', '=', 'list_items.list_id')
+        $listItems->join('grocery_lists', 'grocery_lists.id', '=', 'grocery_list_items.list_id')
             ->leftJoin('grocery_list_invites', 'grocery_list_invites.grocery_list_id', '=', 'grocery_lists.id')
             ->where(function ($subQuery) {
                 $subQuery->where('grocery_lists.created_by', auth()->user()->id)
@@ -31,7 +31,7 @@ class GroceryListItemController extends Controller
             });
 
         if (isset($listId)) {
-            $listItems->where('list_items.list_id', $listId);
+            $listItems->where('grocery_list_items.list_id', $listId);
         }
 
         if (isset($offset) && isset($limit)) {
