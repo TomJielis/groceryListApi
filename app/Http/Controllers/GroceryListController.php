@@ -48,6 +48,9 @@ class GroceryListController extends Controller
             ]
         );
 
+        $listItem['grocery_list_items_checked_count'] = 0;
+        $listItem['grocery_list_items_count'] = 0;
+
         return response()->json([
             'data' => $listItem,
         ]);
