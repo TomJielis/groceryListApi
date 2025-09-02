@@ -14,7 +14,7 @@ class GroceryListItem extends Model
      *
      * @var string
      */
-    protected $table = 'list_items';
+    protected $table = 'grocery_list_items';
 
     protected static function boot()
     {
