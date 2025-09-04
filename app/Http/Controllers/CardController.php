@@ -35,4 +35,21 @@ class CardController extends Controller
             'data' => $card,
         ]);
     }
+
+    public function delete(Card $card)
+    {
+        if ($card->user_id !== Auth::id()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized',
+            ], 403);
+        }
+
+        $card->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Card deleted successfully',
+        ]);
+    }
 }
