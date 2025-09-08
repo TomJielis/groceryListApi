@@ -23,4 +23,6 @@ Route::group(['as' => 'api.'], function () {
 
 Route::post('/register', [AuthController::class, 'register'])->withoutMiddleware('auth:sanctum');
 Route::post('/login', [AuthController::class, 'login'])->withoutMiddleware('auth:sanctum');
+Route::post('/reset-password', [AuthController::class, 'resetPassword'])->withoutMiddleware('auth:sanctum');
+Route::post('/set-new-password', [AuthController::class, 'setNewPassword'])->withoutMiddleware('auth:sanctum');
 Route::post('/me', [AuthController::class, 'me']);
