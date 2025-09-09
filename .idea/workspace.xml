@@ -5,13 +5,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="eca1d0c2-352d-4d1d-8cfe-d3b3b50c710f" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/app/Mail/ResetPassword.php" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/app/Models/TemporaryPasswordCode.php" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/resources/views/emails/password/user-password-reset.blade.php" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.env" beforeDir="false" afterPath="$PROJECT_DIR$/.env" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/Http/Controllers/AuthController.php" beforeDir="false" afterPath="$PROJECT_DIR$/app/Http/Controllers/AuthController.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/routes/api.php" beforeDir="false" afterPath="$PROJECT_DIR$/routes/api.php" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -171,8 +167,8 @@
     "RunOnceActivity.OpenProjectViewOnStart": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.git.unshallow": "true",
-    "git-widget-placeholder": "main",
-    "last_opened_file_path": "/Users/tomjielisvanwijgerden/projects/groceryListApi/resources/views",
+    "git-widget-placeholder": "resetPassword",
+    "last_opened_file_path": "/Users/tomjielisvanwijgerden/projects/groceryListApi",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
@@ -183,10 +179,10 @@
 }]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$" />
       <recent name="$PROJECT_DIR$/resources/views" />
       <recent name="$PROJECT_DIR$/app" />
       <recent name="$PROJECT_DIR$/routes/custom" />
-      <recent name="$PROJECT_DIR$" />
       <recent name="$PROJECT_DIR$/routes" />
     </key>
   </component>
@@ -236,7 +232,8 @@
       <workItem from="1756928650887" duration="1909000" />
       <workItem from="1757014575050" duration="372000" />
       <workItem from="1757089221957" duration="544000" />
-      <workItem from="1757353126788" duration="3001000" />
+      <workItem from="1757353126788" duration="3119000" />
+      <workItem from="1757435158602" duration="600000" />
     </task>
     <servers />
   </component>
