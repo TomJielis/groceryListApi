@@ -64,11 +64,11 @@ class AuthController extends Controller
         $temporaryPasswordCode->is_used = false;
         $temporaryPasswordCode->save();
 
-        $url = env('FRONTEND_URL') . '/auth/password/' . $code;
-        $content = '<br />Beste ' . $user->firstname . ' ' . $user->prefix . ' ' . $user->lastname . ' , <br/><br/> Klik op de onderstaande knop om een nieuw wachtwoord in te stellen';
-        $content .= '<br /><br/> <a target="_blank" rel="noopener noreferrer" href="' . $url . '" class="button button-blue" style="font-family: Avenir, Helvetica, sans-serif; box-sizing: border-box; border-radius: 3px; box-shadow: 0 2px 3px rgba(0, 0, 0, 0.16); color: #ffffff; display: inline-block; text-decoration: none; -webkit-text-size-adjust: none; background-color: #d0393b; border-top: 10px solid #d0393b; border-right: 18px solid #d0393b; border-bottom: 10px solid #d0393b; border-left: 18px solid #d0393b;"> Klik hier om een wachtwoord in te stellen</a>';
-        $content .= '<br /><br/> Met vriendelijke groet,<br>' . env('company_name') . '<br />';
-        $title = "Nieuw wachtwoord instellen";
+        $url = config('app.url') . '/auth/password/' . $code;
+        $content = '<br />Dear ' . $user->name . ', <br/><br/> Click the button below to set a new password';
+        $content .= '<br /><br/> <a target="_blank" rel="noopener noreferrer" href="' . $url . '" class="button button-blue" style="font-family: Avenir, Helvetica, sans-serif; box-sizing: border-box; border-radius: 3px; box-shadow: 0 2px 3px rgba(0, 0, 0, 0.16); color: #ffffff; display: inline-block; text-decoration: none; -webkit-text-size-adjust: none; background-color: #d0393b; border-top: 10px solid #d0393b; border-right: 18px solid #d0393b; border-bottom: 10px solid #d0393b; border-left: 18px solid #d0393b;"> Click here to set a password</a>';
+        $content .= '<br /><br/> Kind regards,<br>' . env('company_name') . '<br />';
+        $title = "Set a new password";
 
         $mail = new ResetPassword($url, $user, $content, $title);
 
@@ -78,13 +78,15 @@ class AuthController extends Controller
         ]);
 
         try {
-             Mail::to($email)
+            Mail::to($email)
                 ->send($mail);
 
         } catch (\Exception $exception) {
             \Log::error($exception->getMessage());
             return response()->json(['message' => 'Failed to send email'], 500);
         }
+
+        return response()->json(['message' => 'Password reset email sent'], 200);
 
     }
 
@@ -101,7 +103,7 @@ class AuthController extends Controller
             ->where('is_used', '=', false)
             ->first();
 
-        if(!$temporaryPasswordCode) {
+        if (!$temporaryPasswordCode) {
             return response()->json(['message' => 'Invalid code'], 400);
         }
 
