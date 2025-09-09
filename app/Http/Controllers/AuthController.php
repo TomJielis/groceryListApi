@@ -65,7 +65,6 @@ class AuthController extends Controller
         $temporaryPasswordCode->save();
 
         $url = env('FRONTEND_URL') . '/auth/password/' . $code;
-        ray($url);
         $content = '<br />Beste ' . $user->firstname . ' ' . $user->prefix . ' ' . $user->lastname . ' , <br/><br/> Klik op de onderstaande knop om een nieuw wachtwoord in te stellen';
         $content .= '<br /><br/> <a target="_blank" rel="noopener noreferrer" href="' . $url . '" class="button button-blue" style="font-family: Avenir, Helvetica, sans-serif; box-sizing: border-box; border-radius: 3px; box-shadow: 0 2px 3px rgba(0, 0, 0, 0.16); color: #ffffff; display: inline-block; text-decoration: none; -webkit-text-size-adjust: none; background-color: #d0393b; border-top: 10px solid #d0393b; border-right: 18px solid #d0393b; border-bottom: 10px solid #d0393b; border-left: 18px solid #d0393b;"> Klik hier om een wachtwoord in te stellen</a>';
         $content .= '<br /><br/> Met vriendelijke groet,<br>' . env('company_name') . '<br />';
@@ -74,19 +73,19 @@ class AuthController extends Controller
         $mail = new ResetPassword($url, $user, $content, $title);
 
         Config::set('mail.from', [
-            'address' => 'noreply@tomjielis.com',
-            'name' => 'GroceryList',
+            'address' => env('MAIL_FROM_ADDRESS'),
+            'name' => env('MAIL_FROM_NAME'),
         ]);
 
         try {
-            Mail::to($email)
+             Mail::to($email)
                 ->send($mail);
-            ray('Mail sent');
+
         } catch (\Exception $exception) {
-            ray($exception);
+            \Log::error($exception->getMessage());
+            return response()->json(['message' => 'Failed to send email'], 500);
         }
 
-        ray($request->all());
     }
 
 
