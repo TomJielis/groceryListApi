@@ -65,12 +65,8 @@ class AuthController extends Controller
         $temporaryPasswordCode->save();
 
         $url = config('app.url') . '/auth/password/' . $code;
-        $content = '<br />Dear ' . $user->name . ', <br/><br/> Click the button below to set a new password';
-        $content .= '<br /><br/> <a target="_blank" rel="noopener noreferrer" href="' . $url . '" class="button button-blue" style="font-family: Avenir, Helvetica, sans-serif; box-sizing: border-box; border-radius: 3px; box-shadow: 0 2px 3px rgba(0, 0, 0, 0.16); color: #ffffff; display: inline-block; text-decoration: none; -webkit-text-size-adjust: none; background-color: #d0393b; border-top: 10px solid #d0393b; border-right: 18px solid #d0393b; border-bottom: 10px solid #d0393b; border-left: 18px solid #d0393b;"> Click here to set a password</a>';
-        $content .= '<br /><br/> Kind regards,<br>' . env('company_name') . '<br />';
-        $title = "Set a new password";
 
-        $mail = new ResetPassword($url, $user, $content, $title);
+        $mail = new ResetPassword($url, $user);
 
         Config::set('mail.from', [
             'address' => env('MAIL_FROM_ADDRESS'),

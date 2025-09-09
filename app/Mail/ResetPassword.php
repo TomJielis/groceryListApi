@@ -22,12 +22,10 @@ class ResetPassword extends Mailable
      *
      * @return void
      */
-    public function __construct($url, $user, $content, $title, $markdown = 'emails.password.user-password-reset')
+    public function __construct($url, $user, $markdown = 'emails.password.user-password-reset')
     {
         $this->url = $url;
         $this->user = $user;
-        $this->content = $content;
-        $this->title = $title;
         $this->markdown = $markdown;
     }
 
