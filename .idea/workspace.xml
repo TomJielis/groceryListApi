@@ -5,10 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="eca1d0c2-352d-4d1d-8cfe-d3b3b50c710f" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/app/Mail/Welcome.php" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/resources/views/emails/welcome.blade.php" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/Jobs/Users/StoreUserJob.php" beforeDir="false" afterPath="$PROJECT_DIR$/app/Jobs/Users/StoreUserJob.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/resources/views/emails/password/user-password-reset.blade.php" beforeDir="false" afterPath="$PROJECT_DIR$/resources/views/emails/password/user-password-reset.blade.php" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -235,7 +233,7 @@
       <workItem from="1757089221957" duration="544000" />
       <workItem from="1757353126788" duration="3119000" />
       <workItem from="1757435158602" duration="2539000" />
-      <workItem from="1757696954150" duration="2721000" />
+      <workItem from="1757696954150" duration="2989000" />
     </task>
     <servers />
   </component>
