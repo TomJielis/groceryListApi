@@ -47,8 +47,6 @@ class StoreUserJob implements ShouldQueue
         $user->email = $userData['email'];
         $user->save();
 
-        $token = $user->createToken('auth_token')->plainTextToken;
-
         $verifyCode = Crypt::encryptString($user->id);
         $url = config('app.url') . '/auth/' . $verifyCode;
         $mail = new Welcome($url, $user);
@@ -68,7 +66,6 @@ class StoreUserJob implements ShouldQueue
         }
 
         return [
-            'access_token' => $token,
             'token_type' => 'Bearer',
             'user' => $user,
         ];

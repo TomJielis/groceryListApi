@@ -136,6 +136,10 @@
             Easily share lists with friends or family, collaborate in real-time, and never forget an item again.
             Start organizing today and enjoy a smarter, more convenient way to shop!
         </p>
+
+        <a href="{{$url}}" class="cta-button">Active your account</a>
+        <br>
+
         <div class="tips">
             <h3>💡 Tips for use</h3>
             <ul>
@@ -173,9 +177,6 @@
                 <li>Select "Add to Home screen</li>
                 <li>Confirm the name and tap "Add".</li>
             </ul>
-
-            <a href="{{$url}}" class="cta-button">Click here to login</a>
-            <br>
 
             <p style="text-align: center; margin-top: 20px;">
                 You’ll now find Grocery List on your home screen — with its own icon!
