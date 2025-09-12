@@ -10,6 +10,7 @@ use App\Mail\ResetPassword;
 use App\Models\TemporaryPasswordCode;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -40,6 +41,29 @@ class AuthController extends Controller
     {
         $user = (new LoginJob($request))->handle();
         return response()->json($user);
+    }
+
+    public function verifyUser(Request $request, string $token)
+    {
+        $userId = Crypt::decryptString($token);
+        $user = User::find($userId);
+
+        if (!$user) {
+            return response()->json(['message' => 'Invalid token'], 400);
+        }
+
+        if ($user->email_verified_at) {
+            throw new HttpResponseException(response()->json([
+                'success'   => false,
+                'message'   => 'User already verified',
+            ]));
+        }
+
+        $user->email_verified_at = Carbon::now();
+        $user->save();
+
+        return response()->json([ 'success'   => true,'message' => 'User verified'], 200);
+
     }
 
     public function resetPassword(Request $request)

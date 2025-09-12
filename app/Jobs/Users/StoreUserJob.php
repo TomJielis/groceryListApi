@@ -12,6 +12,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 
@@ -48,7 +49,8 @@ class StoreUserJob implements ShouldQueue
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
-        $url = config('app.url') . '/auth/login';
+        $verifyCode = Crypt::encryptString($user->id);
+        $url = config('app.url') . '/auth/' . $verifyCode;
         $mail = new Welcome($url, $user);
 
         Config::set('mail.from', [
