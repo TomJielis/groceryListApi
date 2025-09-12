@@ -47,6 +47,14 @@ class LoginJob implements ShouldQueue
         }
 
         $user = \auth()->user();
+
+        if($user->email_verified_at === null) {
+            return [
+                'error' => 'Email not verified. Please activate your account through the email sent to you.',                'success' => false,
+                'status' => 403,
+            ];
+        }
+
         $token = $user->createToken('nuxt-frontend')->plainTextToken;
 
         return [
