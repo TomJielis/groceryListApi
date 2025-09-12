@@ -102,7 +102,7 @@
 
         <a href="{{ $url }}" class="cta-button">Reset Password</a>
 
-        <p style="margin-top: 24px; text-align: center"">
+        <p style="margin-top: 24px; text-align: center">
             If you didn’t request this password reset, you can safely ignore this email.
         </p>
     </div>
