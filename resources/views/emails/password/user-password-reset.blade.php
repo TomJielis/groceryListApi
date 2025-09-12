@@ -109,7 +109,7 @@
 
     <!-- Footer -->
     <div class="footer">
-        You are receiving this email because you have an account on the Grocery List website.
+        You are receiving this email because you have an account on the www.Tomjielis.com.
     </div>
 </div>
 </body>
