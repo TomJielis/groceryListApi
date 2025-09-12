@@ -2,6 +2,8 @@
 
 namespace App\Jobs\Users;
 
+use App\Mail\ResetPassword;
+use App\Mail\Welcome;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
@@ -9,7 +11,9 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 
 class StoreUserJob implements ShouldQueue
 {
@@ -44,6 +48,22 @@ class StoreUserJob implements ShouldQueue
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
+        $url = config('app.url') . '/auth/login';
+        $mail = new Welcome($url, $user);
+
+        Config::set('mail.from', [
+            'address' => env('MAIL_FROM_ADDRESS'),
+            'name' => env('MAIL_FROM_NAME'),
+        ]);
+
+        try {
+            Mail::to($user->email)
+                ->send($mail);
+
+        } catch (\Exception $exception) {
+            \Log::error($exception->getMessage());
+            return response()->json(['message' => 'Failed to send email'], 500);
+        }
 
         return [
             'access_token' => $token,
