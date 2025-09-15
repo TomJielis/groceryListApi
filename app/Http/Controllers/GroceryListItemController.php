@@ -38,8 +38,7 @@ class GroceryListItemController extends Controller
             $listItems->limit($limit)
                 ->offset($offset);
         }
-
-
+        $listItems->groupBy('grocery_list_items.id', 'grocery_list_items.name', 'grocerylist.grocery_list_items.quantity', 'grocery_list_items.checked', 'grocery_list_items.list_id', 'grocery_list_items.created_at', 'grocery_list_items.updated_at');
         return response()->json([
             'data' => $listItems->get(),
         ]);

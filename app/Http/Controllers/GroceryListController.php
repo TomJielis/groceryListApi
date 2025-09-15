@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\GroceryList;
 use App\Models\GroceryListInvites;
 use App\Models\GroceryListInvitesStatus;
-use App\Models\GroceryListItem;
 use App\Models\User;
 use Illuminate\Http\Request;
 
@@ -23,7 +22,8 @@ class GroceryListController extends Controller
         $limit = $request->get('till');
         $listItems = GroceryList::select('*')
             ->withCount('groceryListItems')
-            ->withCount('groceryListItemsChecked');
+            ->withCount('groceryListItemsChecked')
+            ->with('groceryListInvites.user');
 
         if(isset($offset) && isset($limit)){
             $listItems->limit($limit)
