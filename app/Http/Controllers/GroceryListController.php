@@ -23,7 +23,7 @@ class GroceryListController extends Controller
         $listItems = GroceryList::select('*')
             ->withCount('groceryListItems')
             ->withCount('groceryListItemsChecked')
-            ->with('groceryListInvites.user');
+            ->with(['groceryListInvites.user', 'createdBy']);
 
         if(isset($offset) && isset($limit)){
             $listItems->limit($limit)

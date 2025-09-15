@@ -7,8 +7,7 @@
     <list default="true" id="eca1d0c2-352d-4d1d-8cfe-d3b3b50c710f" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/Http/Controllers/GroceryListController.php" beforeDir="false" afterPath="$PROJECT_DIR$/app/Http/Controllers/GroceryListController.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/Http/Controllers/GroceryListItemController.php" beforeDir="false" afterPath="$PROJECT_DIR$/app/Http/Controllers/GroceryListItemController.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/Models/GroceryListInvites.php" beforeDir="false" afterPath="$PROJECT_DIR$/app/Models/GroceryListInvites.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/Models/GroceryList.php" beforeDir="false" afterPath="$PROJECT_DIR$/app/Models/GroceryList.php" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -236,7 +235,7 @@
       <workItem from="1757353126788" duration="3119000" />
       <workItem from="1757435158602" duration="2539000" />
       <workItem from="1757696954150" duration="7516000" />
-      <workItem from="1757951942536" duration="2140000" />
+      <workItem from="1757951942536" duration="2779000" />
     </task>
     <servers />
   </component>

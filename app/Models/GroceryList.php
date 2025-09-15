@@ -54,4 +54,9 @@ class GroceryList extends Model
     {
         return $this->hasMany(GroceryListInvites::class, 'grocery_list_id', 'id');
     }
+
+    public function createdBy()
+    {
+        return $this->belongsTo(User::class, 'created_by', 'id');
+    }
 }
