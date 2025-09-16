@@ -38,7 +38,7 @@ class GroceryListItemController extends Controller
             $listItems->limit($limit)
                 ->offset($offset);
         }
-        $listItems->groupBy('grocery_list_items.id', 'grocery_list_items.name', 'grocerylist.grocery_list_items.quantity', 'grocery_list_items.checked', 'grocery_list_items.list_id', 'grocery_list_items.created_at', 'grocery_list_items.updated_at');
+        $listItems->groupBy('grocery_list_items.id', 'grocery_list_items.name', 'grocerylist.grocery_list_items.quantity', 'grocery_list_items.checked', 'grocery_list_items.list_id', 'grocery_list_items.created_at', 'grocery_list_items.updated_at', 'grocery_list_items.unit_price');
         return response()->json([
             'data' => $listItems->get(),
         ]);
@@ -75,6 +75,20 @@ class GroceryListItemController extends Controller
     public function checked(Request $request, GroceryListItem $listItem): \Illuminate\Http\JsonResponse
     {
         $listItem->checked = $request->get('checked', false);
+        $listItem->save();
+
+        return response()->json([
+            'data' => $listItem,
+        ]);
+    }
+
+    public function update(Request $request, GroceryListItem $listItem): \Illuminate\Http\JsonResponse
+    {
+        $data = $request->all()['item'];
+        $listItem->name = ucfirst($data['name']);
+        $listItem->quantity = $data['quantity'];
+        $listItem->unit_price = $data['unit_price'];
+
         $listItem->save();
 
         return response()->json([
