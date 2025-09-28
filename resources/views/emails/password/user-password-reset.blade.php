@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="nl">
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -87,29 +87,29 @@
     <div class="header">
         <div class="logo-wrapper">
             <img src="https://cdn-icons-png.flaticon.com/512/3144/3144456.png" alt="Grocery List Logo"/>
-            <div class="title">Grocery List</div>
+            <div class="title">Boodschappenlijst</div>
         </div>
     </div>
 
     <!-- Content section -->
     <div class="content">
         <br>
-        <p style="text-align: center">Hello {{ $user->name }} 👋,</p>
+        <p style="text-align: center">Hallo {{ $user->name }} 👋,</p>
         <p style="text-align: center">
-            You requested to reset your password for your Grocery List account.<br>
-            Click the button below to set a new password:
+            Je hebt gevraagd om je wachtwoord voor je Boodschappenlijst-account te resetten.<br>
+            Klik op de onderstaande knop om een nieuw wachtwoord in te stellen:
         </p>
 
-        <a href="{{ $url }}" class="cta-button">Reset Password</a>
+        <a href="{{ $url }}" class="cta-button">Reset Wachtwoord</a>
 
         <p style="margin-top: 24px; text-align: center">
-            If you didn’t request this password reset, you can safely ignore this email.
+            Als je dit verzoek niet hebt gedaan, kun je deze e-mail veilig negeren.
         </p>
     </div>
 
     <!-- Footer -->
     <div class="footer">
-        You are receiving this email because you have an account on the www.Tomjielis.com.
+        Je ontvangt deze e-mail omdat je een account hebt op www.Tomjielis.com.
     </div>
 </div>
 </body>

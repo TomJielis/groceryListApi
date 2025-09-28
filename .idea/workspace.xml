@@ -5,10 +5,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="eca1d0c2-352d-4d1d-8cfe-d3b3b50c710f" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/database/migrations/2025_09_16_172946_alter_table_list_items_add_unit_price.php" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/Http/Controllers/GroceryListItemController.php" beforeDir="false" afterPath="$PROJECT_DIR$/app/Http/Controllers/GroceryListItemController.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/routes/custom/GroceryListItem.php" beforeDir="false" afterPath="$PROJECT_DIR$/routes/custom/GroceryListItem.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/resources/views/emails/password/user-password-reset.blade.php" beforeDir="false" afterPath="$PROJECT_DIR$/resources/views/emails/password/user-password-reset.blade.php" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/resources/views/emails/welcome.blade.php" beforeDir="false" afterPath="$PROJECT_DIR$/resources/views/emails/welcome.blade.php" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -238,7 +237,10 @@
       <workItem from="1757696954150" duration="7516000" />
       <workItem from="1757951942536" duration="2871000" />
       <workItem from="1758039885622" duration="241000" />
-      <workItem from="1758041208439" duration="2440000" />
+      <workItem from="1758041208439" duration="3650000" />
+      <workItem from="1758129733852" duration="462000" />
+      <workItem from="1758901083982" duration="411000" />
+      <workItem from="1759076530515" duration="705000" />
     </task>
     <servers />
   </component>
