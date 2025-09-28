@@ -41,7 +41,7 @@ class CardController extends Controller
         if ($card->user_id !== Auth::id()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized',
+                'message' => 'Onbevoegd',
             ], 403);
         }
 
@@ -49,7 +49,7 @@ class CardController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Card deleted successfully',
+            'message' => 'Kaart is succesvol verwijderd',
         ]);
     }
 }

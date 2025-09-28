@@ -49,20 +49,20 @@ class AuthController extends Controller
         $user = User::find($userId);
 
         if (!$user) {
-            return response()->json(['message' => 'Invalid token'], 400);
+            return response()->json(['message' => 'Url is verlopen'], 400);
         }
 
         if ($user->email_verified_at) {
             throw new HttpResponseException(response()->json([
-                'success'   => false,
-                'message'   => 'User already verified',
+                'success' => false,
+                'message' => 'Gebruiker is al geverifieerd',
             ]));
         }
 
         $user->email_verified_at = Carbon::now();
         $user->save();
 
-        return response()->json([ 'success'   => true,'message' => 'User verified'], 200);
+        return response()->json(['success' => true, 'message' => 'Gebruiker is geverifieerd'], 200);
 
     }
 
@@ -71,7 +71,7 @@ class AuthController extends Controller
         $email = $request->get('email');
 
         if (!$email) {
-            return response()->json(['message' => 'Email is required'], 400);
+            return response()->json(['message' => 'Email is verplicht'], 400);
         }
 
         $user = User::where('email', $email)->first();
@@ -103,10 +103,10 @@ class AuthController extends Controller
 
         } catch (\Exception $exception) {
             \Log::error($exception->getMessage());
-            return response()->json(['message' => 'Failed to send email'], 500);
+            return response()->json(['message' => 'Email versturen is mislukt'], 500);
         }
 
-        return response()->json(['message' => 'Password reset email sent'], 200);
+        return response()->json(['message' => 'Wachtwoordherstel-e-mail verzonden'], 200);
 
     }
 
@@ -124,7 +124,7 @@ class AuthController extends Controller
             ->first();
 
         if (!$temporaryPasswordCode) {
-            return response()->json(['message' => 'Invalid code'], 400);
+            return response()->json(['message' => 'Foutieve code'], 400);
         }
 
         $user->password = Hash::make($newPassword);
@@ -132,7 +132,7 @@ class AuthController extends Controller
         $temporaryPasswordCode->is_used = true;
         $temporaryPasswordCode->save();
 
-        return response()->json(['message' => 'Password updated'], 200);
+        return response()->json(['message' => 'Wachtwoord is geupdate'], 200);
     }
 
     /**

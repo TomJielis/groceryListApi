@@ -62,7 +62,7 @@ class StoreUserJob implements ShouldQueue
 
         } catch (\Exception $exception) {
             \Log::error($exception->getMessage());
-            return response()->json(['message' => 'Failed to send email'], 500);
+            return response()->json(['message' => 'Email versturen is mislukt'], 500);
         }
 
         return [

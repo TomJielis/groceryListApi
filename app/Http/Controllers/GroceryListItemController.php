@@ -120,7 +120,7 @@ class GroceryListItemController extends Controller
         $listItem->delete();
 
         return response()->json([
-            'message' => 'List item deleted successfully',
+            'message' => 'Lijstitem succesvol verwijderd',
         ]);
     }
 }

@@ -59,16 +59,16 @@ class GroceryListController extends Controller
         $groceryList = GroceryList::find($data['groceryListId']);
 
         if (!$groceryList) {
-            return response()->json(['message' => 'Grocery list not found'], 404);
+            return response()->json(['message' => 'Boodschappen lijst niet gevonden'], 404);
         }
 
         $user = User::where('email','=', $data['email'])->first();
         if(!$user){
-            return response()->json(['message' => 'User not found'], 404);
+            return response()->json(['message' => 'Gebruiker niet gevonden'], 404);
         }
 
         if($user->id === auth()->user()->id){
-            return response()->json(['message' => 'You cannot share the list with yourself'], 400);
+            return response()->json(['message' => 'Je kan de lijst niet met jezelf delen'], 400);
         }
 
         GroceryListInvites::create(
@@ -82,7 +82,7 @@ class GroceryListController extends Controller
 
 
         return response()->json([
-            'message' => 'Grocery list shared successfully',
+            'message' => 'Boodschappenlijst is gedeeld.',
             'data' => $groceryList,
         ]);
     }
@@ -93,7 +93,7 @@ class GroceryListController extends Controller
         $user->favorite_list_id = $request->get('listId') ?? null;
         $user->save();
         return response()->json([
-            'message' => 'List is favorite',
+            'message' => 'Lijst is gekenmerkt als favoriet',
         ]);
     }
 
@@ -104,7 +104,7 @@ class GroceryListController extends Controller
         $groceryList->delete();
 
         return response()->json([
-            'message' => 'List item deleted successfully',
+            'message' => 'Lijstitem is verwijderd.',
         ]);
     }
 }
