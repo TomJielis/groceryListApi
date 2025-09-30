@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="nl">
+<html lang="en">
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>Boodschappenlijst</title>
+    <title>Grocery List</title>
     <style>
         body {
             background-color: #f1fdf3;
@@ -117,74 +117,75 @@
 <body>
 <div class="email-container">
 
+    <!-- Header with perfectly centered logo and title -->
     <div class="header">
         <div class="logo-wrapper">
-            <img src="https://cdn-icons-png.flaticon.com/512/3144/3144456.png" alt="Boodschappenlijst Logo"/>
+            <img src="https://cdn-icons-png.flaticon.com/512/3144/3144456.png" alt="Grocery List Logo"/>
             <div class="title">
-                Boodschappenlijst
+                Grocery List
             </div>
         </div>
     </div>
 
     <div class="content">
         <br>
-        <p style="text-align: center">Hallo {{$user->name}}👋,</p>
+        <p style="text-align: center">Hello {{$user->name}}👋,</p>
         <p style="text-align: center">
-            Welkom bij Boodschappenlijst!
-            Met je nieuwe account kun je snel en eenvoudig je boodschappenlijsten beheren, waar je ook bent.
-            Deel lijsten eenvoudig met vrienden of familie, werk samen in real-time en vergeet nooit meer een item.
-            Begin vandaag nog met organiseren en geniet van een slimmere, handigere manier van winkelen!
+            Welcome to Grocery List!
+            With your new account, you can quickly and easily manage your grocery lists, wherever you are.
+            Share lists easily with friends or family, collaborate in real-time and never forget an item again.
+            Start organizing today and enjoy a smarter, more convenient way of shopping!
         </p>
 
-        <a href="{{$url}}" class="cta-button">Activeer je account</a>
+        <a href="{{$url}}" class="cta-button">Activate your account</a>
         <br>
 
         <div class="tips">
-            <h3>💡 Tips voor gebruik</h3>
+            <h3>💡 Usage Tips</h3>
             <ul>
-                <li>✅ Stel je hoofdlijst in als favoriet op de lijstenpagina, zodat je er direct toegang toe hebt vanaf het dashboard.</li>
-                <li>👥 Deel je lijst met vrienden en werk samen binnen de app. Dit kun je instellen vanaf je lijstenpagina.</li>
-                <li>📱 Gebruik het op mobiel en desktop.</li>
+                <li>✅ Set your main list as favorite on the lists page, so you have direct access to it from the dashboard.</li>
+                <li>👥 Share your list with friends and collaborate within the app. You can set this up from your lists page.</li>
+                <li>📱 Use it on mobile and desktop.</li>
             </ul>
         </div>
         <div>
             <h2 style="text-align: center; margin-top: 40px;">
-                Voeg Boodschappenlijst toe aan je Startscherm
+                Add Grocery List to your Home Screen
             </h2>
 
             <h4 style="text-align: center; margin-top: 40px;">
-                Instructies voor iPhone (Safari):
+                Instructions for iPhone (Safari):
             </h4>
             <ul style="text-align: center; padding-left: 0;">
-                <li>1. Open de app in Safari.</li>
-                <li>2. Tik op het Deel-icoon (vierkant met pijl, onderaan).</li>
-                <li>3. Scroll naar beneden en tik op "Zet op beginscherm".</li>
-                <li>4. Bevestig de naam en tik op "Voeg toe".</li>
+                <li>1. Open the app in Safari.</li>
+                <li>2. Tap the Share icon (square with arrow, at the bottom).</li>
+                <li>3. Scroll down and tap "Add to Home Screen".</li>
+                <li>4. Confirm the name and tap "Add".</li>
             </ul>
 
             <h4 style="text-align: center; margin-top: 40px;">
-                Instructies voor Android (Chrome of andere browsers):
+                Instructions for Android (Chrome or other browsers):
             </h4>
 
             <ul style="text-align: center; padding-left: 0;">
-                <li>Open de app in je browser.</li>
-                <li>Tik op de drie puntjes (⋮) in de rechterbovenhoek.</li>
-                <li>Selecteer "Toevoegen aan startscherm".</li>
-                <li>Bevestig de naam en tik op "Toevoegen".</li>
+                <li>Open the app in your browser.</li>
+                <li>Tap the three dots (⋮) in the top right corner.</li>
+                <li>Select "Add to home screen".</li>
+                <li>Confirm the name and tap "Add".</li>
             </ul>
 
             <p style="text-align: center; margin-top: 20px;">
-                Je vindt nu Boodschappenlijst op je startscherm — met een eigen icoon!
+                You'll now find Grocery List on your home screen — with its own icon!
             </p>
         </div>
         <p style="margin-top: 30px; text-align: center;">
-            We wensen je een soepele en plezierige winkelervaring<br>
-            – Het Boodschappenlijst Team
+            We wish you a smooth and pleasant shopping experience<br>
+            – The Grocery List Team
         </p>
     </div>
 
     <div class="footer">
-        Je ontvangt deze e-mail omdat je een account hebt aangemaakt op www.Tomjielis.com. <br>
+        You receive this email because you created an account on www.Tomjielis.com. <br>
     </div>
 </div>
 </body>

@@ -50,7 +50,9 @@ class StoreUserJob implements ShouldQueue
 
         $verifyCode = Crypt::encryptString($user->id);
         $url = config('app.url') . '/auth/' . $verifyCode;
-        $mail = new Welcome($url, $user);
+
+        $emailTemplate = $user->language === 'en' ? 'emails.welcome-en' : 'emails.welcome';
+        $mail = new Welcome($url, $user, $emailTemplate);
 
         Config::set('mail.from', [
             'address' => env('MAIL_FROM_ADDRESS'),
