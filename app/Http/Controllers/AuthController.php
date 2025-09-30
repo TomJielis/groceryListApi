@@ -45,10 +45,8 @@ class AuthController extends Controller
 
     public function updateLanguage(Request $request): JsonResponse
     {
-        ray($request->all());
         /** @var User $user */
         $user = \auth()->user();
-        ray($user);
         $user->language = $request->get('language');
         $user->save();
         return response()->json($user);
@@ -101,7 +99,8 @@ class AuthController extends Controller
 
         $url = config('app.url') . '/auth/password/' . $code;
 
-        $mail = new ResetPassword($url, $user);
+        $emailTemplate = $user->language === 'en' ? 'emails.password.user-password-reset-en' : 'emails.password.user-password-reset';
+        $mail = new ResetPassword($url, $user, $emailTemplate);
 
         Config::set('mail.from', [
             'address' => env('MAIL_FROM_ADDRESS'),
