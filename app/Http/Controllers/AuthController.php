@@ -43,6 +43,17 @@ class AuthController extends Controller
         return response()->json($user);
     }
 
+    public function updateLanguage(Request $request): JsonResponse
+    {
+        ray($request->all());
+        /** @var User $user */
+        $user = \auth()->user();
+        ray($user);
+        $user->language = $request->get('language');
+        $user->save();
+        return response()->json($user);
+    }
+
     public function verifyUser(Request $request, string $token)
     {
         $userId = Crypt::decryptString($token);

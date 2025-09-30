@@ -26,4 +26,5 @@ Route::post('/login', [AuthController::class, 'login'])->withoutMiddleware('auth
 Route::post('/reset-password', [AuthController::class, 'resetPassword'])->withoutMiddleware('auth:sanctum');
 Route::post('/set-new-password', [AuthController::class, 'setNewPassword'])->withoutMiddleware('auth:sanctum');
 Route::post('/me', [AuthController::class, 'me']);
+Route::post('/update-language', [AuthController::class, 'updateLanguage']);
 Route::get('/verify-email/{hash}', [AuthController::class, 'verifyUser'])->withoutMiddleware('auth:sanctum');
