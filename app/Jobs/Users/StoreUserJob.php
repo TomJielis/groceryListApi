@@ -45,6 +45,7 @@ class StoreUserJob implements ShouldQueue
         $user->name = $userData['name'];
         $user->password = Hash::make($userData['password']);
         $user->email = $userData['email'];
+        $user->language = $userData['language'] ?? 'nl';
         $user->save();
 
         $verifyCode = Crypt::encryptString($user->id);
