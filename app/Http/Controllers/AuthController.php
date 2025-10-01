@@ -43,6 +43,19 @@ class AuthController extends Controller
         return response()->json($user);
     }
 
+    public function update(Request $request): JsonResponse
+    {
+        $request = $request->all();
+
+
+        /** @var User $user */
+        $user = \auth()->user();
+        $user->name = $request['body']['name'];
+        $user->save();
+
+        return response()->json($user);
+    }
+
     public function updateLanguage(Request $request): JsonResponse
     {
         /** @var User $user */
