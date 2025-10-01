@@ -47,7 +47,6 @@ class AuthController extends Controller
     {
         $request = $request->all();
 
-
         /** @var User $user */
         $user = \auth()->user();
         $user->name = $request['body']['name'];
