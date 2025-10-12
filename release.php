@@ -2,7 +2,7 @@
 // release.php
 
 $commands = [
-    'composer install',
+    'sudo -u www-data composer install',
     'php artisan migrate',
     'php artisan db:seed',
     'php artisan optimize:clear',
