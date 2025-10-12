@@ -15,6 +15,7 @@ class GroceryListItemController extends Controller
      */
     public function index(Request $request)
     {
+        try{
         $offset = $request->get('from');
         $limit = $request->get('till');
         $listId = $request->get('listId');
@@ -42,6 +43,12 @@ class GroceryListItemController extends Controller
         return response()->json([
             'data' => $listItems->get(),
         ]);
+        }catch (\Exception $exception){
+            return response()->json([
+                'error' => $exception->getMessage(),
+            ], 500);
+        }
+
     }
 
     public function store(Request $request): \Illuminate\Http\JsonResponse
