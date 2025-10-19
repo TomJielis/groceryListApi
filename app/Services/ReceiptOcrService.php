@@ -30,8 +30,13 @@ class ReceiptOcrService
             ], $debug);
         }
         $lines = array_values(array_filter(array_map('trim', explode("\n", $text))));
-        $productLines = $this->extractJumboProductSection($lines);
+        // Gebruik de nieuwe extractie-methode
+        $productLines = $this->extractJumboAppProductSection($lines);
+        if (!$productLines) {
+            $productLines = $this->extractJumboReceipt($lines);
+        }
         $products = $this->parseJumboProducts($productLines);
+
         if (empty($products)) {
             Storage::put('ocr_debug_output.txt', $text);
         }
@@ -44,7 +49,22 @@ class ReceiptOcrService
         ]);
     }
 
-    private function extractJumboProductSection(array $lines): array
+    private function extractJumboReceipt(array $lines): array
+    {
+        $section = [];
+        foreach ($lines as $line) {
+            // Stoppen bij een duidelijke scheidingslijn (zoals ---- of ====)
+            if (preg_match('/^-{3,}|={3,}/', trim($line))) {
+                break;
+            }
+            if (strlen(trim($line)) > 0) {
+                $section[] = $line;
+            }
+        }
+        return $section;
+    }
+
+    private function extractJumboAppProductSection(array $lines): array
     {
         $start = false;
         $section = [];
