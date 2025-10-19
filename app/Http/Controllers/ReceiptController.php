@@ -56,11 +56,11 @@ class ReceiptController extends Controller
         $path = storage_path('app/private/receipts') . '/' .$filename;
         $ocrService = new ReceiptOcrService();
         $productsResult = $ocrService->extractProductsAndPricesFromFile($fullPath, true);
-        ray($productsResult);
         return response()->json([
             'success' => true,
             'file_path' => $fullPath,
             'products' => $productsResult['products'],
+            'updated_items' => $productsResult['updated_items'],
         ]);
     }
 }
