@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Models\GroceryList;
+use App\Models\GroceryListItem;
 use Illuminate\Support\Facades\Storage;
 
 class ReceiptOcrService
@@ -35,10 +37,13 @@ class ReceiptOcrService
         if (empty($products)) {
             Storage::put('ocr_debug_output.txt', $text);
         }
+
+        $updatedItems = $this->updateGroceryListWithProducts($products);
+
         return array_merge([
             'products' => $products,
-            'raw_product_section' => $productLines,
-        ], $debug);
+            'updated_items' => $updatedItems,
+        ]);
     }
 
     private function extractJumboProductSection(array $lines): array
@@ -202,5 +207,63 @@ class ReceiptOcrService
         }
 
         return $text ?: '';
+    }
+
+    private function updateGroceryListWithProducts(array $products): array
+    {
+
+        $listIds = GroceryList::all()->pluck('id')->toArray();
+
+        $groceryListItems = GroceryListItem::where('list_id', $listIds)
+            ->get();
+
+        $updatedItems = [];
+        foreach ($products as $product) {
+            $productName = mb_strtolower($product['name']);
+            $bestMatch = null;
+            $bestDistance = null;
+            foreach ($groceryListItems as $item) {
+                $itemName = mb_strtolower($item->name);
+                if (mb_stripos($productName, $itemName) !== false || mb_stripos($itemName, $productName) !== false) {
+                    $bestMatch = $item;
+                    break;
+                }
+                $distance = levenshtein($productName, $itemName);
+                if ($bestDistance === null || $distance < $bestDistance) {
+                    $bestDistance = $distance;
+                    $bestMatch = $item;
+                }
+            }
+            if ($bestMatch && ($bestDistance !== null && $bestDistance <= 3 || mb_stripos($productName, $bestMatch->name) !== false || mb_stripos($bestMatch->name, $productName) !== false)) {
+                $oldPrice = $bestMatch->price;
+                $newPrice = $product['unit_price'];
+                if ($oldPrice != $newPrice) {
+                    $updatedItems[] = [
+                        'action' => 'update',
+                        'name' => $bestMatch->name,
+                        'old_price' => $oldPrice,
+                        'new_price' => $newPrice,
+                    ];
+                    $bestMatch->unit_price = $newPrice;
+                    $bestMatch->save();
+                }
+            } else {
+                $newItem = new GroceryListItem();
+                $newItem->name = $product['name'];
+                $newItem->unit_price = $product['unit_price'];
+                $newItem->quantity = $product['quantity'] ?? 1;
+                $newItem->checked = true;
+                $newItem->list_id = $listIds[0] ?? null;
+                $newItem->save();
+                $updatedItems[] = [
+                    'action' => 'create',
+                    'name' => $newItem->name,
+                    'unit_price' => $newItem->price,
+                    'quantity' => $newItem->quantity,
+                ];
+            }
+        }
+
+        return $updatedItems;
     }
 }
