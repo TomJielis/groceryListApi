@@ -20,39 +20,47 @@ class ReceiptController extends Controller
         $filename = uniqid('receipt_', true) . '.' . $ext;
         $relativePath = 'receipts/' . $filename;
         Storage::disk('local')->put($relativePath, $decoded);
-        $fullPath = storage_path('app/private/' . $relativePath);
-
+        $fullPath = Storage::path($relativePath);
         // Debug: check existence via Storage en via file_exists
         $storageExists = Storage::disk('local')->exists($relativePath);
         $fileExists = file_exists($fullPath);
+        $whoami = trim(shell_exec('whoami'));
+        $path = getenv('PATH');
+
         \Log::info('Debug receipt upload', [
             'relativePath' => $relativePath,
             'fullPath' => $fullPath,
             'storageExists' => $storageExists,
             'fileExists' => $fileExists,
+            'whoami' => $whoami,
+            'PATH' => $path,
         ]);
 
-        // Gebruik Storage::disk('local')->exists() voor controle
-        if (!$storageExists) {
-            \Log::error('Receipt upload: bestand niet gevonden na opslaan', [
+        if (!$storageExists || !$fileExists) {
+            \Log::error('Receipt upload: bestand niet gevonden of niet leesbaar na opslaan', [
                 'relativePath' => $relativePath,
                 'fullPath' => $fullPath,
+                'storageExists' => $storageExists,
+                'fileExists' => $fileExists,
+                'whoami' => $whoami,
+                'PATH' => $path,
             ]);
             return response()->json([
                 'success' => false,
-                'error' => 'Bestand niet gevonden na uploaden',
+                'error' => 'Bestand niet gevonden of niet leesbaar na uploaden',
                 'file_path' => $fullPath,
+                'whoami' => $whoami,
+                'PATH' => $path,
             ], 500);
         }
-
+        $path = storage_path('app/private/receipts') . '/' .$filename;
         $ocrService = new ReceiptOcrService();
-        $productsResult = $ocrService->extractProductsAndPricesFromFile($fullPath);
+        $productsResult = $ocrService->extractProductsAndPricesFromFile($fullPath, true);
         ray($productsResult);
         return response()->json([
             'success' => true,
             'file_path' => $fullPath,
             'products' => $productsResult['products'],
-            'raw_product_section' => $productsResult['raw_product_section'],
         ]);
     }
 }

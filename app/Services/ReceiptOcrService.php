@@ -22,13 +22,11 @@ class ReceiptOcrService
         if (!is_string($text)) {
             return array_merge([
                 'products' => ['error' => 'OCR-proces gaf geen tekst terug (geen string)'],
-                'raw_product_section' => [],
             ], $debug);
         }
         if (empty(trim($text))) {
             return array_merge([
                 'products' => ['error' => 'Geen tekst herkend uit afbeelding (lege OCR-output)'],
-                'raw_product_section' => [],
             ], $debug);
         }
         $lines = array_values(array_filter(array_map('trim', explode("\n", $text))));
@@ -163,16 +161,17 @@ class ReceiptOcrService
                     'cmd' => $magickCmd,
                     'output' => $magickOutput,
                     'tmpProcessed' => $tmpProcessed,
-                    'tmpProcessed_exists' => $fileExists
+                    'tmpProcessed_exists' => $fileExists,
+                    'filePath' => $filePath,
                 ]);
                 if ($fileExists) {
                     $ocrInput = $tmpProcessed;
                 } else {
-                    \Log::warning('Fallback to original file for OCR because magick did not produce output file', [
-                        'cmd' => $magickCmd,
-                        'output' => $magickOutput,
-                        'tmpProcessed_exists' => $fileExists
+                    \Log::warning('magick output file niet gevonden, gebruik origineel bestand', [
+                        'tmpProcessed' => $tmpProcessed,
+                        'filePath' => $filePath,
                     ]);
+                    $ocrInput = $filePath;
                 }
             } else {
                 \Log::error('ImageMagick magick not found, using original file');
