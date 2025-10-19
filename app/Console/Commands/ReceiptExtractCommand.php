@@ -37,7 +37,6 @@ class ReceiptExtractCommand extends Command
                 continue;
             }
             $result = $ocrService->extractProductsAndPricesFromFile($file, $useRaw);
-            ray($result);
 
             if (isset($result['debug_raw_ocr'])) {
                 $this->line("  [DEBUG] Ruwe OCR-output:\n" . $result['debug_raw_ocr']);
