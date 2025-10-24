@@ -6,23 +6,25 @@
     <title>Grocery List</title>
     <style>
         body {
-            background-color: #f1fdf3;
+            background-color: #0b1120;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
             margin: 0;
             padding: 0;
+            color: #e5e7eb;
         }
 
         .email-container {
             max-width: 600px;
             margin: auto;
-            background-color: #ffffff;
-            border-radius: 8px;
+            background-color: #111827;
+            border-radius: 12px;
             overflow: hidden;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.08);
         }
 
         .header {
-            background-color: #22c55e;
+            background: linear-gradient(135deg, #1e3a8a, #2563eb);
             padding: 40px 20px 30px;
             text-align: center;
         }
@@ -54,37 +56,48 @@
         }
 
         .content h2 {
-            color: #111827;
+            color: #ffffff;
             font-size: 22px;
             margin-bottom: 10px;
         }
 
+        .content h4 {
+            color: #cbd5e1;
+        }
+
         .content p {
             font-size: 16px;
-            color: #4b5563;
-            line-height: 1.6;
+            color: #cbd5e1;
+            line-height: 1.7;
         }
 
         .cta-button {
             display: inline-block;
             margin-top: 24px;
-            background-color: #22c55e;
+            background: linear-gradient(135deg, #2563eb, #3b82f6);
             color: white;
             padding: 12px 28px;
-            border-radius: 6px;
+            border-radius: 8px;
             text-decoration: none;
-            font-weight: bold;
+            font-weight: 600;
             font-size: 16px;
+            box-shadow: 0 0 12px rgba(37, 99, 235, 0.6);
+            transition: background 0.2s, transform 0.2s;
+        }
+
+        .cta-button:hover {
+            background: linear-gradient(135deg, #1d4ed8, #2563eb);
+            transform: translateY(-2px);
         }
 
         .tips {
             margin-top: 40px;
-            background-color: #f0fdf4;
+            background-color: rgba(30, 41, 59, 0.8);
             padding: 20px;
-            border-radius: 6px;
+            border-radius: 8px;
             text-align: left;
-            border-left: 4px solid #22c55e;
-            color: #374151;
+            border-left: 4px solid #3b82f6;
+            color: #cbd5e1;
         }
 
         .tips h3 {
@@ -92,6 +105,7 @@
             font-size: 16px;
             font-weight: 600;
             margin-bottom: 10px;
+            color: #93c5fd;
         }
 
         .tips ul {
@@ -105,12 +119,21 @@
             font-size: 15px;
         }
 
+        ul {
+            color: #cbd5e1;
+        }
+
+        li {
+            margin-bottom: 6px;
+        }
+
         .footer {
             text-align: center;
             font-size: 12px;
-            color: #9ca3af;
+            color: #64748b;
             margin-top: 30px;
             padding: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
         }
     </style>
 </head>
