@@ -89,7 +89,7 @@ class AuthController extends Controller
 
     public function resetPassword(Request $request)
     {
-        \log::info('hier?');
+        return $request->all();
         $email = $request->get('email');
 
         if (!$email) {
