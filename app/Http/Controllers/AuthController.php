@@ -114,21 +114,21 @@ class AuthController extends Controller
         $emailTemplate = $user->language === 'en' ? 'emails.password.user-password-reset-en' : 'emails.password.user-password-reset';
         $mail = new ResetPassword($url, $user, $emailTemplate);
 
-//        Config::set('mail.from', [
-//            'address' => config('mail.from.address'),
-//            'name' => config('mail.from.name'),
-//        ]);
+        Config::set('mail.from', [
+            'address' => config('mail.from.address'),
+            'name' => config('mail.from.name'),
+        ]);
 
-//        try {
-            $result = Mail::to($email)
+        try {
+            Mail::to($email)
                 ->send($mail);
 
-//        } catch (\Exception $exception) {
-//            \Log::error($exception->getMessage());
-//            return response()->json(['message' => $exception->getMessage()], 500);
-//        }
+        } catch (\Exception $exception) {
+            \Log::error($exception->getMessage());
+            return response()->json(['message' => $exception->getMessage()], 500);
+        }
 
-        return response()->json(['message' => $result], 200);
+        return response()->json(['message' => 'Wachtwoordherstel-e-mail verzonden'], 200);
 
     }
 
