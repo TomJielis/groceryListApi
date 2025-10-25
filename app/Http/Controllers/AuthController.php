@@ -114,10 +114,10 @@ class AuthController extends Controller
         $emailTemplate = $user->language === 'en' ? 'emails.password.user-password-reset-en' : 'emails.password.user-password-reset';
         $mail = new ResetPassword($url, $user, $emailTemplate);
 
-        Config::set('mail.from', [
-            'address' => config('mail.from.address'),
-            'name' => config('mail.from.name'),
-        ]);
+//        Config::set('mail.from', [
+//            'address' => config('mail.from.address'),
+//            'name' => config('mail.from.name'),
+//        ]);
 
         try {
             Mail::to($email)
