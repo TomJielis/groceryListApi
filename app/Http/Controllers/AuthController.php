@@ -124,7 +124,6 @@ class AuthController extends Controller
                 ->send($mail);
 
         } catch (\Exception $exception) {
-            ray($exception->getMessage());
             \Log::error($exception->getMessage());
             return response()->json(['message' => $exception->getMessage()], 500);
         }
