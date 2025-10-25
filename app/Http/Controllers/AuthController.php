@@ -111,9 +111,9 @@ class AuthController extends Controller
 
         $url = config('app.url') . '/auth/password/' . $code;
 
-//        $emailTemplate = $user->language === 'en' ? 'emails.password.user-password-reset-en' : 'emails.password.user-password-reset';
-//        $mail = new ResetPassword($url, $user, $emailTemplate);
-//
+        $emailTemplate = $user->language === 'en' ? 'emails.password.user-password-reset-en' : 'emails.password.user-password-reset';
+        $mail = new ResetPassword($url, $user, $emailTemplate);
+
 //        Config::set('mail.from', [
 //            'address' => config('mail.from.address'),
 //            'name' => config('mail.from.name'),
