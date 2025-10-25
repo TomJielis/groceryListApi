@@ -125,7 +125,7 @@ class AuthController extends Controller
 
         } catch (\Exception $exception) {
             \Log::error($exception->getMessage());
-            return response()->json(['message' => 'Email versturen is mislukt'], 500);
+            return response()->json(['message' => $exception->getMessage()], 500);
         }
 
         return response()->json(['message' => 'Wachtwoordherstel-e-mail verzonden'], 200);
