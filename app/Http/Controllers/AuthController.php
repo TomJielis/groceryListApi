@@ -120,8 +120,8 @@ class AuthController extends Controller
         ]);
 
 //        try {
-//            Mail::to($email)
-//                ->send($mail);
+            Mail::to($email)
+                ->send($mail);
 //
 //        } catch (\Exception $exception) {
 //            \Log::error($exception->getMessage());
