@@ -119,14 +119,14 @@ class AuthController extends Controller
             'name' => config('mail.from.name'),
         ]);
 
-//        try {
+        try {
             Mail::to($email)
                 ->send($mail);
-//
-//        } catch (\Exception $exception) {
-//            \Log::error($exception->getMessage());
-//            return response()->json(['message' => $exception->getMessage()], 500);
-//        }
+
+        } catch (\Exception $exception) {
+            \Log::error($exception->getMessage());
+            return response()->json(['message' => $exception->getMessage()], 500);
+        }
 
         return response()->json(['message' => 'Wachtwoordherstel-e-mail verzonden'], 200);
 
