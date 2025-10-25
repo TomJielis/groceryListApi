@@ -55,8 +55,8 @@ class StoreUserJob implements ShouldQueue
         $mail = new Welcome($url, $user, $emailTemplate);
 
         Config::set('mail.from', [
-            'address' => env('MAIL_FROM_ADDRESS'),
-            'name' => env('MAIL_FROM_NAME'),
+            'address' => config('mail.from.address'),
+            'name' => config('mail.from.name'),
         ]);
 
         try {
