@@ -28,4 +28,5 @@ Route::post('/set-new-password', [AuthController::class, 'setNewPassword'])->wit
 Route::post('/me', [AuthController::class, 'me']);
 Route::post('/update-language', [AuthController::class, 'updateLanguage']);
 Route::post('/update', [AuthController::class, 'update']);
+Route::post('/deactivate', [AuthController::class, 'deactivate']);
 Route::get('/verify-email/{hash}', [AuthController::class, 'verifyUser'])->withoutMiddleware('auth:sanctum');

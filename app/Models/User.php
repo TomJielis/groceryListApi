@@ -46,4 +46,29 @@ class User extends Authenticatable implements MustVerifyEmail
             'password' => 'hashed',
         ];
     }
+
+    public function groceryLists()
+    {
+        return $this->hasMany(GroceryList::class, 'created_by', 'id');
+    }
+
+    public function cards()
+    {
+        return $this->hasMany(Card::class);
+    }
+
+    public function groceryListInvites()
+    {
+        return $this->hasMany(GroceryListInvites::class, 'user_id', 'id');
+    }
+
+    public function personalAccessTokens()
+    {
+        return $this->hasMany(\Laravel\Sanctum\PersonalAccessToken::class, 'tokenable_id', 'id')->where('tokenable_type', self::class);
+    }
+
+    public function temporaryPasswordCodes()
+    {
+        return $this->hasMany(TemporaryPasswordCode::class, 'user_id', 'id');
+    }
 }

@@ -157,6 +157,25 @@ class AuthController extends Controller
         return response()->json(['message' => 'Wachtwoord is geupdate'], 200);
     }
 
+    public function deactivate(Request $request)
+    {
+        /** @var User $user */
+        $user = \auth()->user();
+        foreach ($user->groceryLists as $groceryList)
+        {
+            $groceryList->groceryListItems()->delete();
+            $groceryList->groceryListInvites()->delete();
+            $groceryList->delete();
+        }
+
+        $user->groceryListInvites()->delete();
+        $user->cards()->delete();
+
+        $user->temporaryPasswordCodes()->delete();
+        $user->personalAccessTokens()->delete();
+        $user->delete();
+    }
+
     /**
      * @param Request $request
      *
