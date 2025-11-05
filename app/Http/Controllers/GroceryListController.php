@@ -132,4 +132,43 @@ class GroceryListController extends Controller
             'message' => 'Lijstitem is verwijderd.',
         ]);
     }
+
+    public function updateInviteStatus(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $status = $request->get('status');
+
+        if (!in_array($status, [GroceryListInvitesStatus::ACCEPTED, GroceryListInvitesStatus::DECLINED])) {
+            return response()->json(['message' => 'Ongeldige status'], 400);
+        }
+
+        $groceryList = GroceryList::withoutGlobalScopes()->find($request->get('id'));
+
+        if(!$groceryList) {
+            return response()->json(['message' => 'Boodschappenlijst niet gevonden'], 404);
+        }
+
+        $groceryListInvites = GroceryListInvites::where('grocery_list_id', $groceryList->id)
+            ->where(function ($query) {
+                $query->where('user_id', auth()->id())
+                      ->orWhere('email', auth()->user()->email);
+            })
+            ->first();
+
+
+        ray($groceryListInvites);
+
+        if($groceryListInvites->user_id === null)
+        {
+            $groceryListInvites->user_id = auth()->id();
+        }
+
+        $groceryListInvites->status = $status;
+
+        $groceryListInvites->save();
+
+        return response()->json([
+            'message' => 'Uitnodiging status is bijgewerkt.',
+            'data' => $groceryListInvites,
+        ]);
+    }
 }
