@@ -36,6 +36,17 @@ class GroceryListController extends Controller
         ]);
     }
 
+    public function pendingLists()
+    {
+        $lists = GroceryList::select('*')
+            ->whereHas('groceryListInvites', function ($query) {
+                $query->where('user_id', auth()->id())
+                      ->where('status', GroceryListInvitesStatus::PENDING);
+            })
+            ->with(['groceryListInvites.user', 'createdBy'])
+            ->get();
+    }
+
     public function store(Request $request): \Illuminate\Http\JsonResponse
     {
         $data = $request->all();
@@ -56,30 +67,37 @@ class GroceryListController extends Controller
     public function share(Request $request): \Illuminate\Http\JsonResponse
     {
         $data = $request->all();
+        $email = trim($data['email'] ?? null);
         $groceryList = GroceryList::find($data['groceryListId']);
 
         if (!$groceryList) {
             return response()->json(['message' => 'Boodschappen lijst niet gevonden'], 404);
         }
 
-        $user = User::where('email','=', $data['email'])->first();
-        if(!$user){
-            return response()->json(['message' => 'Gebruiker niet gevonden'], 404);
+
+        if($email === auth()->user()->email){
+            return response()->json(['message' => 'Je kan de lijst niet met jezelf delen'], 400);
         }
 
-        if($user->id === auth()->user()->id){
-            return response()->json(['message' => 'Je kan de lijst niet met jezelf delen'], 400);
+        $user = User::where('email', $email)->first();
+
+        if(!isset($user) && $email == null){
+            return response()->json(['message' => 'Ongeldig e-mailadres'], 400);
         }
 
         GroceryListInvites::create(
             [
                 'grocery_list_id' => $groceryList->id,
-                'user_id' => $user->id,
-                'status' => GroceryListInvitesStatus::ACCEPTED,
+                'user_id' => $user?->id,
+                'email' => trim($data['email']),
+                'status' => GroceryListInvitesStatus::PENDING,
             ]
         );
 
-
+        if(!isset($user))
+        {
+            //create new user here.
+        }
 
         return response()->json([
             'message' => 'Boodschappenlijst is gedeeld.',
