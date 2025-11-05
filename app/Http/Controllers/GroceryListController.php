@@ -154,9 +154,6 @@ class GroceryListController extends Controller
             })
             ->first();
 
-
-        ray($groceryListInvites);
-
         if($groceryListInvites->user_id === null)
         {
             $groceryListInvites->user_id = auth()->id();
