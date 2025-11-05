@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\GroceryListInviteMail;
 use App\Models\GroceryList;
 use App\Models\GroceryListInvites;
 use App\Models\GroceryListInvitesStatus;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 
 class GroceryListController extends Controller
 {
@@ -43,7 +45,7 @@ class GroceryListController extends Controller
                 $query->where('status', GroceryListInvitesStatus::PENDING)
                     ->where(function ($subQuery) {
                         $subQuery->where('user_id', auth()->id())
-                                 ->orWhere('email', auth()->user()->email);
+                                 ->orWhere('email', auth()->user()?->email);
                     });
             })
             ->with(['groceryListInvites.user', 'createdBy'])
@@ -57,7 +59,7 @@ class GroceryListController extends Controller
     public function store(Request $request): \Illuminate\Http\JsonResponse
     {
         $data = $request->all();
-        $data['created_by'] = auth()->user()->id; // Assuming you want to associate the list with the authenticated user
+        $data['created_by'] = auth()->user()?->id; // Assuming you want to associate the list with the authenticated user
 
         $listItem = GroceryList::create(
             [
@@ -82,7 +84,7 @@ class GroceryListController extends Controller
         }
 
 
-        if($email === auth()->user()->email){
+        if($email === auth()->user()?->email){
             return response()->json(['message' => 'Je kan de lijst niet met jezelf delen'], 400);
         }
 
@@ -103,7 +105,7 @@ class GroceryListController extends Controller
 
         if(!isset($user))
         {
-            //create new user here.
+            Mail::to($email)->send(new GroceryListInviteMail(auth()->user(), $groceryList));
         }
 
         return response()->json([
@@ -150,7 +152,7 @@ class GroceryListController extends Controller
         $groceryListInvites = GroceryListInvites::where('grocery_list_id', $groceryList->id)
             ->where(function ($query) {
                 $query->where('user_id', auth()->id())
-                      ->orWhere('email', auth()->user()->email);
+                      ->orWhere('email', auth()->user()?->email);
             })
             ->first();
 
