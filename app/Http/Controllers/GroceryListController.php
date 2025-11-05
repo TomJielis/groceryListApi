@@ -36,15 +36,22 @@ class GroceryListController extends Controller
         ]);
     }
 
-    public function pendingLists()
+    public function pending()
     {
-        $lists = GroceryList::select('*')
+        $lists = GroceryList::withoutGlobalScopes()
             ->whereHas('groceryListInvites', function ($query) {
-                $query->where('user_id', auth()->id())
-                      ->where('status', GroceryListInvitesStatus::PENDING);
+                $query->where('status', GroceryListInvitesStatus::PENDING)
+                    ->where(function ($subQuery) {
+                        $subQuery->where('user_id', auth()->id())
+                                 ->orWhere('email', auth()->user()->email);
+                    });
             })
             ->with(['groceryListInvites.user', 'createdBy'])
             ->get();
+
+        return response()->json([
+            'data' => $lists,
+        ]);
     }
 
     public function store(Request $request): \Illuminate\Http\JsonResponse
