@@ -112,7 +112,7 @@ class GroceryListController extends Controller
         $groceryListInvites->status = GroceryListInvitesStatus::PENDING;
         $groceryListInvites->save();
 
-        Mail::to($email)->send(new GroceryListInviteMail(auth()->user(), $groceryList, $user));
+        Mail::to($email)->send(new GroceryListInviteMail(auth()->user(), $groceryList, $user, $email));
 
         return response()->json([
             'message' => 'Boodschappenlijst is gedeeld.',

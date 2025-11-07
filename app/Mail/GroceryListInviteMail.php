@@ -15,15 +15,17 @@ class GroceryListInviteMail extends Mailable
     public string $url;
     public User $user;
     public User|null $invitedUser;
+    public string|null $email;
     public GroceryList $list;
     public $markdown;
 
-    public function __construct($user, $list, $invitedUser)
+    public function __construct($user, $list, $invitedUser, $email)
     {
         $this->user = $user;
         $this->invitedUser = $invitedUser;
         $this->list = $list;
-        $this->url = config('app.url') . '/auth/register/';
+        $this->email = $email;
+        $this->url = config('app.url') . '/auth/register/' . (isset($email) ? '?email=' . $email : '');
 
         $language = $invitedUser ? $invitedUser->language : $user->language;
 
