@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="nl">
+<html lang="{{ app()->getLocale() }}">
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>Boodschappenlijst</title>
+    <title>{{ __('welcome.title') }}</title>
     <style>
         body {
             background-color: #0b1120;
@@ -144,7 +144,7 @@
         <div class="logo-wrapper">
             <img src="https://cdn-icons-png.flaticon.com/512/3144/3144456.png" alt="Boodschappenlijst Logo"/>
             <div class="title">
-                Boodschappenlijst
+                {{ __('welcome.title') }}
             </div>
         </div>
     </div>
@@ -153,63 +153,63 @@
         <br>
         <p style="text-align: center">Hallo {{$user->name}} 👋,</p>
         <p style="text-align: center">
-            Welkom bij Boodschappenlijst!<br>
-            Met je nieuwe account kun je snel en eenvoudig je boodschappenlijsten beheren, waar je ook bent.<br>
-            Deel lijsten eenvoudig met vrienden of familie, werk samen in real-time en vergeet nooit meer een item.<br>
-            Begin vandaag nog met organiseren en geniet van een slimmere, handigere manier van winkelen!
+            {{__('welcome.welcome')}}<br>
+            {{__('welcome.intro')}}<br>
+            {{__('welcome.share')}}<br>
+            {{__('welcome.start')}}!
         </p>
 
-        <a href="{{$url}}" class="cta-button">Activeer je account</a>
+        <a href="{{$url}}" class="cta-button">{{__('welcome.activate_account')}}</a>
         <br>
 
         <div class="tips">
-            <h3>💡 Tips voor gebruik</h3>
+            <h3>💡 {{__('welcome.tips_for_usage')}}</h3>
             <ul>
-                <li>✅ Stel je hoofdlijst in als favoriet op de lijstenpagina, zodat je er direct toegang toe hebt vanaf het dashboard.</li>
-                <li>👥 Deel je lijst met vrienden en werk samen binnen de app. Dit kun je instellen vanaf je lijstenpagina.</li>
-                <li>📱 Gebruik het op mobiel en desktop.</li>
+                <li>✅ {{__('welcome.tip_1')}}</li>
+                <li>👥 {{__('welcome.tip_2')}}</li>
+                <li>📱 {{__('welcome.tip_3')}}</li>
             </ul>
         </div>
 
         <div>
             <h2 style="text-align: center; margin-top: 40px;">
-                Voeg Boodschappenlijst toe aan je Startscherm
+                {{__('welcome.add_app_to_start_screen')}}
             </h2>
 
             <h4 style="text-align: center; margin-top: 40px;">
-                Instructies voor iPhone (Safari):
+                {{__('welcome.instruction_safari')}}
             </h4>
             <ul style="text-align: center; padding-left: 0;">
-                <li>1. Open de app in Safari.</li>
-                <li>2. Tik op het Deel-icoon (vierkant met pijl, onderaan).</li>
-                <li>3. Scroll naar beneden en tik op "Zet op beginscherm".</li>
-                <li>4. Bevestig de naam en tik op "Voeg toe".</li>
+                <li>{{__('welcome.instruction_safari_1')}}</li>
+                <li>{{__('welcome.instruction_safari_2')}}</li>
+                <li>{{__('welcome.instruction_safari_3')}}</li>
+                <li>{{__('welcome.instruction_safari_4')}}</li>
             </ul>
 
             <h4 style="text-align: center; margin-top: 40px;">
-                Instructies voor Android (Chrome of andere browsers):
+                {{__('welcome.instruction_chrome')}}
             </h4>
 
             <ul style="text-align: center; padding-left: 0;">
-                <li>Open de app in je browser.</li>
-                <li>Tik op de drie puntjes (⋮) in de rechterbovenhoek.</li>
-                <li>Selecteer "Toevoegen aan startscherm".</li>
-                <li>Bevestig de naam en tik op "Toevoegen".</li>
+                <li>{{__('welcome.instruction_chrome_1')}}</li>
+                <li>{{__('welcome.instruction_chrome_2')}}</li>
+                <li>{{__('welcome.instruction_chrome_3')}}</li>
+                <li>{{__('welcome.instruction_chrome_4')}}</li>
             </ul>
 
             <p style="text-align: center; margin-top: 20px;">
-                Je vindt nu Boodschappenlijst op je startscherm — met een eigen icoon!
+                {{__('welcome.instruction_chrome_5')}}
             </p>
         </div>
 
         <p style="margin-top: 30px; text-align: center;">
-            We wensen je een soepele en plezierige winkelervaring<br>
-            – Het Boodschappenlijst Team
+            {{__('welcome.wish_message')}}<br>
+            {{__('welcome.team')}}
         </p>
     </div>
 
     <div class="footer">
-        Je ontvangt deze e-mail omdat je een account hebt aangemaakt op www.Tomjielis.com. <br>
+        {{__('welcome.footer')}}<br>
     </div>
 </div>
 </body>
