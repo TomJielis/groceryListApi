@@ -52,7 +52,7 @@ class GroceryList extends Model
 
     public function groceryListInvites()
     {
-        return $this->hasMany(GroceryListInvites::class, 'grocery_list_id', 'id');
+        return $this->hasMany(GroceryListInvites::class, 'grocery_list_id');
     }
 
     public function createdBy()
