@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="nl">
+<html lang="{{ app()->getLocale() }}">
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>Boodschappenlijst Uitnodiging</title>
+    <title>{{ __('invite.title') }}</title>
     <style>
         body {
             background-color: #0b1120;
@@ -16,6 +16,7 @@
             align-items: center;
             justify-content: center;
         }
+
         .email-container {
             max-width: 600px;
             margin: auto;
@@ -29,23 +30,27 @@
             align-items: center;
             justify-content: center;
         }
+
         .header {
             background: linear-gradient(135deg, #1e3a8a, #2563eb);
             padding: 40px 20px 30px;
             text-align: center;
             width: 100%;
         }
+
         .header .logo-wrapper {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
         }
+
         .header img {
             width: 48px;
             height: 48px;
             margin-bottom: 10px;
         }
+
         .header .title {
             font-size: 26px;
             font-weight: 700;
@@ -53,21 +58,25 @@
             line-height: 1.2;
             text-align: center;
         }
+
         .content {
             padding: 30px;
             text-align: center;
             width: 100%;
         }
+
         .content h2 {
             color: #ffffff;
             font-size: 22px;
             margin-bottom: 10px;
         }
+
         .content p {
             font-size: 16px;
             color: #cbd5e1;
             line-height: 1.7;
         }
+
         .cta-button {
             display: inline-block;
             margin-top: 24px;
@@ -81,10 +90,12 @@
             box-shadow: 0 0 12px rgba(37, 99, 235, 0.6);
             transition: background 0.2s, transform 0.2s;
         }
+
         .cta-button:hover {
             background: linear-gradient(135deg, #1d4ed8, #2563eb);
             transform: translateY(-2px);
         }
+
         .footer {
             text-align: center;
             font-size: 12px;
@@ -96,33 +107,34 @@
         }
     </style>
 </head>
-<body>
-<div class="email-container">
-    <div class="header">
-        <div class="logo-wrapper">
-            <img src="https://cdn-icons-png.flaticon.com/512/3144/3144456.png" alt="Boodschappenlijst Logo"/>
-            <div class="title">
-                Boodschappenlijst
+    <body>
+        <div class="email-container">
+            <div class="header">
+                <div class="logo-wrapper">
+                    <img src="https://cdn-icons-png.flaticon.com/512/3144/3144456.png"
+                         alt="{{ app()->getLocale() == 'en' ? 'Grocery List Logo' : 'Boodschappenlijst Logo' }}"/>
+                    <div class="title">
+                        {{ __('invite.title') }}
+                    </div>
+                </div>
+            </div>
+            <div class="content">
+                <h2 style="text-align: center;">{{ __('invite.title') }}</h2>
+                <p style="text-align: center;">{{ __('invite.greeting', ['name' => $invitedUser->name ?? '']) }}<br>
+                    {{ __('invite.invited_by', ['user' => $user->name, 'list' => $list->name]) }}</p>
+                @if(!isset($invitedUser))
+                    <p style="text-align: center;">{{ __('invite.create_account') }}</p>
+                    <a href="{{ $url }}" class="cta-button">{{ __('invite.create_account_button') }}</a>
+                    <p style="margin-top: 24px; text-align: center;">{{ __('invite.already_account') }}</p>
+                @endif
+                <p style="margin-top: 30px; text-align: center;">
+                    {{ __('invite.enjoy') }}<br>
+                    {{ __('invite.team') }}
+                </p>
+            </div>
+            <div class="footer">
+                {{ __('invite.footer') }}
             </div>
         </div>
-    </div>
-    <div class="content">
-        <h2 style="text-align: center;">Uitnodiging voor boodschappenlijst</h2>
-        <p style="text-align: center;">Hallo {{ $invitedUser->name ?? ''}},<br>
-        Je bent uitgenodigd door <strong>{{ $user->name }}</strong> om samen de boodschappenlijst <strong>"{{ $list->name }}"</strong> te beheren.</p>
-        @if(!isset($invitedUser))
-            <p style="text-align: center;">Maak een account aan via onderstaande knop om toegang te krijgen tot de lijst:</p>
-            <a href="{{ $url }}" class="cta-button">Account aanmaken</a>
-            <p style="margin-top: 24px; text-align: center;">Heb je al een account? Log dan in met je bestaande gegevens.</p>
-        @endif
-        <p style="margin-top: 30px; text-align: center;">
-            Veel plezier met het samenstellen van je boodschappenlijst!<br>
-            – Het Boodschappenlijst Team
-        </p>
-    </div>
-    <div class="footer">
-        Je ontvangt deze e-mail omdat je bent uitgenodigd voor een boodschappenlijst op www.Tomjielis.com.<br>
-    </div>
-</div>
-</body>
+    </body>
 </html>

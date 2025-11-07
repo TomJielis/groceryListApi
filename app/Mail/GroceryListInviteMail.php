@@ -18,6 +18,7 @@ class GroceryListInviteMail extends Mailable
     public string|null $email;
     public GroceryList $list;
     public $markdown;
+    public string $language;
 
     public function __construct($user, $list, $invitedUser, $email)
     {
@@ -27,15 +28,13 @@ class GroceryListInviteMail extends Mailable
         $this->email = $email;
         $this->url = config('app.url') . '/auth/register/' . (isset($email) ? '?email=' . $email : '');
 
-        $language = $invitedUser ? $invitedUser->language : $user->language;
-
-        $this->markdown = $language == 'en'
-            ? 'emails.grocerylist.invite-en'
-            : 'emails.grocerylist.invite';
+        $this->language = $invitedUser ? $invitedUser->language : $user->language;
+        $this->markdown = 'emails.grocerylist.invite';
     }
 
     public function build()
     {
+        \App::setLocale($this->language);
         return $this->markdown($this->markdown);
     }
 }
