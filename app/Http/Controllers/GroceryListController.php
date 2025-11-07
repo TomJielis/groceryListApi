@@ -94,14 +94,24 @@ class GroceryListController extends Controller
             return response()->json(['message' => 'Ongeldig e-mailadres'], 400);
         }
 
-        GroceryListInvites::create(
-            [
-                'grocery_list_id' => $groceryList->id,
-                'user_id' => $user?->id,
-                'email' => trim($data['email']),
-                'status' => GroceryListInvitesStatus::PENDING,
-            ]
-        );
+        $groceryListInvites = GroceryListInvites::where('grocery_list_id', $groceryList->id)
+            ->where(function ($query) use ($user, $email) {
+                $query->where('user_id', $user?->id)
+                      ->orWhere('email', $email);
+            })
+            ->whereIn('status', [GroceryListInvitesStatus::DECLINED, GroceryListInvitesStatus::PENDING])
+            ->first();
+
+        if(!$groceryListInvites)
+        {
+            $groceryListInvites = new GroceryListInvites();
+        }
+
+        $groceryListInvites->grocery_list_id = $groceryList->id;
+        $groceryListInvites->user_id = $user?->id;
+        $groceryListInvites->email = $email;
+        $groceryListInvites->status = GroceryListInvitesStatus::PENDING;
+        $groceryListInvites->save();
 
         Mail::to($email)->send(new GroceryListInviteMail(auth()->user(), $groceryList, $user));
 
