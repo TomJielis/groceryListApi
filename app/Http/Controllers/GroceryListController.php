@@ -59,12 +59,12 @@ class GroceryListController extends Controller
     public function store(Request $request): \Illuminate\Http\JsonResponse
     {
         $data = $request->all();
-        $data['created_by'] = auth()->user()?->id; // Assuming you want to associate the list with the authenticated user
+        $data['created_by'] = auth()->user()?->id;
 
         $listItem = GroceryList::create(
             [
                 'name' => $data['name'],
-                'created_by' => $data['created_by'] ?? 1, // Default to 1 if not provided
+                'created_by' => $data['created_by'] ?? 1,
             ]
         );
 
@@ -83,16 +83,15 @@ class GroceryListController extends Controller
             return response()->json(['message' => 'Boodschappen lijst niet gevonden'], 404);
         }
 
+        if($email == null){
+            return response()->json(['message' => 'Ongeldig e-mailadres'], 400);
+        }
 
         if($email === auth()->user()?->email){
             return response()->json(['message' => 'Je kan de lijst niet met jezelf delen'], 400);
         }
 
         $user = User::where('email', $email)->first();
-
-        if(!isset($user) && $email == null){
-            return response()->json(['message' => 'Ongeldig e-mailadres'], 400);
-        }
 
         $groceryListInvites = GroceryListInvites::where('grocery_list_id', $groceryList->id)
             ->where(function ($query) use ($user, $email) {
