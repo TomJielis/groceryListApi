@@ -103,10 +103,7 @@ class GroceryListController extends Controller
             ]
         );
 
-        if(!isset($user))
-        {
-            Mail::to($email)->send(new GroceryListInviteMail(auth()->user(), $groceryList));
-        }
+        Mail::to($email)->send(new GroceryListInviteMail(auth()->user(), $groceryList, $user));
 
         return response()->json([
             'message' => 'Boodschappenlijst is gedeeld.',

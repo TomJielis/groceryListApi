@@ -108,11 +108,13 @@
     </div>
     <div class="content">
         <h2 style="text-align: center;">Invitation to Grocery List</h2>
-        <p style="text-align: center;">Hello,<br>
+        <p style="text-align: center;">Hello  {{ $invitedUser->name ?? ''}},<br>
         You have been invited by <strong>{{ $user->name }}</strong> to collaborate on the grocery list <strong>"{{ $list->name }}"</strong>.</p>
-        <p style="text-align: center;">Create an account using the button below to access the list:</p>
-        <a href="{{ $url }}" class="cta-button">Create Account</a>
-        <p style="margin-top: 24px; text-align: center;">Already have an account? Log in with your existing credentials.</p>
+        @if(!isset($invitedUser))
+            <p style="text-align: center;">Create an account using the button below to access the list:</p>
+            <a href="{{ $url }}" class="cta-button">Create Account</a>
+            <p style="margin-top: 24px; text-align: center;">Already have an account? Log in with your existing credentials.</p>
+        @endif
         <p style="margin-top: 30px; text-align: center;">
             Enjoy organizing your grocery list together!<br>
             – The Grocery List Team

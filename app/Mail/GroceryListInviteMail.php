@@ -14,12 +14,14 @@ class GroceryListInviteMail extends Mailable
 
     public string $url;
     public User $user;
+    public User|null $invitedUser;
     public GroceryList $list;
     public $markdown;
 
-    public function __construct($user, $list)
+    public function __construct($user, $list, $invitedUser)
     {
         $this->user = $user;
+        $this->invitedUser = $invitedUser;
         $this->list = $list;
         $this->url = config('app.url') . '/auth/register/';
         $this->markdown = $user->language == 'en'

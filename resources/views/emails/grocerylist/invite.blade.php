@@ -108,11 +108,13 @@
     </div>
     <div class="content">
         <h2 style="text-align: center;">Uitnodiging voor boodschappenlijst</h2>
-        <p style="text-align: center;">Hallo,<br>
+        <p style="text-align: center;">Hallo {{ $invitedUser->name ?? ''}},<br>
         Je bent uitgenodigd door <strong>{{ $user->name }}</strong> om samen de boodschappenlijst <strong>"{{ $list->name }}"</strong> te beheren.</p>
-        <p style="text-align: center;">Maak een account aan via onderstaande knop om toegang te krijgen tot de lijst:</p>
-        <a href="{{ $url }}" class="cta-button">Account aanmaken</a>
-        <p style="margin-top: 24px; text-align: center;">Heb je al een account? Log dan in met je bestaande gegevens.</p>
+        @if(!isset($invitedUser))
+            <p style="text-align: center;">Maak een account aan via onderstaande knop om toegang te krijgen tot de lijst:</p>
+            <a href="{{ $url }}" class="cta-button">Account aanmaken</a>
+            <p style="margin-top: 24px; text-align: center;">Heb je al een account? Log dan in met je bestaande gegevens.</p>
+        @endif
         <p style="margin-top: 30px; text-align: center;">
             Veel plezier met het samenstellen van je boodschappenlijst!<br>
             – Het Boodschappenlijst Team
