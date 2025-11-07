@@ -97,6 +97,11 @@ class AuthController extends Controller
 
         $user = User::where('email', $email)->first();
 
+        if(!$user)
+        {
+            return response()->json(['message' => 'Geen gebruiker gevonden met dit e-mailadres'], 404);
+        }
+
         TemporaryPasswordCode::where('user_id', '=', $user->id)
             ->where('is_used', '=', false)
             ->delete();
@@ -111,8 +116,7 @@ class AuthController extends Controller
 
         $url = config('app.url') . '/auth/password/' . $code;
 
-        $emailTemplate = $user->language === 'en' ? 'emails.password.user-password-reset-en' : 'emails.password.user-password-reset';
-        $mail = new ResetPassword($url, $user, $emailTemplate);
+        $mail = new ResetPassword($url, $user);
 
         Config::set('mail.from', [
             'address' => config('mail.from.address'),

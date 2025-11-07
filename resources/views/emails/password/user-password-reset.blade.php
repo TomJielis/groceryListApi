@@ -97,29 +97,27 @@
     <div class="header">
         <div class="logo-wrapper">
             <img src="https://cdn-icons-png.flaticon.com/512/3144/3144456.png" alt="Grocery List Logo"/>
-            <div class="title">Boodschappenlijst</div>
+            <div class="title">{{__('password-reset.grocery_list')}}</div>
         </div>
     </div>
 
     <!-- Content section -->
     <div class="content">
         <br>
-        <p style="text-align: center">Hallo {{ $user->name }} 👋,</p>
+        <p style="text-align: center">{{__('password-reset.hello')}} {{ $user->name }} 👋,</p>
         <p style="text-align: center">
-            Je hebt gevraagd om je wachtwoord voor je Boodschappenlijst-account te resetten.<br>
-            Klik op de onderstaande knop om een nieuw wachtwoord in te stellen:
+            {{__('password-reset.reset_message_1')}}<br>
+            {{__('password-reset.button_reset_password_message')}}
         </p>
-
-        <a href="{{ $url }}" class="cta-button">Reset Wachtwoord</a>
-
+        <a href="{{ $url }}" class="cta-button"> {{__('password-reset.reset_password')}}</a>
         <p style="margin-top: 24px; text-align: center">
-            Als je dit verzoek niet hebt gedaan, kun je deze e-mail veilig negeren.
+            {{__('password-reset.ignore_message')}}
         </p>
     </div>
 
     <!-- Footer -->
     <div class="footer">
-        Je ontvangt deze e-mail omdat je een account hebt op www.Tomjielis.com.
+       {{__('password-reset.footer')}}
     </div>
 </div>
 </body>
