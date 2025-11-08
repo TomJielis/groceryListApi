@@ -432,8 +432,8 @@ class ComposerStaticInit1dc86e2f612425d0d43ff0bda2086cd8
         ),
         'League\\Uri\\' => 
         array (
-            0 => __DIR__ . '/..' . '/league/uri-interfaces',
-            1 => __DIR__ . '/..' . '/league/uri',
+            0 => __DIR__ . '/..' . '/league/uri',
+            1 => __DIR__ . '/..' . '/league/uri-interfaces',
         ),
         'League\\MimeTypeDetection\\' => 
         array (
@@ -583,7 +583,9 @@ class ComposerStaticInit1dc86e2f612425d0d43ff0bda2086cd8
     );
 
     public static $classMap = array (
+        'App\\Console\\Commands\\sendWelcomeEmail' => __DIR__ . '/../..' . '/app/Console/Commands/sendWelcomeEmail.php',
         'App\\Http\\Controllers\\AuthController' => __DIR__ . '/../..' . '/app/Http/Controllers/AuthController.php',
+        'App\\Http\\Controllers\\CardController' => __DIR__ . '/../..' . '/app/Http/Controllers/CardController.php',
         'App\\Http\\Controllers\\Controller' => __DIR__ . '/../..' . '/app/Http/Controllers/Controller.php',
         'App\\Http\\Controllers\\GroceryListController' => __DIR__ . '/../..' . '/app/Http/Controllers/GroceryListController.php',
         'App\\Http\\Controllers\\GroceryListItemController' => __DIR__ . '/../..' . '/app/Http/Controllers/GroceryListItemController.php',
@@ -600,8 +602,15 @@ class ComposerStaticInit1dc86e2f612425d0d43ff0bda2086cd8
         'App\\Http\\Requests\\User\\UpdateUserRequest' => __DIR__ . '/../..' . '/app/Http/Requests/User/UpdateUserRequest.php',
         'App\\Jobs\\Users\\LoginJob' => __DIR__ . '/../..' . '/app/Jobs/Users/LoginJob.php',
         'App\\Jobs\\Users\\StoreUserJob' => __DIR__ . '/../..' . '/app/Jobs/Users/StoreUserJob.php',
+        'App\\Mail\\GroceryListInviteMail' => __DIR__ . '/../..' . '/app/Mail/GroceryListInviteMail.php',
+        'App\\Mail\\ResetPassword' => __DIR__ . '/../..' . '/app/Mail/ResetPassword.php',
+        'App\\Mail\\Welcome' => __DIR__ . '/../..' . '/app/Mail/Welcome.php',
+        'App\\Models\\Card' => __DIR__ . '/../..' . '/app/Models/Card.php',
         'App\\Models\\GroceryList' => __DIR__ . '/../..' . '/app/Models/GroceryList.php',
+        'App\\Models\\GroceryListInvites' => __DIR__ . '/../..' . '/app/Models/GroceryListInvites.php',
+        'App\\Models\\GroceryListInvitesStatus' => __DIR__ . '/../..' . '/app/Models/GroceryListInvitesStatus.php',
         'App\\Models\\GroceryListItem' => __DIR__ . '/../..' . '/app/Models/GroceryListItem.php',
+        'App\\Models\\TemporaryPasswordCode' => __DIR__ . '/../..' . '/app/Models/TemporaryPasswordCode.php',
         'App\\Models\\User' => __DIR__ . '/../..' . '/app/Models/User.php',
         'App\\Providers\\AppServiceProvider' => __DIR__ . '/../..' . '/app/Providers/AppServiceProvider.php',
         'Attribute' => __DIR__ . '/..' . '/symfony/polyfill-php80/Resources/stubs/Attribute.php',

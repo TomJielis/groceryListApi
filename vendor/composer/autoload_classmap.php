@@ -6,7 +6,9 @@ $vendorDir = dirname(__DIR__);
 $baseDir = dirname($vendorDir);
 
 return array(
+    'App\\Console\\Commands\\sendWelcomeEmail' => $baseDir . '/app/Console/Commands/sendWelcomeEmail.php',
     'App\\Http\\Controllers\\AuthController' => $baseDir . '/app/Http/Controllers/AuthController.php',
+    'App\\Http\\Controllers\\CardController' => $baseDir . '/app/Http/Controllers/CardController.php',
     'App\\Http\\Controllers\\Controller' => $baseDir . '/app/Http/Controllers/Controller.php',
     'App\\Http\\Controllers\\GroceryListController' => $baseDir . '/app/Http/Controllers/GroceryListController.php',
     'App\\Http\\Controllers\\GroceryListItemController' => $baseDir . '/app/Http/Controllers/GroceryListItemController.php',
@@ -23,8 +25,15 @@ return array(
     'App\\Http\\Requests\\User\\UpdateUserRequest' => $baseDir . '/app/Http/Requests/User/UpdateUserRequest.php',
     'App\\Jobs\\Users\\LoginJob' => $baseDir . '/app/Jobs/Users/LoginJob.php',
     'App\\Jobs\\Users\\StoreUserJob' => $baseDir . '/app/Jobs/Users/StoreUserJob.php',
+    'App\\Mail\\GroceryListInviteMail' => $baseDir . '/app/Mail/GroceryListInviteMail.php',
+    'App\\Mail\\ResetPassword' => $baseDir . '/app/Mail/ResetPassword.php',
+    'App\\Mail\\Welcome' => $baseDir . '/app/Mail/Welcome.php',
+    'App\\Models\\Card' => $baseDir . '/app/Models/Card.php',
     'App\\Models\\GroceryList' => $baseDir . '/app/Models/GroceryList.php',
+    'App\\Models\\GroceryListInvites' => $baseDir . '/app/Models/GroceryListInvites.php',
+    'App\\Models\\GroceryListInvitesStatus' => $baseDir . '/app/Models/GroceryListInvitesStatus.php',
     'App\\Models\\GroceryListItem' => $baseDir . '/app/Models/GroceryListItem.php',
+    'App\\Models\\TemporaryPasswordCode' => $baseDir . '/app/Models/TemporaryPasswordCode.php',
     'App\\Models\\User' => $baseDir . '/app/Models/User.php',
     'App\\Providers\\AppServiceProvider' => $baseDir . '/app/Providers/AppServiceProvider.php',
     'Attribute' => $vendorDir . '/symfony/polyfill-php80/Resources/stubs/Attribute.php',

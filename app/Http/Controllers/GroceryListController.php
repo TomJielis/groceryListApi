@@ -132,6 +132,22 @@ class GroceryListController extends Controller
 
     public function delete(Request $request, GroceryList $groceryList): \Illuminate\Http\JsonResponse
     {
+
+        if($groceryList->created_by !== auth()->id()) {
+
+            $groceryListInvite = GroceryListInvites::where('grocery_list_id', $groceryList->id)
+                ->where('user_id', auth()->id())
+                ->where('status', '=', GroceryListInvitesStatus::ACCEPTED)
+                ->first();
+
+            $groceryListInvite->delete();
+
+            return response()->json([
+                'message' => 'Lijst is verwijderd.',
+            ]);
+        }
+
+
         $groceryList->groceryListInvites()->delete();
         $groceryList->groceryListItems()->delete();
         $groceryList->delete();
