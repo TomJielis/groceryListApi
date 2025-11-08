@@ -73,6 +73,17 @@ class GroceryListController extends Controller
         ]);
     }
 
+    public function update(Request $request, GroceryList $groceryList): \Illuminate\Http\JsonResponse
+    {
+        $data = $request->all();
+        $groceryList->name = $data['name'] ?? $groceryList->name;
+        $groceryList->save();
+
+        return response()->json([
+            'data' => $groceryList,
+        ]);
+    }
+
     public function share(Request $request): \Illuminate\Http\JsonResponse
     {
         $data = $request->all();
