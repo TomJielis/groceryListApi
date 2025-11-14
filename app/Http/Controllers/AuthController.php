@@ -64,6 +64,17 @@ class AuthController extends Controller
         return response()->json($user);
     }
 
+    public function approveTerms(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = \auth()->user();
+        $user->accepted_terms = true;
+        $user->accepted_terms_at = Carbon::now();
+        $user->accepted_terms_version = $request->get('acceptedTermsVersion');
+        $user->save();
+        return response()->json($user);
+    }
+
     public function verifyUser(Request $request, string $token)
     {
         $userId = Crypt::decryptString($token);
