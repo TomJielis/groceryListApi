@@ -131,6 +131,22 @@ class GroceryListController extends Controller
         ]);
     }
 
+    public function unshare(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $data = $request->all();
+        if(!isset($data['groceryListId']) || !isset($data['userId'])){
+            return response()->json(['message' => 'Ongeldige aanvraag'], 400);
+        }
+
+        GroceryListInvites::where('grocery_list_id', $data['groceryListId'])
+            ->where('user_id', $data['userId'])
+            ->delete();
+
+        return response()->json([
+            'message' => 'Toegang tot de lijst is ingetrokken.',
+        ]);
+    }
+
     public function favorite(Request $request): \Illuminate\Http\JsonResponse
     {
         $user = auth()->user();
