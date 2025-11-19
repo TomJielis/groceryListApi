@@ -5,257 +5,323 @@ namespace App\Services;
 use App\Models\GroceryList;
 use App\Models\GroceryListItem;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
 
 class ReceiptOcrService
 {
     /**
-     * OCR uitvoeren + producten herkennen (specifiek voor Jumbo)
+     * Extract products and prices from receipt image
+     *
+     * @param string $filePath Full path to the receipt image file
+     * @param bool $raw Whether to skip preprocessing
+     * @return array Array containing products and debug info
      */
     public function extractProductsAndPricesFromFile($filePath, $raw = false)
     {
-        $text = $this->runTesseract($filePath, $raw, $debugCmd);
-        $debug = [
-            'debug_raw_ocr' => $text,
-            'debug_tesseract_cmd' => $debugCmd ?? null,
-        ];
-        // Controleer of OCR-tekst geldig is
-        if (!is_string($text)) {
-            return array_merge([
-                'products' => ['error' => 'OCR-proces gaf geen tekst terug (geen string)'],
-            ], $debug);
+        if (!file_exists($filePath)) {
+            return [
+                'products' => ['error' => 'Bestand niet gevonden: ' . $filePath],
+                'debug_raw_ocr' => null,
+            ];
         }
-        if (empty(trim($text))) {
-            return array_merge([
+
+        // Perform OCR
+        $text = $this->performOCR($filePath);
+
+        if (isset($text['error'])) {
+            return [
+                'products' => ['error' => $text['error']],
+                'debug_raw_ocr' => $text['raw_text'] ?? null,
+            ];
+        }
+
+        $ocrText = $text['text'];
+
+        if (empty(trim($ocrText))) {
+            return [
                 'products' => ['error' => 'Geen tekst herkend uit afbeelding (lege OCR-output)'],
-            ], $debug);
+                'debug_raw_ocr' => $ocrText,
+            ];
         }
-        $lines = array_values(array_filter(array_map('trim', explode("\n", $text))));
-        // Gebruik de nieuwe extractie-methode
+
+        // Parse the text into lines
+        $lines = array_values(array_filter(array_map('trim', explode("\n", $ocrText))));
+
+        // Extract product section
         $productLines = $this->extractJumboAppProductSection($lines);
-        if (!$productLines) {
+        if (empty($productLines)) {
             $productLines = $this->extractJumboReceipt($lines);
         }
+
+        // Parse products from lines
         $products = $this->parseJumboProducts($productLines);
 
         if (empty($products)) {
-            Storage::put('ocr_debug_output.txt', $text);
+            Storage::put('ocr_debug_output.txt', $ocrText);
+            Log::warning('Geen producten gevonden in OCR output', ['file' => $filePath]);
         }
 
+        // Update grocery list with found products
         $updatedItems = $this->updateGroceryListWithProducts($products);
 
-        return array_merge([
+        return [
             'products' => $products,
             'updated_items' => $updatedItems,
-        ]);
+            'debug_raw_ocr' => $ocrText,
+        ];
     }
 
-    private function extractJumboReceipt(array $lines): array
+    /**
+     * Perform OCR using available service (OCR.space API)
+     *
+     * @param string $filePath Path to image file
+     * @return array ['text' => string, 'error' => string|null]
+     */
+    private function performOCR($filePath)
     {
-        $section = [];
-        foreach ($lines as $line) {
-            // Stoppen bij een duidelijke scheidingslijn (zoals ---- of ====)
-            if (preg_match('/^-{3,}|={3,}/', trim($line))) {
-                break;
+        // Option 1: Try OCR.space API (Free tier available)
+        $apiKey = env('OCR_SPACE_API_KEY', 'K87899142388957'); // Free demo key
+
+        try {
+            // Read file as base64
+            $base64Image = base64_encode(file_get_contents($filePath));
+
+            $response = Http::asForm()->post('https://api.ocr.space/parse/image', [
+                'apikey' => $apiKey,
+                'base64Image' => 'data:image/png;base64,' . $base64Image,
+                'language' => 'dut', // Dutch
+                'isOverlayRequired' => 'false',
+                'detectOrientation' => 'true',
+                'scale' => 'true',
+                'OCREngine' => '2', // OCR Engine 2 is better for receipts
+            ]);
+
+            if ($response->successful()) {
+                $result = $response->json();
+
+                Log::info('OCR.space API response', ['result' => $result]);
+
+                if (isset($result['ParsedResults'][0]['ParsedText'])) {
+                    return [
+                        'text' => $result['ParsedResults'][0]['ParsedText'],
+                        'error' => null,
+                    ];
+                }
+
+                if (isset($result['ErrorMessage'])) {
+                    Log::error('OCR.space API error', ['error' => $result['ErrorMessage']]);
+                    return [
+                        'text' => '',
+                        'error' => 'OCR API fout: ' . json_encode($result['ErrorMessage']),
+                        'raw_text' => json_encode($result),
+                    ];
+                }
             }
-            if (strlen(trim($line)) > 0) {
-                $section[] = $line;
-            }
+
+            Log::error('OCR.space API request failed', [
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+
+            return [
+                'text' => '',
+                'error' => 'OCR API request mislukt: HTTP ' . $response->status(),
+                'raw_text' => $response->body(),
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('OCR API exception', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return [
+                'text' => '',
+                'error' => 'OCR fout: ' . $e->getMessage(),
+            ];
         }
-        return $section;
     }
 
+    /**
+     * Extract product section from Jumbo app receipt
+     */
     private function extractJumboAppProductSection(array $lines): array
     {
         $start = false;
         $section = [];
+
         foreach ($lines as $line) {
             if (!$start && preg_match('/^Producten$/i', $line)) {
                 $start = true;
                 continue;
             }
+
             if ($start) {
                 if (preg_match('/^Totaal/i', $line)) {
                     break;
                 }
-                if (strlen(trim($line)) > 1) {
+                if (strlen(trim($line)) > 0) {
                     $section[] = $line;
                 }
             }
         }
+
         return $section;
     }
 
+    /**
+     * Extract products from general Jumbo receipt
+     */
+    private function extractJumboReceipt(array $lines): array
+    {
+        $section = [];
+
+        foreach ($lines as $line) {
+            // Stop at separator lines
+            if (preg_match('/^-{3,}|={3,}/', trim($line))) {
+                break;
+            }
+
+            if (strlen(trim($line)) > 0) {
+                $section[] = $line;
+            }
+        }
+
+        return $section;
+    }
+
+    /**
+     * Parse products from text lines
+     * Uses a two-pass approach: first collect product names, then match with prices
+     */
     private function parseJumboProducts(array $lines): array
     {
         $products = [];
-        $i = 0;
-        $count = count($lines);
-        while ($i < $count) {
-            $line = trim($lines[$i]);
-            $clean = preg_replace('/[€]/', '', $line);
-            $clean = preg_replace('/\s{2,}/', ' ', $clean);
-            $clean = trim($clean);
 
-            // Corrigeer veelvoorkomende OCR-fouten in productnamen
-            $cleanName = preg_replace('/11\./', '1l.', $clean);
-            $cleanName = preg_replace('/11(\s|$)/', '1l$1', $cleanName);
-            $cleanName = preg_replace('/1 l/', '1l', $cleanName);
+        // First, try to find all product names and prices in the section
+        $productNames = [];
+        $prices = [];
+        $quantities = [];
 
-            // Als de regel begint met hoeveelheid of getal, nooit als los product toevoegen
-            if (preg_match('/^(\d+\s*[xX]|\d{1,3}(?:[.,]\d{2}))/u', $clean)) {
-                $i++;
+        foreach ($lines as $line) {
+            $clean = trim($line);
+
+            // Skip empty lines and markers
+            if (empty($clean) || preg_match('/^[A-Z]$/u', $clean)) {
                 continue;
             }
 
-            // Patroon: "naamregel" gevolgd door "2 X 5,20 10,40"
-            if (
-                preg_match('/^[A-Za-z].+$/u', $cleanName) &&
-                ($i + 1 < $count) &&
-                preg_match('/^(\d+)\s*[xX]\s*(\d{1,3}(?:[.,]\d{2}))\s+((?:[A-Za-z ]*)?)(\d{1,3}(?:[.,]\d{2}))$/u', trim($lines[$i+1]), $m2)
-            ) {
-                $products[] = [
-                    'name' => $cleanName,
-                    'quantity' => (int) $m2[1],
-                    'unit_price' => (float) str_replace(',', '.', $m2[2]),
-                    'total_price' => (float) str_replace(',', '.', $m2[4]),
-                ];
-                $i += 2;
+            // Skip headers and footers
+            if (preg_match('/^(TEVREDEN|AJ Jumbo|Totaal|Maestro)/i', $clean)) {
                 continue;
             }
-            // Patroon: "naam + prijs" op één regel
-            if (preg_match('/^(.+?)\s+(\d{1,3}(?:[.,]\d{2}))$/u', $cleanName, $m)) {
-                $products[] = [
-                    'name' => trim($m[1]),
-                    'quantity' => 1,
-                    'unit_price' => (float) str_replace(',', '.', $m[2]),
-                    'total_price' => (float) str_replace(',', '.', $m[2]),
+
+            // Check if it's a quantity format like "2X1,79"
+            if (preg_match('/^(\d+)\s*[xX]\s*(\d{1,3}[.,]\d{2})\s*$/ui', $clean, $m)) {
+                $quantities[] = [
+                    'quantity' => (int) $m[1],
+                    'price' => (float) str_replace(',', '.', $m[2]),
                 ];
-                $i++;
                 continue;
             }
-            // Patroon: "naam + hoeveelheid + prijs + totaal" op één regel
-            if (preg_match('/^(.+?)\s+(\d+)\s*[xX]\s*(\d{1,3}(?:[.,]\d{2}))\s+(\d{1,3}(?:[.,]\d{2}))$/u', $cleanName, $m)) {
-                $products[] = [
-                    'name' => trim($m[1]),
-                    'quantity' => (int) $m[2],
-                    'unit_price' => (float) str_replace(',', '.', $m[3]),
-                    'total_price' => (float) str_replace(',', '.', $m[4]),
-                ];
-                $i++;
+
+            // Check if it's just a price like "2,15" or "€15,66"
+            if (preg_match('/^[€]?\s*(\d{1,3}[.,]\d{2})\s*$/u', $clean, $m)) {
+                $prices[] = (float) str_replace(',', '.', $m[1]);
                 continue;
             }
-            // Anders: skip (geen product)
-            $i++;
+
+            // Check if it's a negative price (discount)
+            if (preg_match('/^-\s*[€]?\s*(\d{1,3}[.,]\d{2})\s*$/u', $clean, $m)) {
+                // Skip discounts for now
+                continue;
+            }
+
+            // If it looks like a product name (starts with letter, no price)
+            if (preg_match('/^[A-Za-z].+$/u', $clean) && !preg_match('/\d{1,3}[.,]\d{2}/', $clean)) {
+                $productNames[] = $clean;
+                continue;
+            }
         }
+
+        // Now match products with their prices/quantities
+        $priceIndex = 0;
+        $quantityIndex = 0;
+
+        foreach ($productNames as $name) {
+            // Check if we have a matching quantity entry
+            if ($quantityIndex < count($quantities)) {
+                $qtyInfo = $quantities[$quantityIndex];
+                $products[] = [
+                    'name' => $name,
+                    'quantity' => $qtyInfo['quantity'],
+                    'unit_price' => $qtyInfo['price'],
+                    'total_price' => $qtyInfo['quantity'] * $qtyInfo['price'],
+                ];
+                $quantityIndex++;
+            } elseif ($priceIndex < count($prices)) {
+                // Otherwise use a simple price
+                $price = $prices[$priceIndex];
+                $products[] = [
+                    'name' => $name,
+                    'quantity' => 1,
+                    'unit_price' => $price,
+                    'total_price' => $price,
+                ];
+                $priceIndex++;
+            }
+        }
+
         return $products;
     }
 
-    public function runTesseract($filePath, $raw = false, &$debugCmd = null)
-    {
-        if (!file_exists($filePath)) {
-            \Log::error('runTesseract: bestand niet gevonden', ['path' => $filePath]);
-            return '';
-        }
-        $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
-        $lang = 'nld+eng';
-        $tmpTxt = @tempnam(sys_get_temp_dir(), 'ocr_');
-        if ($ext === 'pdf') {
-            $base = @tempnam(sys_get_temp_dir(), 'pdf_');
-            unlink($base);
-            shell_exec("pdftoppm -png -f 1 -singlefile " . escapeshellarg($filePath) . " " . escapeshellarg($base));
-            $filePath = $base . '.png';
-        }
-        $ocrInput = $filePath;
-        if (!$raw) {
-            $tmpProcessed = '/tmp/ocr_debug.png';
-            if (file_exists($tmpProcessed)) {
-                @unlink($tmpProcessed);
-                \Log::info('Removed stale /tmp/ocr_debug.png before magick');
-            }
-            $magickAvailable = (bool) shell_exec('command -v magick');
-            if ($magickAvailable) {
-                $magickCmd = "magick " . escapeshellarg($filePath) . " -colorspace Gray -contrast-stretch 5% " . escapeshellarg($tmpProcessed);
-                $magickOutput = shell_exec($magickCmd . ' 2>&1');
-                $fileExists = file_exists($tmpProcessed);
-                \Log::info('magick output', [
-                    'cmd' => $magickCmd,
-                    'output' => $magickOutput,
-                    'tmpProcessed' => $tmpProcessed,
-                    'tmpProcessed_exists' => $fileExists,
-                    'filePath' => $filePath,
-                ]);
-                if ($fileExists) {
-                    $ocrInput = $tmpProcessed;
-                } else {
-                    \Log::warning('magick output file niet gevonden, gebruik origineel bestand', [
-                        'tmpProcessed' => $tmpProcessed,
-                        'filePath' => $filePath,
-                    ]);
-                    $ocrInput = $filePath;
-                }
-            } else {
-                \Log::error('ImageMagick magick not found, using original file');
-            }
-            if ($ocrInput === $tmpProcessed && !file_exists($tmpProcessed)) {
-                \Log::critical('FINAL fallback: /tmp/ocr_debug.png missing before Tesseract, forcibly using original file', [
-                    'ocrInput' => $ocrInput,
-                    'tmpProcessed_exists' => false
-                ]);
-                $ocrInput = $filePath;
-            }
-        }
-        \Log::info('Tesseract OCR input file (final)', ['ocrInput' => $ocrInput, 'ocrInput_exists' => file_exists($ocrInput)]);
-        $languages = ['nld+eng', 'eng', 'nld'];
-        $psms = [6, 4];
-        $text = '';
-        foreach ($languages as $lang) {
-            foreach ($psms as $psm) {
-                $cmd = "tesseract " . escapeshellarg($ocrInput) . " " . escapeshellarg($tmpTxt) . " -l " . escapeshellarg($lang) . " --psm $psm 2>&1";
-                $debugCmd = $cmd;
-                $output = shell_exec($cmd);
-                \Log::info('tesseract output', ['cmd' => $cmd, 'output' => $output]);
-                $text = @file_get_contents($tmpTxt . '.txt');
-                if (!empty(trim($text))) break 2;
-            }
-        }
-        @unlink($tmpTxt);
-        @unlink($tmpTxt . '.txt');
-        if (empty(trim($text))) {
-            \Log::error('runTesseract: OCR gaf geen tekst terug', ['file' => $filePath]);
-            return '';
-        }
-
-        return $text ?: '';
-    }
-
+    /**
+     * Update grocery list items with extracted products
+     */
     private function updateGroceryListWithProducts(array $products): array
     {
-
         $listIds = GroceryList::all()->pluck('id')->toArray();
 
-        $groceryListItems = GroceryListItem::where('list_id', $listIds)
-            ->get();
+        if (empty($listIds)) {
+            Log::warning('No grocery lists found');
+            return [];
+        }
 
+        $groceryListItems = GroceryListItem::whereIn('list_id', $listIds)->get();
         $updatedItems = [];
+
         foreach ($products as $product) {
             $productName = mb_strtolower($product['name']);
             $bestMatch = null;
             $bestDistance = null;
+
+            // Try to find matching item in existing grocery list
             foreach ($groceryListItems as $item) {
                 $itemName = mb_strtolower($item->name);
+
+                // Direct substring match
                 if (mb_stripos($productName, $itemName) !== false || mb_stripos($itemName, $productName) !== false) {
                     $bestMatch = $item;
                     break;
                 }
+
+                // Calculate Levenshtein distance
                 $distance = levenshtein($productName, $itemName);
                 if ($bestDistance === null || $distance < $bestDistance) {
                     $bestDistance = $distance;
                     $bestMatch = $item;
                 }
             }
-            if ($bestMatch && ($bestDistance !== null && $bestDistance <= 3 || mb_stripos($productName, $bestMatch->name) !== false || mb_stripos($bestMatch->name, $productName) !== false)) {
-                $oldPrice = $bestMatch->price;
+
+            // Update existing item if match is good enough
+            if ($bestMatch && ($bestDistance !== null && $bestDistance <= 3 ||
+                mb_stripos($productName, $bestMatch->name) !== false ||
+                mb_stripos($bestMatch->name, $productName) !== false)) {
+
+                $oldPrice = $bestMatch->unit_price ?? $bestMatch->price ?? 0;
                 $newPrice = $product['unit_price'];
+
                 if ($oldPrice != $newPrice) {
                     $updatedItems[] = [
                         'action' => 'update',
@@ -263,10 +329,12 @@ class ReceiptOcrService
                         'old_price' => $oldPrice,
                         'new_price' => $newPrice,
                     ];
+
                     $bestMatch->unit_price = $newPrice;
                     $bestMatch->save();
                 }
             } else {
+                // Create new item
                 $newItem = new GroceryListItem();
                 $newItem->name = $product['name'];
                 $newItem->unit_price = $product['unit_price'];
@@ -274,10 +342,11 @@ class ReceiptOcrService
                 $newItem->checked = true;
                 $newItem->list_id = $listIds[0] ?? null;
                 $newItem->save();
+
                 $updatedItems[] = [
                     'action' => 'create',
                     'name' => $newItem->name,
-                    'unit_price' => $newItem->price,
+                    'unit_price' => $newItem->unit_price,
                     'quantity' => $newItem->quantity,
                 ];
             }
