@@ -55,11 +55,12 @@ class ReceiptController extends Controller
         }
         $ocrService = new ReceiptOcrService();
         $productsResult = $ocrService->extractProductsAndPricesFromFile($fullPath, true);
+        ray($productsResult);
         return response()->json([
             'success' => true,
             'file_path' => $fullPath,
             'products' => $productsResult['products'],
-            'updated_items' => $productsResult['updated_items'],
+            'new_products' => $productsResult['new_products'],
         ]);
     }
 }

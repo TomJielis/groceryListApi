@@ -63,11 +63,11 @@ class ReceiptOcrService
         }
 
         // Update grocery list with found products
-        $updatedItems = $this->updateGroceryListWithProducts($products);
+        $items = $this->updateGroceryListWithProducts($products);
 
         return [
-            'products' => $products,
-            'updated_items' => $updatedItems,
+            'products' => $items['products'] ?? [],
+            'new_products' => $items['new_products'] ?? [],
             'debug_raw_ocr' => $ocrText,
         ];
     }
@@ -220,15 +220,15 @@ class ReceiptOcrService
             // Check if it's a quantity format like "2X1,79"
             if (preg_match('/^(\d+)\s*[xX]\s*(\d{1,3}[.,]\d{2})\s*$/ui', $clean, $m)) {
                 $quantities[] = [
-                    'quantity' => (int) $m[1],
-                    'price' => (float) str_replace(',', '.', $m[2]),
+                    'quantity' => (int)$m[1],
+                    'price' => (float)str_replace(',', '.', $m[2]),
                 ];
                 continue;
             }
 
             // Check if it's just a price like "2,15" or "€15,66"
             if (preg_match('/^[€]?\s*(\d{1,3}[.,]\d{2})\s*$/u', $clean, $m)) {
-                $prices[] = (float) str_replace(',', '.', $m[1]);
+                $prices[] = (float)str_replace(',', '.', $m[1]);
                 continue;
             }
 
@@ -289,7 +289,7 @@ class ReceiptOcrService
         }
 
         $groceryListItems = GroceryListItem::whereIn('list_id', $listIds)->get();
-        $updatedItems = [];
+        $items = [];
 
         foreach ($products as $product) {
             $productName = mb_strtolower($product['name']);
@@ -316,34 +316,27 @@ class ReceiptOcrService
 
             // Update existing item if match is good enough
             if ($bestMatch && ($bestDistance !== null && $bestDistance <= 3 ||
-                mb_stripos($productName, $bestMatch->name) !== false ||
-                mb_stripos($bestMatch->name, $productName) !== false)) {
+                    mb_stripos($productName, $bestMatch->name) !== false ||
+                    mb_stripos($bestMatch->name, $productName) !== false)) {
 
                 $oldPrice = $bestMatch->unit_price ?? $bestMatch->price ?? 0;
                 $newPrice = $product['unit_price'];
 
-                if ($oldPrice != $newPrice) {
-                    $updatedItems[] = [
-                        'action' => 'update',
-                        'name' => $bestMatch->name,
-                        'old_price' => $oldPrice,
-                        'new_price' => $newPrice,
-                    ];
-
-                    $bestMatch->unit_price = $newPrice;
-                    $bestMatch->save();
-                }
+                $items['products'][] = [
+                    'action' => 'update',
+                    'name' => $bestMatch->name,
+                    'old_price' => $oldPrice,
+                    'new_price' => $newPrice,
+                ];
             } else {
-                // Create new item
                 $newItem = new GroceryListItem();
                 $newItem->name = $product['name'];
                 $newItem->unit_price = $product['unit_price'];
                 $newItem->quantity = $product['quantity'] ?? 1;
                 $newItem->checked = true;
                 $newItem->list_id = $listIds[0] ?? null;
-                $newItem->save();
 
-                $updatedItems[] = [
+                $items['new_products'][] = [
                     'action' => 'create',
                     'name' => $newItem->name,
                     'unit_price' => $newItem->unit_price,
@@ -352,6 +345,6 @@ class ReceiptOcrService
             }
         }
 
-        return $updatedItems;
+        return $items;
     }
 }
