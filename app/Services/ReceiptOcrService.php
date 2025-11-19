@@ -320,13 +320,12 @@ class ReceiptOcrService
                     mb_stripos($bestMatch->name, $productName) !== false)) {
 
                 $oldPrice = $bestMatch->unit_price ?? $bestMatch->price ?? 0;
-                $newPrice = $product['unit_price'];
 
                 $items['products'][] = [
                     'action' => 'update',
                     'name' => $bestMatch->name,
-                    'old_price' => $oldPrice,
-                    'new_price' => $newPrice,
+                    'old_price' => $oldPrice ?? null,
+                    'unit_price' => $product['unit_price'],
                 ];
             } else {
                 $newItem = new GroceryListItem();
@@ -336,7 +335,7 @@ class ReceiptOcrService
                 $newItem->checked = true;
                 $newItem->list_id = $listIds[0] ?? null;
 
-                $items['new_products'][] = [
+                $items['products'][] = [
                     'action' => 'create',
                     'name' => $newItem->name,
                     'unit_price' => $newItem->unit_price,
