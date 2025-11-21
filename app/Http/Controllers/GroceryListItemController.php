@@ -108,7 +108,19 @@ class GroceryListItemController extends Controller
     public function decrease(Request $request, GroceryListItem $listItem): \Illuminate\Http\JsonResponse
     {
         $amount = $request->get('amount', 1);
-        $listItem->decrement('quantity', $amount);
+        if($amount === 0)
+        {
+            $listItem->quantity = 1;
+            $listItem->checked = true;
+            $listItem->save();
+            return response()->json([
+                'data' => $listItem,
+            ]);
+        }
+
+        $listItem->quantity = $amount;
+        $listItem->save();
+
 
         return response()->json([
             'data' => $listItem,
