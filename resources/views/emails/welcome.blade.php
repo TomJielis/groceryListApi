@@ -1,28 +1,30 @@
 <!DOCTYPE html>
-<html lang="nl">
+<html lang="{{ app()->getLocale() }}">
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>Boodschappenlijst</title>
+    <title>{{ __('welcome.title') }}</title>
     <style>
         body {
-            background-color: #f1fdf3;
+            background-color: #0b1120;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
             margin: 0;
             padding: 0;
+            color: #e5e7eb;
         }
 
         .email-container {
             max-width: 600px;
             margin: auto;
-            background-color: #ffffff;
-            border-radius: 8px;
+            background-color: #111827;
+            border-radius: 12px;
             overflow: hidden;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.08);
         }
 
         .header {
-            background-color: #22c55e;
+            background: linear-gradient(135deg, #1e3a8a, #2563eb);
             padding: 40px 20px 30px;
             text-align: center;
         }
@@ -54,37 +56,48 @@
         }
 
         .content h2 {
-            color: #111827;
+            color: #ffffff;
             font-size: 22px;
             margin-bottom: 10px;
         }
 
+        .content h4 {
+            color: #cbd5e1;
+        }
+
         .content p {
             font-size: 16px;
-            color: #4b5563;
-            line-height: 1.6;
+            color: #cbd5e1;
+            line-height: 1.7;
         }
 
         .cta-button {
             display: inline-block;
             margin-top: 24px;
-            background-color: #22c55e;
+            background: linear-gradient(135deg, #2563eb, #3b82f6);
             color: white;
             padding: 12px 28px;
-            border-radius: 6px;
+            border-radius: 8px;
             text-decoration: none;
-            font-weight: bold;
+            font-weight: 600;
             font-size: 16px;
+            box-shadow: 0 0 12px rgba(37, 99, 235, 0.6);
+            transition: background 0.2s, transform 0.2s;
+        }
+
+        .cta-button:hover {
+            background: linear-gradient(135deg, #1d4ed8, #2563eb);
+            transform: translateY(-2px);
         }
 
         .tips {
             margin-top: 40px;
-            background-color: #f0fdf4;
+            background-color: rgba(30, 41, 59, 0.8);
             padding: 20px;
-            border-radius: 6px;
+            border-radius: 8px;
             text-align: left;
-            border-left: 4px solid #22c55e;
-            color: #374151;
+            border-left: 4px solid #3b82f6;
+            color: #cbd5e1;
         }
 
         .tips h3 {
@@ -92,6 +105,7 @@
             font-size: 16px;
             font-weight: 600;
             margin-bottom: 10px;
+            color: #93c5fd;
         }
 
         .tips ul {
@@ -105,12 +119,21 @@
             font-size: 15px;
         }
 
+        ul {
+            color: #cbd5e1;
+        }
+
+        li {
+            margin-bottom: 6px;
+        }
+
         .footer {
             text-align: center;
             font-size: 12px;
-            color: #9ca3af;
+            color: #64748b;
             margin-top: 30px;
             padding: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
         }
     </style>
 </head>
@@ -121,70 +144,72 @@
         <div class="logo-wrapper">
             <img src="https://cdn-icons-png.flaticon.com/512/3144/3144456.png" alt="Boodschappenlijst Logo"/>
             <div class="title">
-                Boodschappenlijst
+                {{ __('welcome.title') }}
             </div>
         </div>
     </div>
 
     <div class="content">
         <br>
-        <p style="text-align: center">Hallo {{$user->name}}👋,</p>
+        <p style="text-align: center">Hallo {{$user->name}} 👋,</p>
         <p style="text-align: center">
-            Welkom bij Boodschappenlijst!
-            Met je nieuwe account kun je snel en eenvoudig je boodschappenlijsten beheren, waar je ook bent.
-            Deel lijsten eenvoudig met vrienden of familie, werk samen in real-time en vergeet nooit meer een item.
-            Begin vandaag nog met organiseren en geniet van een slimmere, handigere manier van winkelen!
+            {{__('welcome.welcome')}}<br>
+            {{__('welcome.intro')}}<br>
+            {{__('welcome.share')}}<br>
+            {{__('welcome.start')}}!
         </p>
 
-        <a href="{{$url}}" class="cta-button">Activeer je account</a>
+        <a href="{{$url}}" class="cta-button">{{__('welcome.activate_account')}}</a>
         <br>
 
         <div class="tips">
-            <h3>💡 Tips voor gebruik</h3>
+            <h3>💡 {{__('welcome.tips_for_usage')}}</h3>
             <ul>
-                <li>✅ Stel je hoofdlijst in als favoriet op de lijstenpagina, zodat je er direct toegang toe hebt vanaf het dashboard.</li>
-                <li>👥 Deel je lijst met vrienden en werk samen binnen de app. Dit kun je instellen vanaf je lijstenpagina.</li>
-                <li>📱 Gebruik het op mobiel en desktop.</li>
+                <li>✅ {{__('welcome.tip_1')}}</li>
+                <li>👥 {{__('welcome.tip_2')}}</li>
+                <li>📱 {{__('welcome.tip_3')}}</li>
             </ul>
         </div>
+
         <div>
             <h2 style="text-align: center; margin-top: 40px;">
-                Voeg Boodschappenlijst toe aan je Startscherm
+                {{__('welcome.add_app_to_start_screen')}}
             </h2>
 
             <h4 style="text-align: center; margin-top: 40px;">
-                Instructies voor iPhone (Safari):
+                {{__('welcome.instruction_safari')}}
             </h4>
             <ul style="text-align: center; padding-left: 0;">
-                <li>1. Open de app in Safari.</li>
-                <li>2. Tik op het Deel-icoon (vierkant met pijl, onderaan).</li>
-                <li>3. Scroll naar beneden en tik op "Zet op beginscherm".</li>
-                <li>4. Bevestig de naam en tik op "Voeg toe".</li>
+                <li>{{__('welcome.instruction_safari_1')}}</li>
+                <li>{{__('welcome.instruction_safari_2')}}</li>
+                <li>{{__('welcome.instruction_safari_3')}}</li>
+                <li>{{__('welcome.instruction_safari_4')}}</li>
             </ul>
 
             <h4 style="text-align: center; margin-top: 40px;">
-                Instructies voor Android (Chrome of andere browsers):
+                {{__('welcome.instruction_chrome')}}
             </h4>
 
             <ul style="text-align: center; padding-left: 0;">
-                <li>Open de app in je browser.</li>
-                <li>Tik op de drie puntjes (⋮) in de rechterbovenhoek.</li>
-                <li>Selecteer "Toevoegen aan startscherm".</li>
-                <li>Bevestig de naam en tik op "Toevoegen".</li>
+                <li>{{__('welcome.instruction_chrome_1')}}</li>
+                <li>{{__('welcome.instruction_chrome_2')}}</li>
+                <li>{{__('welcome.instruction_chrome_3')}}</li>
+                <li>{{__('welcome.instruction_chrome_4')}}</li>
             </ul>
 
             <p style="text-align: center; margin-top: 20px;">
-                Je vindt nu Boodschappenlijst op je startscherm — met een eigen icoon!
+                {{__('welcome.instruction_chrome_5')}}
             </p>
         </div>
+
         <p style="margin-top: 30px; text-align: center;">
-            We wensen je een soepele en plezierige winkelervaring<br>
-            – Het Boodschappenlijst Team
+            {{__('welcome.wish_message')}}<br>
+            {{__('welcome.team')}}
         </p>
     </div>
 
     <div class="footer">
-        Je ontvangt deze e-mail omdat je een account hebt aangemaakt op www.Tomjielis.com. <br>
+        {{__('welcome.footer')}}<br>
     </div>
 </div>
 </body>

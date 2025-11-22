@@ -5,6 +5,7 @@ namespace App\Jobs\Users;
 use App\Mail\ResetPassword;
 use App\Mail\Welcome;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -46,17 +47,20 @@ class StoreUserJob implements ShouldQueue
         $user->password = Hash::make($userData['password']);
         $user->email = $userData['email'];
         $user->language = $userData['language'] ?? 'nl';
+        $user->accepted_terms = $userData['acceptedTerms'] ?? false;
+        $user->accepted_terms_at = Carbon::now();
+        $user->accepted_terms_version = $userData['acceptedTermsVersion'];
         $user->save();
+
 
         $verifyCode = Crypt::encryptString($user->id);
         $url = config('app.url') . '/auth/' . $verifyCode;
 
-        $emailTemplate = $user->language === 'en' ? 'emails.welcome-en' : 'emails.welcome';
-        $mail = new Welcome($url, $user, $emailTemplate);
+        $mail = new Welcome($url, $user);
 
         Config::set('mail.from', [
-            'address' => env('MAIL_FROM_ADDRESS'),
-            'name' => env('MAIL_FROM_NAME'),
+            'address' => config('mail.from.address'),
+            'name' => config('mail.from.name'),
         ]);
 
         try {

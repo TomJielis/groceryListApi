@@ -16,6 +16,7 @@ class ResetPassword extends Mailable
     public User $user;
     public $content;
     public $title;
+    public string $language;
 
     /**
      * Create a new message instance.
@@ -27,6 +28,7 @@ class ResetPassword extends Mailable
         $this->url = $url;
         $this->user = $user;
         $this->markdown = $markdown;
+        $this->language = $user->language;
     }
 
     /**
@@ -36,6 +38,7 @@ class ResetPassword extends Mailable
      */
     public function build()
     {
+        \App::setLocale($this->language);
         return $this->markdown($this->markdown);
     }
 }

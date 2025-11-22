@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="nl">
+<html lang="{{ app()->getLocale() }}">
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>{{ $title }}</title>
+    <title>{{ __('invite.title') }}</title>
     <style>
         body {
             background-color: #0b1120;
@@ -11,6 +11,10 @@
             margin: 0;
             padding: 0;
             color: #e5e7eb;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .email-container {
@@ -19,14 +23,19 @@
             background-color: #111827;
             border-radius: 12px;
             overflow: hidden;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
             border: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
         }
 
         .header {
             background: linear-gradient(135deg, #1e3a8a, #2563eb);
             padding: 40px 20px 30px;
             text-align: center;
+            width: 100%;
         }
 
         .header .logo-wrapper {
@@ -53,6 +62,13 @@
         .content {
             padding: 30px;
             text-align: center;
+            width: 100%;
+        }
+
+        .content h2 {
+            color: #ffffff;
+            font-size: 22px;
+            margin-bottom: 10px;
         }
 
         .content p {
@@ -87,38 +103,38 @@
             margin-top: 30px;
             padding: 20px;
             border-top: 1px solid rgba(255, 255, 255, 0.08);
+            width: 100%;
         }
     </style>
 </head>
-<body>
-<div class="email-container">
-
-    <!-- Header with logo and title -->
-    <div class="header">
-        <div class="logo-wrapper">
-            <img src="https://cdn-icons-png.flaticon.com/512/3144/3144456.png" alt="Grocery List Logo"/>
-            <div class="title">{{__('password-reset.grocery_list')}}</div>
+    <body>
+        <div class="email-container">
+            <div class="header">
+                <div class="logo-wrapper">
+                    <img src="https://cdn-icons-png.flaticon.com/512/3144/3144456.png"
+                         alt="{{ app()->getLocale() == 'en' ? 'Grocery List Logo' : 'Boodschappenlijst Logo' }}"/>
+                    <div class="title">
+                        {{ __('invite.title') }}
+                    </div>
+                </div>
+            </div>
+            <div class="content">
+                <h2 style="text-align: center;">{{ __('invite.title') }}</h2>
+                <p style="text-align: center;">{{ __('invite.greeting', ['name' => $invitedUser->name ?? '']) }}<br>
+                    {{ __('invite.invited_by', ['user' => $user->name, 'list' => $list->name]) }}</p>
+                @if(!isset($invitedUser))
+                    <p style="text-align: center;">{{ __('invite.create_account') }}</p>
+                    <a href="{{ $url }}" class="cta-button">{{ __('invite.create_account_button') }}</a>
+                    <p style="margin-top: 24px; text-align: center;">{{ __('invite.already_account') }}</p>
+                @endif
+                <p style="margin-top: 30px; text-align: center;">
+                    {{ __('invite.enjoy') }}<br>
+                    {{ __('invite.team') }}
+                </p>
+            </div>
+            <div class="footer">
+                {{ __('invite.footer') }}
+            </div>
         </div>
-    </div>
-
-    <!-- Content section -->
-    <div class="content">
-        <br>
-        <p style="text-align: center">{{__('password-reset.hello')}} {{ $user->name }} 👋,</p>
-        <p style="text-align: center">
-            {{__('password-reset.reset_message_1')}}<br>
-            {{__('password-reset.button_reset_password_message')}}
-        </p>
-        <a href="{{ $url }}" class="cta-button"> {{__('password-reset.reset_password')}}</a>
-        <p style="margin-top: 24px; text-align: center">
-            {{__('password-reset.ignore_message')}}
-        </p>
-    </div>
-
-    <!-- Footer -->
-    <div class="footer">
-       {{__('password-reset.footer')}}
-    </div>
-</div>
-</body>
+    </body>
 </html>

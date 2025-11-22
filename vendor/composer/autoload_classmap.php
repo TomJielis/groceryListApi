@@ -27,6 +27,7 @@ return array(
     'App\\Http\\Requests\\User\\UpdateUserRequest' => $baseDir . '/app/Http/Requests/User/UpdateUserRequest.php',
     'App\\Jobs\\Users\\LoginJob' => $baseDir . '/app/Jobs/Users/LoginJob.php',
     'App\\Jobs\\Users\\StoreUserJob' => $baseDir . '/app/Jobs/Users/StoreUserJob.php',
+    'App\\Mail\\GroceryListInviteMail' => $baseDir . '/app/Mail/GroceryListInviteMail.php',
     'App\\Mail\\ResetPassword' => $baseDir . '/app/Mail/ResetPassword.php',
     'App\\Mail\\Welcome' => $baseDir . '/app/Mail/Welcome.php',
     'App\\Models\\Card' => $baseDir . '/app/Models/Card.php',

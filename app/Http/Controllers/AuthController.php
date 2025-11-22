@@ -64,6 +64,17 @@ class AuthController extends Controller
         return response()->json($user);
     }
 
+    public function approveTerms(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = \auth()->user();
+        $user->accepted_terms = true;
+        $user->accepted_terms_at = Carbon::now();
+        $user->accepted_terms_version = $request->get('acceptedTermsVersion');
+        $user->save();
+        return response()->json($user);
+    }
+
     public function verifyUser(Request $request, string $token)
     {
         $userId = Crypt::decryptString($token);
@@ -97,6 +108,11 @@ class AuthController extends Controller
 
         $user = User::where('email', $email)->first();
 
+        if(!$user)
+        {
+            return response()->json(['message' => 'Geen gebruiker gevonden met dit e-mailadres'], 404);
+        }
+
         TemporaryPasswordCode::where('user_id', '=', $user->id)
             ->where('is_used', '=', false)
             ->delete();
@@ -111,12 +127,11 @@ class AuthController extends Controller
 
         $url = config('app.url') . '/auth/password/' . $code;
 
-        $emailTemplate = $user->language === 'en' ? 'emails.password.user-password-reset-en' : 'emails.password.user-password-reset';
-        $mail = new ResetPassword($url, $user, $emailTemplate);
+        $mail = new ResetPassword($url, $user);
 
         Config::set('mail.from', [
-            'address' => env('MAIL_FROM_ADDRESS'),
-            'name' => env('MAIL_FROM_NAME'),
+            'address' => config('mail.from.address'),
+            'name' => config('mail.from.name'),
         ]);
 
         try {
@@ -125,7 +140,7 @@ class AuthController extends Controller
 
         } catch (\Exception $exception) {
             \Log::error($exception->getMessage());
-            return response()->json(['message' => 'Email versturen is mislukt'], 500);
+            return response()->json(['message' => $exception->getMessage()], 500);
         }
 
         return response()->json(['message' => 'Wachtwoordherstel-e-mail verzonden'], 200);
@@ -155,6 +170,25 @@ class AuthController extends Controller
         $temporaryPasswordCode->save();
 
         return response()->json(['message' => 'Wachtwoord is geupdate'], 200);
+    }
+
+    public function deactivate(Request $request)
+    {
+        /** @var User $user */
+        $user = \auth()->user();
+        foreach ($user->groceryLists as $groceryList)
+        {
+            $groceryList->groceryListItems()->delete();
+            $groceryList->groceryListInvites()->delete();
+            $groceryList->delete();
+        }
+
+        $user->groceryListInvites()->delete();
+        $user->cards()->delete();
+
+        $user->temporaryPasswordCodes()->delete();
+        $user->personalAccessTokens()->delete();
+        $user->delete();
     }
 
     /**

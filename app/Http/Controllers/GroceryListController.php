@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\GroceryListInviteMail;
 use App\Models\GroceryList;
 use App\Models\GroceryListInvites;
 use App\Models\GroceryListInvitesStatus;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 
 class GroceryListController extends Controller
 {
@@ -36,15 +38,33 @@ class GroceryListController extends Controller
         ]);
     }
 
+    public function pending()
+    {
+        $lists = GroceryList::withoutGlobalScopes()
+            ->whereHas('groceryListInvites', function ($query) {
+                $query->where('status', GroceryListInvitesStatus::PENDING)
+                    ->where(function ($subQuery) {
+                        $subQuery->where('user_id', auth()->id())
+                                 ->orWhere('email', auth()->user()?->email);
+                    });
+            })
+            ->with(['groceryListInvites.user', 'createdBy'])
+            ->get();
+
+        return response()->json([
+            'data' => $lists,
+        ]);
+    }
+
     public function store(Request $request): \Illuminate\Http\JsonResponse
     {
         $data = $request->all();
-        $data['created_by'] = auth()->user()->id; // Assuming you want to associate the list with the authenticated user
+        $data['created_by'] = auth()->user()?->id;
 
         $listItem = GroceryList::create(
             [
                 'name' => $data['name'],
-                'created_by' => $data['created_by'] ?? 1, // Default to 1 if not provided
+                'created_by' => $data['created_by'] ?? 1,
             ]
         );
 
@@ -53,37 +73,77 @@ class GroceryListController extends Controller
         ]);
     }
 
+    public function update(Request $request, GroceryList $groceryList): \Illuminate\Http\JsonResponse
+    {
+        $data = $request->all();
+        $groceryList->name = $data['name'] ?? $groceryList->name;
+        $groceryList->save();
+
+        return response()->json([
+            'data' => $groceryList,
+        ]);
+    }
+
     public function share(Request $request): \Illuminate\Http\JsonResponse
     {
         $data = $request->all();
+        $email = trim($data['email'] ?? null);
         $groceryList = GroceryList::find($data['groceryListId']);
 
         if (!$groceryList) {
             return response()->json(['message' => 'Boodschappen lijst niet gevonden'], 404);
         }
 
-        $user = User::where('email','=', $data['email'])->first();
-        if(!$user){
-            return response()->json(['message' => 'Gebruiker niet gevonden'], 404);
+        if($email == null){
+            return response()->json(['message' => 'Ongeldig e-mailadres'], 400);
         }
 
-        if($user->id === auth()->user()->id){
+        if($email === auth()->user()?->email){
             return response()->json(['message' => 'Je kan de lijst niet met jezelf delen'], 400);
         }
 
-        GroceryListInvites::create(
-            [
-                'grocery_list_id' => $groceryList->id,
-                'user_id' => $user->id,
-                'status' => GroceryListInvitesStatus::ACCEPTED,
-            ]
-        );
+        $user = User::where('email', $email)->first();
 
+        $groceryListInvites = GroceryListInvites::where('grocery_list_id', $groceryList->id)
+            ->where(function ($query) use ($user, $email) {
+                $query->where('user_id', $user?->id)
+                      ->orWhere('email', $email);
+            })
+            ->whereIn('status', [GroceryListInvitesStatus::DECLINED, GroceryListInvitesStatus::PENDING])
+            ->first();
 
+        if(!$groceryListInvites)
+        {
+            $groceryListInvites = new GroceryListInvites();
+        }
+
+        $groceryListInvites->grocery_list_id = $groceryList->id;
+        $groceryListInvites->user_id = $user?->id;
+        $groceryListInvites->email = $email;
+        $groceryListInvites->status = GroceryListInvitesStatus::PENDING;
+        $groceryListInvites->save();
+
+        Mail::to($email)->send(new GroceryListInviteMail(auth()->user(), $groceryList, $user, $email));
 
         return response()->json([
             'message' => 'Boodschappenlijst is gedeeld.',
             'data' => $groceryList,
+        ]);
+    }
+
+    public function unshare(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $data = $request->all();
+        if(!isset($data['groceryListId']) || !isset($data['userId'])){
+            return response()->json(['message' => 'Ongeldige aanvraag'], 400);
+        }
+
+        GroceryListInvites::where('grocery_list_id', $data['groceryListId'])
+            ->where('user_id', $data['userId'])
+            ->delete();
+
+        return response()->json([
+            'message' => 'Toegang tot de lijst is ingetrokken.',
         ]);
     }
 
@@ -99,12 +159,64 @@ class GroceryListController extends Controller
 
     public function delete(Request $request, GroceryList $groceryList): \Illuminate\Http\JsonResponse
     {
+
+        if($groceryList->created_by !== auth()->id()) {
+
+            $groceryListInvite = GroceryListInvites::where('grocery_list_id', $groceryList->id)
+                ->where('user_id', auth()->id())
+                ->where('status', '=', GroceryListInvitesStatus::ACCEPTED)
+                ->first();
+
+            $groceryListInvite->delete();
+
+            return response()->json([
+                'message' => 'Lijst is verwijderd.',
+            ]);
+        }
+
+
         $groceryList->groceryListInvites()->delete();
         $groceryList->groceryListItems()->delete();
         $groceryList->delete();
 
         return response()->json([
             'message' => 'Lijstitem is verwijderd.',
+        ]);
+    }
+
+    public function updateInviteStatus(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $status = $request->get('status');
+
+        if (!in_array($status, [GroceryListInvitesStatus::ACCEPTED, GroceryListInvitesStatus::DECLINED])) {
+            return response()->json(['message' => 'Ongeldige status'], 400);
+        }
+
+        $groceryList = GroceryList::withoutGlobalScopes()->find($request->get('id'));
+
+        if(!$groceryList) {
+            return response()->json(['message' => 'Boodschappenlijst niet gevonden'], 404);
+        }
+
+        $groceryListInvites = GroceryListInvites::where('grocery_list_id', $groceryList->id)
+            ->where(function ($query) {
+                $query->where('user_id', auth()->id())
+                      ->orWhere('email', auth()->user()?->email);
+            })
+            ->first();
+
+        if($groceryListInvites->user_id === null)
+        {
+            $groceryListInvites->user_id = auth()->id();
+        }
+
+        $groceryListInvites->status = $status;
+
+        $groceryListInvites->save();
+
+        return response()->json([
+            'message' => 'Uitnodiging status is bijgewerkt.',
+            'data' => $groceryListInvites,
         ]);
     }
 }

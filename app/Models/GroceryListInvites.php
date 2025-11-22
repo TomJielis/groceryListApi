@@ -24,7 +24,8 @@ class GroceryListInvites extends Model
     protected $fillable = [
         'grocery_list_id',
         'user_id',
-        'status'
+        'status',
+        'email'
     ];
 
     public function groceryList()

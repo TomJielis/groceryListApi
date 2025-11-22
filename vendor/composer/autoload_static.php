@@ -604,6 +604,7 @@ class ComposerStaticInit1dc86e2f612425d0d43ff0bda2086cd8
         'App\\Http\\Requests\\User\\UpdateUserRequest' => __DIR__ . '/../..' . '/app/Http/Requests/User/UpdateUserRequest.php',
         'App\\Jobs\\Users\\LoginJob' => __DIR__ . '/../..' . '/app/Jobs/Users/LoginJob.php',
         'App\\Jobs\\Users\\StoreUserJob' => __DIR__ . '/../..' . '/app/Jobs/Users/StoreUserJob.php',
+        'App\\Mail\\GroceryListInviteMail' => __DIR__ . '/../..' . '/app/Mail/GroceryListInviteMail.php',
         'App\\Mail\\ResetPassword' => __DIR__ . '/../..' . '/app/Mail/ResetPassword.php',
         'App\\Mail\\Welcome' => __DIR__ . '/../..' . '/app/Mail/Welcome.php',
         'App\\Models\\Card' => __DIR__ . '/../..' . '/app/Models/Card.php',
