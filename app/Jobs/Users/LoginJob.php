@@ -55,7 +55,7 @@ class LoginJob implements ShouldQueue
             ];
         }
 
-        $token = $user->createToken('nuxt-frontend')->plainTextToken;
+        $token = $user->createToken('nuxt-frontend', ['*'], now()->addDays(30)  )->plainTextToken;
 
         return [
             'access_token' => $token,
