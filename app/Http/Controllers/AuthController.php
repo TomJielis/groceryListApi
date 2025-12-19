@@ -64,6 +64,15 @@ class AuthController extends Controller
         return response()->json($user);
     }
 
+    public function updateTheme(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = \auth()->user();
+        $user->dark_mode = $request->get('darkMode');
+        $user->save();
+        return response()->json($user);
+    }
+
     public function approveTerms(Request $request): JsonResponse
     {
         /** @var User $user */

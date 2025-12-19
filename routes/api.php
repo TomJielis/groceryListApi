@@ -29,5 +29,6 @@ Route::post('/me', [AuthController::class, 'me']);
 Route::post('/update-language', [AuthController::class, 'updateLanguage']);
 Route::post('/approve-terms', [AuthController::class, 'approveTerms']);
 Route::post('/update', [AuthController::class, 'update']);
+Route::post('/update-theme', [AuthController::class, 'updateTheme']);
 Route::post('/deactivate', [AuthController::class, 'deactivate']);
 Route::get('/verify-email/{hash}', [AuthController::class, 'verifyUser'])->withoutMiddleware('auth:sanctum');
