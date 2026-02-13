@@ -83,11 +83,19 @@ class GroceryListItemController extends Controller
 
     public function checked(Request $request, GroceryListItem $listItem): \Illuminate\Http\JsonResponse
     {
-        $listItem->checked = $request->get('checked', false);
-        $listItem->save();
+        // Find the latest record with the same name in the same list
+        $latestItem = GroceryListItem::where('name', $listItem->name)
+            ->where('list_id', $listItem->list_id)
+            ->orderByDesc('id')
+            ->first();
+
+        if ($latestItem) {
+            $latestItem->checked = $request->get('checked', false);
+            $latestItem->save();
+        }
 
         return response()->json([
-            'data' => $listItem,
+            'data' => $latestItem ?? $listItem,
         ]);
     }
 
