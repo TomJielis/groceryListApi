@@ -535,7 +535,7 @@ class AdminStatsController extends Controller
 
         foreach ($versionCounts as $version) {
             $percentage = $total > 0 ? round(($version->count / $total) * 100, 1) : 0;
-            $breakdown[$version->accepted_terms_version ?? 0] = [
+            $breakdown[$version->accepted_terms_version ?? 'undefined'] = [
                 'count' => $version->count,
                 'percentage' => $percentage,
             ];
