@@ -19,6 +19,21 @@ class GroceryListItem extends Model
     protected static function boot()
     {
         parent::boot();
+
+        static::creating(function ($model) {
+            $userId = auth()->id();
+            if ($userId) {
+                $model->created_by = $userId;
+                $model->updated_by = $userId;
+            }
+        });
+
+        static::updating(function ($model) {
+            $userId = auth()->id();
+            if ($userId) {
+                $model->updated_by = $userId;
+            }
+        });
     }
 
     /**
@@ -32,5 +47,23 @@ class GroceryListItem extends Model
         'list_id',
         'checked',
         'unit_price',
+        'created_by',
+        'updated_by',
     ];
+
+    /**
+     * Get the user who created the item.
+     */
+    public function createdBy()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * Get the user who last updated the item.
+     */
+    public function updatedBy()
+    {
+        return $this->belongsTo(User::class, 'updated_by');
+    }
 }

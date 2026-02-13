@@ -57,7 +57,10 @@ class GroceryListItemController extends Controller
             'grocery_list_items.list_id',
             'grocery_list_items.created_at',
             'grocery_list_items.updated_at',
-            'grocery_list_items.unit_price'
+            'grocery_list_items.unit_price',
+            'grocery_list_items.created_by',
+            'grocery_list_items.updated_by',
+
         );
 
         return response()->json([

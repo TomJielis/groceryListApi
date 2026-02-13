@@ -148,11 +148,14 @@ class AdminStatsController extends Controller
         ]);
     }
 
-    private function getMostAddedItems(Carbon $month, ?array $listIds = null): array
+    private function getMostAddedItems(Carbon $month, ?array $listIds = null, int $userId = null): array
     {
         $query = GroceryListItem::selectRaw('LOWER(name) as name, COUNT(*) as count, COUNT(DISTINCT list_id) as lists_count')
             ->whereYear('created_at', $month->year)
-            ->whereMonth('created_at', $month->month);
+            ->whereMonth('created_at', $month->month)
+            ->when($userId, function ($query) use ($userId) {;
+                $query->where('created_by', $userId);
+            });
 
         if ($listIds !== null) {
             $query->whereIn('list_id', $listIds);
@@ -172,12 +175,15 @@ class AdminStatsController extends Controller
             ->toArray();
     }
 
-    private function getMostCheckedItems(Carbon $month, ?array $listIds = null): array
+    private function getMostCheckedItems(Carbon $month, ?array $listIds = null, int $userId = null): array
     {
         $query = GroceryListItem::selectRaw('LOWER(name) as name, COUNT(*) as count')
             ->where('checked', true)
             ->whereYear('updated_at', $month->year)
-            ->whereMonth('updated_at', $month->month);
+            ->whereMonth('updated_at', $month->month)
+            ->when($userId, function ($query) use ($userId) {;
+                $query->where('updated_by', $userId);
+            });
 
         if ($listIds !== null) {
             $query->whereIn('list_id', $listIds);
@@ -260,23 +266,27 @@ class AdminStatsController extends Controller
         $currentMonthItems = GroceryListItem::whereIn('list_id', $allAccessibleListIds)
             ->whereYear('created_at', $currentMonth->year)
             ->whereMonth('created_at', $currentMonth->month)
+            ->where('created_by', $user->id)
             ->count();
 
         $previousMonthItems = GroceryListItem::whereIn('list_id', $allAccessibleListIds)
             ->whereYear('created_at', $previousMonth->year)
             ->whereMonth('created_at', $previousMonth->month)
+            ->where('created_by', $user->id)
             ->count();
 
         $currentMonthChecked = GroceryListItem::whereIn('list_id', $allAccessibleListIds)
             ->where('checked', true)
             ->whereYear('updated_at', $currentMonth->year)
             ->whereMonth('updated_at', $currentMonth->month)
+            ->where('updated_by', $user->id)
             ->count();
 
         $previousMonthChecked = GroceryListItem::whereIn('list_id', $allAccessibleListIds)
             ->where('checked', true)
             ->whereYear('updated_at', $previousMonth->year)
             ->whereMonth('updated_at', $previousMonth->month)
+            ->where('updated_by', $user->id)
             ->count();
 
         $allAccessibleListIdsArray = $allAccessibleListIds->toArray();
@@ -311,12 +321,12 @@ class AdminStatsController extends Controller
             ],
             'top_items' => [
                 'current_month' => [
-                    'most_added' => $this->getMostAddedItems($currentMonth, $allAccessibleListIdsArray),
-                    'most_checked' => $this->getMostCheckedItems($currentMonth, $allAccessibleListIdsArray),
+                    'most_added' => $this->getMostAddedItems($currentMonth, $allAccessibleListIdsArray, $user->id),
+                    'most_checked' => $this->getMostCheckedItems($currentMonth, $allAccessibleListIdsArray, $user->id),
                 ],
                 'previous_month' => [
-                    'most_added' => $this->getMostAddedItems($previousMonth, $allAccessibleListIdsArray),
-                    'most_checked' => $this->getMostCheckedItems($previousMonth, $allAccessibleListIdsArray),
+                    'most_added' => $this->getMostAddedItems($previousMonth, $allAccessibleListIdsArray, $user->id),
+                    'most_checked' => $this->getMostCheckedItems($previousMonth, $allAccessibleListIdsArray, $user->id),
                 ],
             ],
         ]);
