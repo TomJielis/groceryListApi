@@ -279,6 +279,8 @@ class AdminStatsController extends Controller
             ->whereMonth('updated_at', $previousMonth->month)
             ->count();
 
+        $allAccessibleListIdsArray = $allAccessibleListIds->toArray();
+
         return response()->json([
             'user' => [
                 'id' => $user->id,
@@ -306,6 +308,16 @@ class AdminStatsController extends Controller
                     'checked' => $previousMonthChecked,
                 ],
                 'change' => $this->calculateChange($currentMonthItems, $previousMonthItems),
+            ],
+            'top_items' => [
+                'current_month' => [
+                    'most_added' => $this->getMostAddedItems($currentMonth, $allAccessibleListIdsArray),
+                    'most_checked' => $this->getMostCheckedItems($currentMonth, $allAccessibleListIdsArray),
+                ],
+                'previous_month' => [
+                    'most_added' => $this->getMostAddedItems($previousMonth, $allAccessibleListIdsArray),
+                    'most_checked' => $this->getMostCheckedItems($previousMonth, $allAccessibleListIdsArray),
+                ],
             ],
         ]);
     }
