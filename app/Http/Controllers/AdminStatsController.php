@@ -520,13 +520,11 @@ class AdminStatsController extends Controller
         $endOfMonth = $month->copy()->endOfMonth();
 
         $latestVersion = User::where('created_at', '<=', $endOfMonth)
-            ->whereNotNull('accepted_terms_version')
             ->orderByDesc('accepted_terms_version')
             ->value('accepted_terms_version');
 
         $versionCounts = User::select('accepted_terms_version', DB::raw('COUNT(*) as count'))
             ->where('created_at', '<=', $endOfMonth)
-            ->whereNotNull('accepted_terms_version')
             ->groupBy('accepted_terms_version')
             ->get();
 
@@ -537,7 +535,7 @@ class AdminStatsController extends Controller
 
         foreach ($versionCounts as $version) {
             $percentage = $total > 0 ? round(($version->count / $total) * 100, 1) : 0;
-            $breakdown[$version->accepted_terms_version] = [
+            $breakdown[$version->accepted_terms_version ?? 0] = [
                 'count' => $version->count,
                 'percentage' => $percentage,
             ];
