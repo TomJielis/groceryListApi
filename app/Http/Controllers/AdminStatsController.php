@@ -178,33 +178,35 @@ class AdminStatsController extends Controller
             ->orderByDesc('last_used_at')
             ->value('last_used_at');
 
-        $lists = GroceryList::withoutGlobalScopes()
+        $ownedLists = GroceryList::withoutGlobalScopes()
             ->where('created_by', $user->id)
             ->get();
 
-        $listIds = $lists->pluck('id');
+        $ownedListIds = $ownedLists->pluck('id');
 
-        $sharedWithUser = GroceryListInvites::where('user_id', $user->id)
+        $sharedListIds = GroceryListInvites::where('user_id', $user->id)
             ->where('status', GroceryListInvitesStatus::ACCEPTED)
-            ->count();
+            ->pluck('grocery_list_id');
 
-        $currentMonthItems = GroceryListItem::whereIn('list_id', $listIds)
+        $allAccessibleListIds = $ownedListIds->merge($sharedListIds)->unique();
+
+        $currentMonthItems = GroceryListItem::whereIn('list_id', $allAccessibleListIds)
             ->whereYear('created_at', $currentMonth->year)
             ->whereMonth('created_at', $currentMonth->month)
             ->count();
 
-        $previousMonthItems = GroceryListItem::whereIn('list_id', $listIds)
+        $previousMonthItems = GroceryListItem::whereIn('list_id', $allAccessibleListIds)
             ->whereYear('created_at', $previousMonth->year)
             ->whereMonth('created_at', $previousMonth->month)
             ->count();
 
-        $currentMonthChecked = GroceryListItem::whereIn('list_id', $listIds)
+        $currentMonthChecked = GroceryListItem::whereIn('list_id', $allAccessibleListIds)
             ->where('checked', true)
             ->whereYear('updated_at', $currentMonth->year)
             ->whereMonth('updated_at', $currentMonth->month)
             ->count();
 
-        $previousMonthChecked = GroceryListItem::whereIn('list_id', $listIds)
+        $previousMonthChecked = GroceryListItem::whereIn('list_id', $allAccessibleListIds)
             ->where('checked', true)
             ->whereYear('updated_at', $previousMonth->year)
             ->whereMonth('updated_at', $previousMonth->month)
@@ -221,9 +223,9 @@ class AdminStatsController extends Controller
                 'last_active' => $lastActive,
             ],
             'lists' => [
-                'owned' => $lists->count(),
-                'shared_with_user' => $sharedWithUser,
-                'total_access' => $lists->count() + $sharedWithUser,
+                'owned' => $ownedLists->count(),
+                'shared_with_user' => $sharedListIds->count(),
+                'total_access' => $allAccessibleListIds->count(),
             ],
             'items' => [
                 'current_month' => [
