@@ -47,24 +47,12 @@ class GroceryListItemController extends Controller
     public function store(Request $request): \Illuminate\Http\JsonResponse
     {
         $data = $request->all();
-        $listItem = GroceryListItem::where('name', $data['name'])
-            ->where('list_id', $data['list_id'])
-            ->first();
 
-        if ($listItem) {
-            $listItem->checked = false;
-            $listItem->quantity = 1;
-            $listItem->save();
-        } else {
-            $listItem = GroceryListItem::create(
-                [
-                    'name' => ucfirst($data['name']),
-                    'quantity' => $data['quantity'] ?? 1,
-                    'list_id' => $data['list_id'] ?? null,
-                    'created_by' => $data['created_by'] ?? 1,
-                ]
-            );
-        }
+        $listItem = GroceryListItem::create([
+            'name' => ucfirst($data['name']),
+            'quantity' => $data['quantity'] ?? 1,
+            'list_id' => $data['list_id'] ?? null,
+        ]);
 
         return response()->json([
             'data' => $listItem,
