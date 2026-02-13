@@ -74,8 +74,6 @@ class GroceryListItemController extends Controller
             ->orderByDesc('id')
             ->first();
 
-        ray($existingListItem);
-
         $listItem = GroceryListItem::create([
             'name' => ucfirst($data['name']),
             'quantity' => $data['quantity'] ?? 1,
