@@ -18,9 +18,19 @@ class GroceryListItemController extends Controller
         $offset = $request->get('from');
         $limit = $request->get('till');
         $listId = $request->get('listId');
-        $listItems = GroceryListItem::select('grocery_list_items.*');
 
-        $listItems->join('grocery_lists', 'grocery_lists.id', '=', 'grocery_list_items.list_id')
+        // Subquery to get latest item ID per name in each list
+        $latestIdsSubquery = GroceryListItem::selectRaw('MAX(id) as id')
+            ->when($listId, function ($query) use ($listId) {
+                $query->where('list_id', $listId);
+            })
+            ->groupBy('list_id', 'name');
+
+        $listItems = GroceryListItem::select('grocery_list_items.*')
+            ->joinSub($latestIdsSubquery, 'latest', function ($join) {
+                $join->on('grocery_list_items.id', '=', 'latest.id');
+            })
+            ->join('grocery_lists', 'grocery_lists.id', '=', 'grocery_list_items.list_id')
             ->leftJoin('grocery_list_invites', 'grocery_list_invites.grocery_list_id', '=', 'grocery_lists.id')
             ->where(function ($subQuery) {
                 $subQuery->where('grocery_lists.created_by', auth()->user()->id)
@@ -38,7 +48,18 @@ class GroceryListItemController extends Controller
             $listItems->limit($limit)
                 ->offset($offset);
         }
-        $listItems->groupBy('grocery_list_items.id', 'grocery_list_items.name', 'grocery_list_items.quantity', 'grocery_list_items.checked', 'grocery_list_items.list_id', 'grocery_list_items.created_at', 'grocery_list_items.updated_at', 'grocery_list_items.unit_price');
+
+        $listItems->groupBy(
+            'grocery_list_items.id',
+            'grocery_list_items.name',
+            'grocery_list_items.quantity',
+            'grocery_list_items.checked',
+            'grocery_list_items.list_id',
+            'grocery_list_items.created_at',
+            'grocery_list_items.updated_at',
+            'grocery_list_items.unit_price'
+        );
+
         return response()->json([
             'data' => $listItems->get(),
         ]);
