@@ -129,6 +129,73 @@ class AdminStatsController extends Controller
         ]);
     }
 
+    public function topItems(): JsonResponse
+    {
+        $currentMonth = Carbon::now();
+        $previousMonth = Carbon::now()->subMonth();
+
+        return response()->json([
+            'current_month' => [
+                'period' => $currentMonth->format('Y-m'),
+                'most_added' => $this->getMostAddedItems($currentMonth),
+                'most_checked' => $this->getMostCheckedItems($currentMonth),
+            ],
+            'previous_month' => [
+                'period' => $previousMonth->format('Y-m'),
+                'most_added' => $this->getMostAddedItems($previousMonth),
+                'most_checked' => $this->getMostCheckedItems($previousMonth),
+            ],
+        ]);
+    }
+
+    private function getMostAddedItems(Carbon $month, ?array $listIds = null): array
+    {
+        $query = GroceryListItem::selectRaw('LOWER(name) as name, COUNT(*) as count, COUNT(DISTINCT list_id) as lists_count')
+            ->whereYear('created_at', $month->year)
+            ->whereMonth('created_at', $month->month);
+
+        if ($listIds !== null) {
+            $query->whereIn('list_id', $listIds);
+        }
+
+        return $query->groupBy(DB::raw('LOWER(name)'))
+            ->orderByDesc('count')
+            ->limit($listIds !== null ? 5 : 10)
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'name' => ucfirst($item->name),
+                    'count' => (int) $item->count,
+                    'lists_count' => (int) $item->lists_count,
+                ];
+            })
+            ->toArray();
+    }
+
+    private function getMostCheckedItems(Carbon $month, ?array $listIds = null): array
+    {
+        $query = GroceryListItem::selectRaw('LOWER(name) as name, COUNT(*) as count')
+            ->where('checked', true)
+            ->whereYear('updated_at', $month->year)
+            ->whereMonth('updated_at', $month->month);
+
+        if ($listIds !== null) {
+            $query->whereIn('list_id', $listIds);
+        }
+
+        return $query->groupBy(DB::raw('LOWER(name)'))
+            ->orderByDesc('count')
+            ->limit($listIds !== null ? 5 : 10)
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'name' => ucfirst($item->name),
+                    'count' => (int) $item->count,
+                ];
+            })
+            ->toArray();
+    }
+
     public function usersList(): JsonResponse
     {
         $users = User::select('id', 'name', 'email', 'created_at', 'email_verified_at', 'accepted_terms_version')
