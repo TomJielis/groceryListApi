@@ -50,7 +50,16 @@ class LoginJob implements ShouldQueue
 
         if($user->email_verified_at === null) {
             return [
-                'error' => 'Email not verified. Please activate your account through the email sent to you.',                'success' => false,
+                'error' => 'Email not verified. Please activate your account through the email sent to you.',
+                'success' => false,
+                'status' => 403,
+            ];
+        }
+
+        if($user->blocked) {
+            return [
+                'error' => 'You account has been blocked.',
+                'success' => false,
                 'status' => 403,
             ];
         }

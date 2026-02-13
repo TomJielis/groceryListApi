@@ -13,4 +13,5 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => 'admin'], f
 
     Route::get('users', [AdminStatsController::class, 'usersList']);
     Route::get('users/{id}', [AdminStatsController::class, 'userDetail']);
+    Route::post('users/{id}/block', [AdminStatsController::class, 'block']);
 });

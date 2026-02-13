@@ -22,6 +22,9 @@ return new class extends Migration
      */
     public function down(): void
     {
-        //
+        Schema::table('grocery_list_items', function (Blueprint $table) {
+            $table->dropColumn('created_by');
+            $table->dropColumn('updated_by');
+        });
     }
 };

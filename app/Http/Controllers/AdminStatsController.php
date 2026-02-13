@@ -300,6 +300,7 @@ class AdminStatsController extends Controller
                 'email_verified_at' => $user->email_verified_at,
                 'terms_version' => $user->accepted_terms_version,
                 'last_active' => $lastActive,
+                'blocked' => $user->blocked,
             ],
             'lists' => [
                 'owned' => $ownedLists->count(),
@@ -330,6 +331,20 @@ class AdminStatsController extends Controller
                 ],
             ],
         ]);
+    }
+
+    public function block(int $id): JsonResponse
+    {
+        $user = User::find($id);
+
+        if (!$user) {
+            return response()->json(['message' => 'User not found'], 404);
+        }
+
+        $user->blocked = !$user->blocked;
+        $user->save();
+
+        return response()->json(['message' => 'User blocked successfully']);
     }
 
     private function getUsersData(Carbon $month): array
