@@ -69,10 +69,18 @@ class GroceryListItemController extends Controller
     {
         $data = $request->all();
 
+        $existingListItem = GroceryListItem::where('name', $data['name'])
+            ->where('list_id', $data['list_id'] ?? null)
+            ->orderByDesc('id')
+            ->first();
+
+        ray($existingListItem);
+
         $listItem = GroceryListItem::create([
             'name' => ucfirst($data['name']),
             'quantity' => $data['quantity'] ?? 1,
             'list_id' => $data['list_id'] ?? null,
+            'unit_price' => $existingListItem['unit_price'] ?? null,
         ]);
 
         return response()->json([

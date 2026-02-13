@@ -30,6 +30,7 @@ class GroceryListItem extends Model
         'name',
         'quantity',
         'list_id',
-        'checked'
+        'checked',
+        'unit_price',
     ];
 }
