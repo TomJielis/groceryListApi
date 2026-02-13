@@ -204,7 +204,7 @@ class AdminStatsController extends Controller
 
     public function usersList(): JsonResponse
     {
-        $users = User::select('id', 'name', 'email', 'created_at', 'email_verified_at', 'accepted_terms_version')
+        $users = User::select('id', 'name', 'email', 'created_at', 'email_verified_at', 'accepted_terms_version', 'blocked')
             ->orderByDesc('created_at')
             ->get()
             ->map(function ($user) {
@@ -226,6 +226,7 @@ class AdminStatsController extends Controller
                     'terms_version' => $user->accepted_terms_version,
                     'last_active' => $lastActive,
                     'lists_count' => $listsCount,
+                    'blocked' => $user->blocked,
                 ];
             });
 
