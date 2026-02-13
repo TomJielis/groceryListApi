@@ -27,11 +27,13 @@ Alle endpoints retourneren data voor de huidige maand + vergelijking met vorige 
 
 | Endpoint | Beschrijving |
 |----------|-------------|
-| `GET /api/admin/stats/users` | Gebruikersstatistieken |
-| `GET /api/admin/stats/items` | Items statistieken |
-| `GET /api/admin/stats/lists` | Lijsten statistieken |
-| `GET /api/admin/stats/activity` | Activiteit overview |
-| `GET /api/admin/stats/versions` | Versie verdeling |
+| `GET /api/admin/stats/users` | Gebruikersstatistieken (globaal) |
+| `GET /api/admin/stats/items` | Items statistieken (globaal) |
+| `GET /api/admin/stats/lists` | Lijsten statistieken (globaal) |
+| `GET /api/admin/stats/activity` | Activiteit overview (globaal) |
+| `GET /api/admin/stats/versions` | Versie verdeling (globaal) |
+| `GET /api/admin/users` | Lijst van alle gebruikers |
+| `GET /api/admin/users/{id}` | Detail stats per gebruiker |
 
 ---
 
@@ -246,6 +248,72 @@ Elke endpoint gebruikt dezelfde basis structuur:
 
 ---
 
+### GET /api/admin/users
+
+Lijst van alle gebruikers met basis stats.
+
+```json
+{
+  "users": [
+    {
+      "id": 1,
+      "name": "Jan Jansen",
+      "email": "jan@example.com",
+      "created_at": "2025-06-15T10:30:00Z",
+      "email_verified": true,
+      "terms_version": "2.1",
+      "last_active": "2026-02-10T14:22:00Z",
+      "lists_count": 3
+    },
+    ...
+  ],
+  "total": 450
+}
+```
+
+---
+
+### GET /api/admin/users/{id}
+
+Gedetailleerde stats voor een specifieke gebruiker.
+
+```json
+{
+  "user": {
+    "id": 1,
+    "name": "Jan Jansen",
+    "email": "jan@example.com",
+    "created_at": "2025-06-15T10:30:00Z",
+    "email_verified_at": "2025-06-15T11:00:00Z",
+    "terms_version": "2.1",
+    "last_active": "2026-02-10T14:22:00Z"
+  },
+  "lists": {
+    "owned": 3,
+    "shared_with_user": 2,
+    "total_access": 5
+  },
+  "items": {
+    "current_month": {
+      "period": "2026-02",
+      "added": 45,
+      "checked": 38
+    },
+    "previous_month": {
+      "period": "2026-01",
+      "added": 52,
+      "checked": 41
+    },
+    "change": {
+      "absolute": -7,
+      "percentage": -13.5
+    }
+  }
+}
+```
+
+---
+
 ## Implementatie
 
 ### Benodigde bestanden
@@ -289,8 +357,9 @@ De Nuxt frontend kan deze endpoints aanroepen:
 
 | Frontend pagina | API endpoint |
 |-----------------|--------------|
-| `/admin` | Alle endpoints voor dashboard overview |
-| `/admin/users` | `GET /api/admin/stats/users` |
+| `/admin` | Alle stats endpoints voor dashboard overview |
+| `/admin/users` | `GET /api/admin/users` (lijst) + `GET /api/admin/stats/users` (globale stats) |
+| `/admin/users/:id` | `GET /api/admin/users/{id}` (per-user detail) |
 | `/admin/items` | `GET /api/admin/stats/items` |
 | `/admin/lists` | `GET /api/admin/stats/lists` |
 | `/admin/activity` | `GET /api/admin/stats/activity` |
