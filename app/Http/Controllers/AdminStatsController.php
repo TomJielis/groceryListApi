@@ -9,15 +9,16 @@ use App\Models\GroceryListItem;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\PersonalAccessToken;
 
 class AdminStatsController extends Controller
 {
-    public function users(): JsonResponse
+    public function users(Request $request): JsonResponse
     {
-        $currentMonth = Carbon::now();
-        $previousMonth = Carbon::now()->subMonth();
+        $currentMonth = $this->parseMonth($request->query('month'));
+        $previousMonth = $currentMonth->copy()->subMonth();
 
         $currentData = $this->getUsersData($currentMonth);
         $previousData = $this->getUsersData($previousMonth);
@@ -37,10 +38,10 @@ class AdminStatsController extends Controller
         ]);
     }
 
-    public function items(): JsonResponse
+    public function items(Request $request): JsonResponse
     {
-        $currentMonth = Carbon::now();
-        $previousMonth = Carbon::now()->subMonth();
+        $currentMonth = $this->parseMonth($request->query('month'));
+        $previousMonth = $currentMonth->copy()->subMonth();
 
         $currentData = $this->getItemsData($currentMonth);
         $previousData = $this->getItemsData($previousMonth);
@@ -60,10 +61,10 @@ class AdminStatsController extends Controller
         ]);
     }
 
-    public function lists(): JsonResponse
+    public function lists(Request $request): JsonResponse
     {
-        $currentMonth = Carbon::now();
-        $previousMonth = Carbon::now()->subMonth();
+        $currentMonth = $this->parseMonth($request->query('month'));
+        $previousMonth = $currentMonth->copy()->subMonth();
 
         $currentData = $this->getListsData($currentMonth);
         $previousData = $this->getListsData($previousMonth);
@@ -83,10 +84,10 @@ class AdminStatsController extends Controller
         ]);
     }
 
-    public function activity(): JsonResponse
+    public function activity(Request $request): JsonResponse
     {
-        $currentMonth = Carbon::now();
-        $previousMonth = Carbon::now()->subMonth();
+        $currentMonth = $this->parseMonth($request->query('month'));
+        $previousMonth = $currentMonth->copy()->subMonth();
 
         return response()->json([
             'current_month' => [
@@ -102,10 +103,10 @@ class AdminStatsController extends Controller
         ]);
     }
 
-    public function versions(): JsonResponse
+    public function versions(Request $request): JsonResponse
     {
-        $currentMonth = Carbon::now();
-        $previousMonth = Carbon::now()->subMonth();
+        $currentMonth = $this->parseMonth($request->query('month'));
+        $previousMonth = $currentMonth->copy()->subMonth();
 
         $currentData = $this->getVersionsData($currentMonth);
         $previousData = $this->getVersionsData($previousMonth);
@@ -129,10 +130,10 @@ class AdminStatsController extends Controller
         ]);
     }
 
-    public function topItems(): JsonResponse
+    public function topItems(Request $request): JsonResponse
     {
-        $currentMonth = Carbon::now();
-        $previousMonth = Carbon::now()->subMonth();
+        $currentMonth = $this->parseMonth($request->query('month'));
+        $previousMonth = $currentMonth->copy()->subMonth();
 
         return response()->json([
             'current_month' => [
@@ -236,7 +237,7 @@ class AdminStatsController extends Controller
         ]);
     }
 
-    public function userDetail(int $id): JsonResponse
+    public function userDetail(Request $request, int $id): JsonResponse
     {
         $user = User::find($id);
 
@@ -244,8 +245,8 @@ class AdminStatsController extends Controller
             return response()->json(['message' => 'User not found'], 404);
         }
 
-        $currentMonth = Carbon::now();
-        $previousMonth = Carbon::now()->subMonth();
+        $currentMonth = $this->parseMonth($request->query('month'));
+        $previousMonth = $currentMonth->copy()->subMonth();
 
         $lastActive = PersonalAccessToken::where('tokenable_type', User::class)
             ->where('tokenable_id', $user->id)
@@ -580,5 +581,13 @@ class AdminStatsController extends Controller
             'absolute' => $absolute,
             'percentage' => $percentage,
         ];
+    }
+
+    private function parseMonth(?string $monthString): Carbon
+    {
+        if ($monthString && preg_match('/^\d{4}-\d{2}$/', $monthString)) {
+            return Carbon::createFromFormat('Y-m', $monthString)->startOfMonth();
+        }
+        return Carbon::now()->startOfMonth();
     }
 }
