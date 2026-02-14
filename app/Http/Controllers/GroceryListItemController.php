@@ -18,9 +18,19 @@ class GroceryListItemController extends Controller
         $offset = $request->get('from');
         $limit = $request->get('till');
         $listId = $request->get('listId');
-        $listItems = GroceryListItem::select('grocery_list_items.*');
 
-        $listItems->join('grocery_lists', 'grocery_lists.id', '=', 'grocery_list_items.list_id')
+        // Subquery to get latest item ID per name in each list
+        $latestIdsSubquery = GroceryListItem::selectRaw('MAX(id) as id')
+            ->when($listId, function ($query) use ($listId) {
+                $query->where('list_id', $listId);
+            })
+            ->groupBy('list_id', 'name');
+
+        $listItems = GroceryListItem::select('grocery_list_items.*')
+            ->joinSub($latestIdsSubquery, 'latest', function ($join) {
+                $join->on('grocery_list_items.id', '=', 'latest.id');
+            })
+            ->join('grocery_lists', 'grocery_lists.id', '=', 'grocery_list_items.list_id')
             ->leftJoin('grocery_list_invites', 'grocery_list_invites.grocery_list_id', '=', 'grocery_lists.id')
             ->where(function ($subQuery) {
                 $subQuery->where('grocery_lists.created_by', auth()->user()->id)
@@ -38,7 +48,21 @@ class GroceryListItemController extends Controller
             $listItems->limit($limit)
                 ->offset($offset);
         }
-        $listItems->groupBy('grocery_list_items.id', 'grocery_list_items.name', 'grocery_list_items.quantity', 'grocery_list_items.checked', 'grocery_list_items.list_id', 'grocery_list_items.created_at', 'grocery_list_items.updated_at', 'grocery_list_items.unit_price');
+
+        $listItems->groupBy(
+            'grocery_list_items.id',
+            'grocery_list_items.name',
+            'grocery_list_items.quantity',
+            'grocery_list_items.checked',
+            'grocery_list_items.list_id',
+            'grocery_list_items.created_at',
+            'grocery_list_items.updated_at',
+            'grocery_list_items.unit_price',
+            'grocery_list_items.created_by',
+            'grocery_list_items.updated_by',
+
+        );
+
         return response()->json([
             'data' => $listItems->get(),
         ]);
@@ -47,24 +71,18 @@ class GroceryListItemController extends Controller
     public function store(Request $request): \Illuminate\Http\JsonResponse
     {
         $data = $request->all();
-        $listItem = GroceryListItem::where('name', $data['name'])
-            ->where('list_id', $data['list_id'])
+
+        $existingListItem = GroceryListItem::where('name', $data['name'])
+            ->where('list_id', $data['list_id'] ?? null)
+            ->orderByDesc('id')
             ->first();
 
-        if ($listItem) {
-            $listItem->checked = false;
-            $listItem->quantity = 1;
-            $listItem->save();
-        } else {
-            $listItem = GroceryListItem::create(
-                [
-                    'name' => ucfirst($data['name']),
-                    'quantity' => $data['quantity'] ?? 1,
-                    'list_id' => $data['list_id'] ?? null,
-                    'created_by' => $data['created_by'] ?? 1,
-                ]
-            );
-        }
+        $listItem = GroceryListItem::create([
+            'name' => ucfirst($data['name']),
+            'quantity' => $data['quantity'] ?? 1,
+            'list_id' => $data['list_id'] ?? null,
+            'unit_price' => $existingListItem['unit_price'] ?? null,
+        ]);
 
         return response()->json([
             'data' => $listItem,
@@ -74,11 +92,19 @@ class GroceryListItemController extends Controller
 
     public function checked(Request $request, GroceryListItem $listItem): \Illuminate\Http\JsonResponse
     {
-        $listItem->checked = $request->get('checked', false);
-        $listItem->save();
+        // Find the latest record with the same name in the same list
+        $latestItem = GroceryListItem::where('name', $listItem->name)
+            ->where('list_id', $listItem->list_id)
+            ->orderByDesc('id')
+            ->first();
+
+        if ($latestItem) {
+            $latestItem->checked = $request->get('checked', false);
+            $latestItem->save();
+        }
 
         return response()->json([
-            'data' => $listItem,
+            'data' => $latestItem ?? $listItem,
         ]);
     }
 
