@@ -374,7 +374,6 @@ return response()->json([
             'added' => $previousMonthItems,
             'checked' => $previousMonthChecked,
         ],
-        'change' => $this->calculateChange($currentMonthItems, $previousMonthItems),
     ],
     'top_items' => [
         'current_month' => [

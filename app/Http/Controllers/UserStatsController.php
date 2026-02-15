@@ -54,7 +54,6 @@ class UserStatsController extends Controller
                     'checked' => $previousMonthChecked,
                     'period' => $this->getLocalizedPeriod($previousMonth, $user->language),
                 ],
-                'change' => $this->calculateChange($currentMonthAdded, $previousMonthAdded),
             ],
             'top_items' => [
                 'current_month' => [
@@ -66,7 +65,6 @@ class UserStatsController extends Controller
             'invalid_login_attempts' => [
                 'current_month' => $currentInvalidLoginAttempts,
                 'previous_month' => $previousInvalidLoginAttempts,
-                'change' => $this->calculateChange($currentInvalidLoginAttempts, $previousInvalidLoginAttempts),
             ]
         ]);
     }
@@ -149,16 +147,5 @@ class UserStatsController extends Controller
             ->orderByDesc('month')
             ->pluck('month')
             ->toArray();
-    }
-
-    private function calculateChange(int $current, int $previous): array
-    {
-        $absolute = $current - $previous;
-        $percentage = $previous > 0 ? round((($current - $previous) / $previous) * 100, 1) : null;
-
-        return [
-            'absolute' => $absolute,
-            'percentage' => $percentage,
-        ];
     }
 }

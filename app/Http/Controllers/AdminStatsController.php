@@ -35,7 +35,6 @@ class AdminStatsController extends Controller
                 'value' => $previousData['total'],
                 'breakdown' => $previousData,
             ],
-            'change' => $this->calculateChange($currentData['total'], $previousData['total']),
         ]);
     }
 
@@ -58,7 +57,6 @@ class AdminStatsController extends Controller
                 'value' => $previousData['added'],
                 'breakdown' => $previousData,
             ],
-            'change' => $this->calculateChange($currentData['added'], $previousData['added']),
         ]);
     }
 
@@ -81,7 +79,6 @@ class AdminStatsController extends Controller
                 'value' => $previousData['created'],
                 'breakdown' => $previousData,
             ],
-            'change' => $this->calculateChange($currentData['created'], $previousData['created']),
         ]);
     }
 
@@ -123,10 +120,6 @@ class AdminStatsController extends Controller
             'previous_month' => [
                 'period' => $previousMonth->format('Y-m'),
                 ...$previousData,
-            ],
-            'change' => [
-                'absolute' => round($currentOnLatest - $previousOnLatest, 1),
-                'percentage' => null,
             ],
         ]);
     }
@@ -321,7 +314,6 @@ class AdminStatsController extends Controller
                     'added' => $previousMonthItems,
                     'checked' => $previousMonthChecked,
                 ],
-                'change' => $this->calculateChange($currentMonthItems, $previousMonthItems),
             ],
             'top_items' => [
                 'current_month' => [
@@ -582,17 +574,6 @@ class AdminStatsController extends Controller
                 'count' => $onLatestCount,
                 'percentage' => $total > 0 ? round(($onLatestCount / $total) * 100, 1) : 0,
             ],
-        ];
-    }
-
-    private function calculateChange(int $current, int $previous): array
-    {
-        $absolute = $current - $previous;
-        $percentage = $previous > 0 ? round((($current - $previous) / $previous) * 100, 1) : null;
-
-        return [
-            'absolute' => $absolute,
-            'percentage' => $percentage,
         ];
     }
 
