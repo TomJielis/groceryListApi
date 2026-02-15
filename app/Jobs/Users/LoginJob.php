@@ -64,7 +64,7 @@ class LoginJob implements ShouldQueue
                     'user_id' => $user->id,
                     'ip_address' => $request->ip(),
                     'attempted_at' => now(),
-                    'blocked_till' => $invalidAttemptsCount > 2 ? now()->addMinutes(15) : null,
+                    'blocked_till' => $invalidAttemptsCount >= 2 ? now()->addMinutes(15) : null,
                 ]);
             }
 
