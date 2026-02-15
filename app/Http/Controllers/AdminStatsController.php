@@ -145,7 +145,7 @@ class AdminStatsController extends Controller
 
     private function getMostAddedItems(Carbon $month, ?array $listIds = null, int $userId = null): array
     {
-        $query = GroceryListItem::selectRaw('LOWER(name) as name, COUNT(*) as count, COUNT(DISTINCT list_id) as lists_count')
+        $query = GroceryListItem::selectRaw('LOWER(name) as name, SUM(quantity) as count, COUNT(DISTINCT list_id) as lists_count')
             ->whereYear('created_at', $month->year)
             ->whereMonth('created_at', $month->month)
             ->when($userId, function ($query) use ($userId) {;
@@ -172,7 +172,7 @@ class AdminStatsController extends Controller
 
     private function getMostCheckedItems(Carbon $month, ?array $listIds = null, int $userId = null): array
     {
-        $query = GroceryListItem::selectRaw('LOWER(name) as name, COUNT(*) as count')
+        $query = GroceryListItem::selectRaw('LOWER(name) as name, SUM(quantity) as count')
             ->where('checked', true)
             ->whereYear('updated_at', $month->year)
             ->whereMonth('updated_at', $month->month)
@@ -259,31 +259,31 @@ class AdminStatsController extends Controller
 
         $allAccessibleListIds = $ownedListIds->merge($sharedListIds)->unique();
 
-        $currentMonthItems = GroceryListItem::whereIn('list_id', $allAccessibleListIds)
+        $currentMonthItems = (int) GroceryListItem::whereIn('list_id', $allAccessibleListIds)
             ->whereYear('created_at', $currentMonth->year)
             ->whereMonth('created_at', $currentMonth->month)
             ->where('created_by', $user->id)
-            ->count();
+            ->sum('quantity');
 
-        $previousMonthItems = GroceryListItem::whereIn('list_id', $allAccessibleListIds)
+        $previousMonthItems = (int) GroceryListItem::whereIn('list_id', $allAccessibleListIds)
             ->whereYear('created_at', $previousMonth->year)
             ->whereMonth('created_at', $previousMonth->month)
             ->where('created_by', $user->id)
-            ->count();
+            ->sum('quantity');
 
-        $currentMonthChecked = GroceryListItem::whereIn('list_id', $allAccessibleListIds)
+        $currentMonthChecked = (int) GroceryListItem::whereIn('list_id', $allAccessibleListIds)
             ->where('checked', true)
             ->whereYear('updated_at', $currentMonth->year)
             ->whereMonth('updated_at', $currentMonth->month)
             ->where('updated_by', $user->id)
-            ->count();
+            ->sum('quantity');
 
-        $previousMonthChecked = GroceryListItem::whereIn('list_id', $allAccessibleListIds)
+        $previousMonthChecked = (int) GroceryListItem::whereIn('list_id', $allAccessibleListIds)
             ->where('checked', true)
             ->whereYear('updated_at', $previousMonth->year)
             ->whereMonth('updated_at', $previousMonth->month)
             ->where('updated_by', $user->id)
-            ->count();
+            ->sum('quantity');
 
         $allAccessibleListIdsArray = $allAccessibleListIds->toArray();
 
@@ -389,14 +389,14 @@ class AdminStatsController extends Controller
     {
         $endOfMonth = $month->copy()->endOfMonth();
 
-        $added = GroceryListItem::whereYear('created_at', $month->year)
+        $added = (int) GroceryListItem::whereYear('created_at', $month->year)
             ->whereMonth('created_at', $month->month)
-            ->count();
+            ->sum('quantity');
 
-        $checked = GroceryListItem::where('checked', true)
+        $checked = (int) GroceryListItem::where('checked', true)
             ->whereYear('updated_at', $month->year)
             ->whereMonth('updated_at', $month->month)
-            ->count();
+            ->sum('quantity');
 
         $thirtyDaysAgo = $endOfMonth->copy()->subDays(30);
         $activeUserIds = PersonalAccessToken::where('tokenable_type', User::class)
@@ -477,7 +477,7 @@ class AdminStatsController extends Controller
 
         $dailyAdded = GroceryListItem::select(
                 DB::raw('DATE(created_at) as date'),
-                DB::raw('COUNT(*) as items_added')
+                DB::raw('SUM(quantity) as items_added')
             )
             ->whereYear('created_at', $month->year)
             ->whereMonth('created_at', $month->month)
@@ -487,7 +487,7 @@ class AdminStatsController extends Controller
 
         $dailyChecked = GroceryListItem::select(
                 DB::raw('DATE(updated_at) as date'),
-                DB::raw('COUNT(*) as items_checked')
+                DB::raw('SUM(quantity) as items_checked')
             )
             ->where('checked', true)
             ->whereYear('updated_at', $month->year)
@@ -517,7 +517,7 @@ class AdminStatsController extends Controller
     {
         return GroceryList::withoutGlobalScopes()
             ->select('grocery_lists.id', 'grocery_lists.name')
-            ->selectRaw('COUNT(grocery_list_items.id) as items_added')
+            ->selectRaw('COALESCE(SUM(grocery_list_items.quantity), 0) as items_added')
             ->leftJoin('grocery_list_items', function ($join) use ($month) {
                 $join->on('grocery_lists.id', '=', 'grocery_list_items.list_id')
                     ->whereYear('grocery_list_items.created_at', $month->year)

@@ -85,26 +85,26 @@ class UserStatsController extends Controller
 
     private function getItemsAddedCount(int $userId, array $listIds, Carbon $month): int
     {
-        return GroceryListItem::whereIn('list_id', $listIds)
+        return (int) GroceryListItem::whereIn('list_id', $listIds)
             ->where('created_by', $userId)
             ->whereYear('created_at', $month->year)
             ->whereMonth('created_at', $month->month)
-            ->count();
+            ->sum('quantity');
     }
 
     private function getItemsCheckedCount(int $userId, array $listIds, Carbon $month): int
     {
-        return GroceryListItem::whereIn('list_id', $listIds)
+        return (int) GroceryListItem::whereIn('list_id', $listIds)
             ->where('updated_by', $userId)
             ->where('checked', true)
             ->whereYear('updated_at', $month->year)
             ->whereMonth('updated_at', $month->month)
-            ->count();
+            ->sum('quantity');
     }
 
     private function getMostAddedItems(int $userId, array $listIds, Carbon $month): array
     {
-        return GroceryListItem::selectRaw('LOWER(name) as name, COUNT(*) as count')
+        return GroceryListItem::selectRaw('LOWER(name) as name, SUM(quantity) as count')
             ->whereIn('list_id', $listIds)
             ->where('created_by', $userId)
             ->whereYear('created_at', $month->year)
@@ -122,7 +122,7 @@ class UserStatsController extends Controller
 
     private function getMostCheckedItems(int $userId, array $listIds, Carbon $month): array
     {
-        return GroceryListItem::selectRaw('LOWER(name) as name, COUNT(*) as count')
+        return GroceryListItem::selectRaw('LOWER(name) as name, SUM(quantity) as count')
             ->whereIn('list_id', $listIds)
             ->where('updated_by', $userId)
             ->where('checked', true)
