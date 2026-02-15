@@ -33,6 +33,14 @@ class UserStatsController extends Controller
         $currentMonthChecked = $this->getItemsCheckedCount($user->id, $allAccessibleListIds, $month);
         $previousMonthAdded = $this->getItemsAddedCount($user->id, $allAccessibleListIds, $previousMonth);
         $previousMonthChecked = $this->getItemsCheckedCount($user->id, $allAccessibleListIds, $previousMonth);
+        $currentInvalidLoginAttempts = $user->invalidLoginAttempts()
+            ->where('attempted_at', '>=', $month->copy()->startOfMonth())
+            ->where('attempted_at', '<=', $month->copy()->endOfMonth())
+            ->count();
+        $previousInvalidLoginAttempts = $user->invalidLoginAttempts()
+            ->where('attempted_at', '>=', $previousMonth->copy()->startOfMonth())
+            ->where('attempted_at', '<=', $previousMonth->copy()->endOfMonth())
+            ->count();
 
         return response()->json([
             'items' => [
@@ -55,6 +63,11 @@ class UserStatsController extends Controller
                 ],
             ],
             'available_months' => $this->getAvailableMonths($user->id, $allAccessibleListIds),
+            'invalid_login_attempts' => [
+                'current_month' => $currentInvalidLoginAttempts,
+                'previous_month' => $previousInvalidLoginAttempts,
+                'change' => $this->calculateChange($currentInvalidLoginAttempts, $previousInvalidLoginAttempts),
+            ]
         ]);
     }
 

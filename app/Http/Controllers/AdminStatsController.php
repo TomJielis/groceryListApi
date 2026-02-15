@@ -332,6 +332,16 @@ class AdminStatsController extends Controller
                     'most_checked' => $this->getMostCheckedItems($previousMonth, $allAccessibleListIdsArray, $user->id),
                 ],
             ],
+            'invalid_loggin_attempts' => [
+                'current_month' => $user->invalidLoginAttempts()
+                    ->where('attempted_at', '>=', $currentMonth->copy()->startOfMonth())
+                    ->where('attempted_at', '<=', $currentMonth->copy()->endOfMonth())
+                    ->count(),
+                'previous_month' => $user->invalidLoginAttempts()
+                    ->where('attempted_at', '>=', $previousMonth->copy()->startOfMonth())
+                    ->where('attempted_at', '<=', $previousMonth->copy()->endOfMonth())
+                    ->count(),
+            ]
         ]);
     }
 
@@ -352,8 +362,6 @@ class AdminStatsController extends Controller
     private function getUsersData(Carbon $month): array
     {
         $endOfMonth = $month->copy()->endOfMonth();
-        $startOfMonth = $month->copy()->startOfMonth();
-
         $total = User::where('created_at', '<=', $endOfMonth)->count();
 
         $newRegistrations = User::whereYear('created_at', $month->year)
@@ -381,7 +389,6 @@ class AdminStatsController extends Controller
 
     private function getItemsData(Carbon $month): array
     {
-        $startOfMonth = $month->copy()->startOfMonth();
         $endOfMonth = $month->copy()->endOfMonth();
 
         $added = GroceryListItem::whereYear('created_at', $month->year)

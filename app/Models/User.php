@@ -72,4 +72,9 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $this->hasMany(TemporaryPasswordCode::class, 'user_id', 'id');
     }
+
+    public function invalidLoginAttempts()
+    {
+        return $this->hasMany(InvalidLoginAttempt::class, 'user_id', 'id');
+    }
 }
