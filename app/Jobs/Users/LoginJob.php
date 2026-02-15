@@ -2,6 +2,7 @@
 
 namespace App\Jobs\Users;
 
+use App\Models\InvalidLoginAttempt;
 use Illuminate\Support\Facades\Log;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -38,7 +39,35 @@ class LoginJob implements ShouldQueue
     {
         // Validate the request data
         $request = $this->request;
+        $user = User::where('email', $request->email)->first();
+        $isBlockedTill = $user && InvalidLoginAttempt::where('user_id', $user->id)
+                ->where('blocked_till', '>', now())
+                ->orderBy('blocked_till', 'desc')
+                ->first();
+
+        if($isBlockedTill){
+            return [
+                'error' => 'Too many failed login attempts. Please try again later.',
+                'success' => false,
+                'status' => 429,
+            ];
+        }
+
+
         if (!Auth::attempt($request->only('email', 'password'))) {
+            if($user){
+                $invalidAttemptsCount = InvalidLoginAttempt::where('user_id', $user->id)
+                    ->where('attempted_at', '>=', now()->subMinutes(15))
+                    ->count();
+
+                InvalidLoginAttempt::create([
+                    'user_id' => $user->id,
+                    'ip_address' => $request->ip(),
+                    'attempted_at' => now(),
+                    'blocked_till' => $invalidAttemptsCount > 2 ? now()->addMinutes(15) : null,
+                ]);
+            }
+
             return [
                 'error' => 'Invalid login attempt',
                 'success' => false,
