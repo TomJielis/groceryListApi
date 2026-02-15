@@ -6,6 +6,7 @@ use App\Models\GroceryList;
 use App\Models\GroceryListInvites;
 use App\Models\GroceryListInvitesStatus;
 use App\Models\GroceryListItem;
+use App\Models\InvalidLoginAttempt;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -379,11 +380,16 @@ class AdminStatsController extends Controller
             ->whereNotNull('email_verified_at')
             ->count();
 
+        $invalidLoginAttempts = InvalidLoginAttempt::whereYear('attempted_at', $month->year)
+            ->whereMonth('attempted_at', $month->month)
+            ->count();
+
         return [
             'total' => $total,
             'new_registrations' => $newRegistrations,
             'active' => $active,
             'verified_email' => $verifiedEmail,
+            'invalid_login_attempts' => $invalidLoginAttempts
         ];
     }
 
