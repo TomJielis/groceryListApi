@@ -12,6 +12,7 @@ class InvalidLoginAttempt extends Authenticatable implements MustVerifyEmail
      */
     protected $fillable = [
         'user_id',
+        'username',
         'ip_address',
         'attempted_at',
         'blocked_till',
