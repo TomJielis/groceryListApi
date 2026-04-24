@@ -197,6 +197,23 @@ class AdminStatsController extends Controller
             ->toArray();
     }
 
+    public function spend(Request $request): JsonResponse
+    {
+        $currentMonth = $this->parseMonth($request->query('month'));
+        $previousMonth = $currentMonth->copy()->subMonth();
+
+        return response()->json([
+            'current_month' => [
+                'period' => $currentMonth->format('Y-m'),
+                'total'  => $this->getPlatformSpend($currentMonth),
+            ],
+            'previous_month' => [
+                'period' => $previousMonth->format('Y-m'),
+                'total'  => $this->getPlatformSpend($previousMonth),
+            ],
+        ]);
+    }
+
     public function usersList(): JsonResponse
     {
         $users = User::select('id', 'name', 'email', 'created_at', 'email_verified_at', 'accepted_terms_version', 'blocked')
@@ -287,6 +304,22 @@ class AdminStatsController extends Controller
 
         $allAccessibleListIdsArray = $allAccessibleListIds->toArray();
 
+        $currentMonthSpend = round((float) GroceryListItem::selectRaw('COALESCE(SUM(quantity * unit_price), 0) as total')
+            ->whereIn('list_id', $allAccessibleListIds)
+            ->where('checked', true)
+            ->whereNotNull('unit_price')
+            ->whereYear('updated_at', $currentMonth->year)
+            ->whereMonth('updated_at', $currentMonth->month)
+            ->value('total'), 2);
+
+        $previousMonthSpend = round((float) GroceryListItem::selectRaw('COALESCE(SUM(quantity * unit_price), 0) as total')
+            ->whereIn('list_id', $allAccessibleListIds)
+            ->where('checked', true)
+            ->whereNotNull('unit_price')
+            ->whereYear('updated_at', $previousMonth->year)
+            ->whereMonth('updated_at', $previousMonth->month)
+            ->value('total'), 2);
+
         return response()->json([
             'user' => [
                 'id' => $user->id,
@@ -324,6 +357,10 @@ class AdminStatsController extends Controller
                     'most_added' => $this->getMostAddedItems($previousMonth, $allAccessibleListIdsArray, $user->id),
                     'most_checked' => $this->getMostCheckedItems($previousMonth, $allAccessibleListIdsArray, $user->id),
                 ],
+            ],
+            'spend' => [
+                'current_month'  => ['total' => $currentMonthSpend],
+                'previous_month' => ['total' => $previousMonthSpend],
             ],
             'invalid_loggin_attempts' => [
                 'current_month' => $user->invalidLoginAttempts()
@@ -575,6 +612,18 @@ class AdminStatsController extends Controller
                 'percentage' => $total > 0 ? round(($onLatestCount / $total) * 100, 1) : 0,
             ],
         ];
+    }
+
+    private function getPlatformSpend(Carbon $month): float
+    {
+        $total = GroceryListItem::selectRaw('COALESCE(SUM(quantity * unit_price), 0) as total')
+            ->where('checked', true)
+            ->whereNotNull('unit_price')
+            ->whereYear('updated_at', $month->year)
+            ->whereMonth('updated_at', $month->month)
+            ->value('total');
+
+        return round((float) $total, 2);
     }
 
     private function parseMonth(?string $monthString): Carbon

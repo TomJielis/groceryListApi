@@ -6,6 +6,7 @@ use App\Models\GroceryList;
 use App\Models\GroceryListInvites;
 use App\Models\GroceryListInvitesStatus;
 use App\Models\GroceryListItem;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -54,6 +55,20 @@ class UserStatsController extends Controller
                     'checked' => $previousMonthChecked,
                     'period' => $this->getLocalizedPeriod($previousMonth, $user->language),
                 ],
+            ],
+            'spend' => [
+                'current_month' => [
+                    'total'   => $this->getMonthlySpend($allAccessibleListIds, $month),
+                    'by_list' => $this->getSpendByList($allAccessibleListIds, $month),
+                ],
+                'previous_month' => [
+                    'total'   => $this->getMonthlySpend($allAccessibleListIds, $previousMonth),
+                    'by_list' => $this->getSpendByList($allAccessibleListIds, $previousMonth),
+                ],
+            ],
+            'user_breakdown' => [
+                'current_month'  => $this->getUserBreakdown($allAccessibleListIds, $month),
+                'previous_month' => $this->getUserBreakdown($allAccessibleListIds, $previousMonth),
             ],
             'top_items' => [
                 'current_month' => [
@@ -146,6 +161,92 @@ class UserStatsController extends Controller
             ->where('created_by', $userId)
             ->orderByDesc('month')
             ->pluck('month')
+            ->toArray();
+    }
+
+    private function getMonthlySpend(array $listIds, Carbon $month): float
+    {
+        if (empty($listIds)) {
+            return 0.0;
+        }
+
+        $total = GroceryListItem::selectRaw('COALESCE(SUM(quantity * unit_price), 0) as total')
+            ->whereIn('list_id', $listIds)
+            ->where('checked', true)
+            ->whereNotNull('unit_price')
+            ->whereYear('updated_at', $month->year)
+            ->whereMonth('updated_at', $month->month)
+            ->value('total');
+
+        return round((float) $total, 2);
+    }
+
+    private function getSpendByList(array $listIds, Carbon $month): array
+    {
+        if (empty($listIds)) {
+            return [];
+        }
+
+        return GroceryListItem::selectRaw('list_id, grocery_lists.name, COALESCE(SUM(quantity * unit_price), 0) as total')
+            ->join('grocery_lists', 'grocery_lists.id', '=', 'grocery_list_items.list_id')
+            ->whereIn('grocery_list_items.list_id', $listIds)
+            ->where('checked', true)
+            ->whereNotNull('unit_price')
+            ->whereYear('grocery_list_items.updated_at', $month->year)
+            ->whereMonth('grocery_list_items.updated_at', $month->month)
+            ->groupBy('list_id', 'grocery_lists.name')
+            ->orderByDesc('total')
+            ->get()
+            ->map(fn($item) => [
+                'id'    => $item->list_id,
+                'name'  => $item->name,
+                'total' => round((float) $item->total, 2),
+            ])
+            ->toArray();
+    }
+
+    private function getUserBreakdown(array $listIds, Carbon $month): array
+    {
+        if (empty($listIds)) {
+            return [];
+        }
+
+        $ownerUserIds = GroceryList::withoutGlobalScopes()
+            ->whereIn('id', $listIds)
+            ->pluck('created_by');
+
+        $inviteeUserIds = GroceryListInvites::whereIn('grocery_list_id', $listIds)
+            ->where('status', GroceryListInvitesStatus::ACCEPTED)
+            ->whereNotNull('user_id')
+            ->pluck('user_id');
+
+        $allUserIds = $ownerUserIds->merge($inviteeUserIds)->unique()->values();
+
+        return User::whereIn('id', $allUserIds)
+            ->select('id', 'name')
+            ->get()
+            ->map(function ($user) use ($listIds, $month) {
+                $checked = (int) GroceryListItem::whereIn('list_id', $listIds)
+                    ->where('checked', true)
+                    ->where('updated_by', $user->id)
+                    ->whereYear('updated_at', $month->year)
+                    ->whereMonth('updated_at', $month->month)
+                    ->sum('quantity');
+
+                $added = (int) GroceryListItem::whereIn('list_id', $listIds)
+                    ->where('created_by', $user->id)
+                    ->whereYear('created_at', $month->year)
+                    ->whereMonth('created_at', $month->month)
+                    ->sum('quantity');
+
+                return [
+                    'user_id'   => $user->id,
+                    'user_name' => $user->name,
+                    'checked'   => $checked,
+                    'added'     => $added,
+                ];
+            })
+            ->values()
             ->toArray();
     }
 }
