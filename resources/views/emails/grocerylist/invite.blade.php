@@ -6,135 +6,134 @@
     <title>{{ __('invite.title') }}</title>
     <style>
         body {
-            background-color: #0b1120;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background-color: #edf0ec;
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             margin: 0;
-            padding: 0;
-            color: #e5e7eb;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            padding: 32px 16px;
+            color: #334155;
         }
 
         .email-container {
             max-width: 600px;
             margin: auto;
-            background-color: #111827;
-            border-radius: 12px;
+            background-color: #ffffff;
+            border-radius: 8px;
             overflow: hidden;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+            border: 1px solid #e2e8f0;
         }
 
         .header {
-            background: linear-gradient(135deg, #1e3a8a, #2563eb);
-            padding: 40px 20px 30px;
-            text-align: center;
-            width: 100%;
+            background-color: #1c2b2b;
+            padding: 32px 24px;
+            text-align: left;
         }
 
-        .header .logo-wrapper {
+        .header .brand-row {
             display: flex;
-            flex-direction: column;
             align-items: center;
-            justify-content: center;
+            gap: 8px;
+            margin-bottom: 16px;
         }
 
-        .header img {
-            width: 48px;
-            height: 48px;
-            margin-bottom: 10px;
+        .header .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #5ebd8a;
+            display: inline-block;
+            flex-shrink: 0;
+        }
+
+        .header .brand {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.6);
         }
 
         .header .title {
-            font-size: 26px;
+            font-size: 22px;
             font-weight: 700;
-            color: white;
-            line-height: 1.2;
-            text-align: center;
+            color: #ffffff;
+            letter-spacing: -0.02em;
+            margin: 0;
+            line-height: 1.3;
         }
 
         .content {
-            padding: 30px;
+            padding: 32px 24px;
             text-align: center;
-            width: 100%;
         }
 
         .content h2 {
-            color: #ffffff;
-            font-size: 22px;
-            margin-bottom: 10px;
+            color: #0f172a;
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0 0 16px;
         }
 
         .content p {
-            font-size: 16px;
-            color: #cbd5e1;
+            font-size: 15px;
+            color: #475569;
             line-height: 1.7;
+            margin: 0 0 12px;
         }
 
         .cta-button {
             display: inline-block;
-            margin-top: 24px;
-            background: linear-gradient(135deg, #2563eb, #3b82f6);
-            color: white;
+            margin-top: 8px;
+            background-color: #5ebd8a;
+            color: #ffffff;
             padding: 12px 28px;
-            border-radius: 8px;
+            border-radius: 4px;
             text-decoration: none;
             font-weight: 600;
-            font-size: 16px;
-            box-shadow: 0 0 12px rgba(37, 99, 235, 0.6);
-            transition: background 0.2s, transform 0.2s;
-        }
-
-        .cta-button:hover {
-            background: linear-gradient(135deg, #1d4ed8, #2563eb);
-            transform: translateY(-2px);
+            font-size: 15px;
         }
 
         .footer {
             text-align: center;
             font-size: 12px;
-            color: #64748b;
-            margin-top: 30px;
-            padding: 20px;
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
-            width: 100%;
+            color: #94a3b8;
+            padding: 20px 24px;
+            border-top: 1px solid #e2e8f0;
         }
     </style>
 </head>
-    <body>
-        <div class="email-container">
-            <div class="header">
-                <div class="logo-wrapper">
-                    <img src="https://cdn-icons-png.flaticon.com/512/3144/3144456.png"
-                         alt="{{ app()->getLocale() == 'en' ? 'Grocery List Logo' : 'Boodschappenlijst Logo' }}"/>
-                    <div class="title">
-                        {{ __('invite.title') }}
-                    </div>
-                </div>
-            </div>
-            <div class="content">
-                <h2 style="text-align: center;">{{ __('invite.title') }}</h2>
-                <p style="text-align: center;">{{ __('invite.greeting', ['name' => $invitedUser->name ?? '']) }}<br>
-                    {{ __('invite.invited_by', ['user' => $user->name, 'list' => $list->name]) }}</p>
-                @if(!isset($invitedUser))
-                    <p style="text-align: center;">{{ __('invite.create_account') }}</p>
-                    <a href="{{ $url }}" class="cta-button">{{ __('invite.create_account_button') }}</a>
-                    <p style="margin-top: 24px; text-align: center;">{{ __('invite.already_account') }}</p>
-                @endif
-                <p style="margin-top: 30px; text-align: center;">
-                    {{ __('invite.enjoy') }}<br>
-                    {{ __('invite.team') }}
-                </p>
-            </div>
-            <div class="footer">
-                {{ __('invite.footer') }}
-            </div>
+<body>
+<div class="email-container">
+
+    <div class="header">
+        <div class="brand-row">
+            <span class="dot"></span>
+            <span class="brand">TomJielis.com</span>
         </div>
-    </body>
+        <div class="title">{{ __('invite.title') }}</div>
+    </div>
+
+    <div class="content">
+        <h2>{{ __('invite.title') }}</h2>
+        <p>
+            {{ __('invite.greeting', ['name' => $invitedUser->name ?? '']) }}<br>
+            {{ __('invite.invited_by', ['user' => $user->name, 'list' => $list->name]) }}
+        </p>
+        @if(!isset($invitedUser))
+            <p>{{ __('invite.create_account') }}</p>
+            <a href="{{ $url }}" class="cta-button">{{ __('invite.create_account_button') }}</a>
+            <p style="margin-top: 24px; color: #94a3b8; font-size: 13px;">{{ __('invite.already_account') }}</p>
+        @endif
+        <p style="margin-top: 32px; color: #64748b; font-size: 14px;">
+            {{ __('invite.enjoy') }}<br>
+            {{ __('invite.team') }}
+        </p>
+    </div>
+
+    <div class="footer">
+        {{ __('invite.footer') }}
+    </div>
+
+</div>
+</body>
 </html>
