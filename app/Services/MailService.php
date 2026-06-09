@@ -41,7 +41,7 @@ class MailService
                 'triggered_by_user_id' => Auth::id(),
                 'sent_at' => now(),
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             SentEmail::create([
                 'type' => $type,
                 'recipient_email' => $email,

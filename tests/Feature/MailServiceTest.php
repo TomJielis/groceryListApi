@@ -42,10 +42,12 @@ class MailServiceTest extends TestCase
             }
         };
 
-        $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('SMTP failure');
-
-        app(MailService::class)->send($mailable, 'to@example.com');
+        try {
+            app(MailService::class)->send($mailable, 'to@example.com');
+            $this->fail('Expected exception was not thrown');
+        } catch (\Exception $e) {
+            $this->assertSame('SMTP failure', $e->getMessage());
+        }
 
         $this->assertDatabaseHas('sent_emails', [
             'recipient_email' => 'to@example.com',
