@@ -15,7 +15,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
+
 
 class StoreUserJob implements ShouldQueue
 {
@@ -64,9 +64,7 @@ class StoreUserJob implements ShouldQueue
         ]);
 
         try {
-            Mail::to($user->email)
-                ->send($mail);
-
+            app(\App\Services\MailService::class)->send($mail, $user->email, $user->name);
         } catch (\Exception $exception) {
             \Log::error($exception->getMessage());
             return response()->json(['message' => 'Email versturen is mislukt'], 500);

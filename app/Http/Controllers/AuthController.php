@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
+
 
 class AuthController extends Controller
 {
@@ -135,8 +135,7 @@ class AuthController extends Controller
         ]);
 
         try {
-            Mail::to($email)
-                ->send($mail);
+            app(\App\Services\MailService::class)->send($mail, $email);
 
         } catch (\Exception $exception) {
             \Log::error($exception->getMessage());

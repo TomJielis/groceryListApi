@@ -6,7 +6,7 @@ use App\Mail\Welcome;
 use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\Mail;
+
 
 class sendWelcomeEmail extends Command
 {
@@ -34,9 +34,7 @@ class sendWelcomeEmail extends Command
             ]);
 
             try {
-                Mail::to($user->email)
-                    ->send($mail);
-
+                app(\App\Services\MailService::class)->send($mail, $user->email, $user->name);
             } catch (\Exception $exception) {
                 \Log::error($exception->getMessage());
                 return response()->json(['message' => 'Email versturen mislukt'], 500);

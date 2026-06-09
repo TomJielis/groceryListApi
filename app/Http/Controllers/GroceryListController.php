@@ -8,7 +8,7 @@ use App\Models\GroceryListInvites;
 use App\Models\GroceryListInvitesStatus;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Mail;
+
 
 class GroceryListController extends Controller
 {
@@ -123,7 +123,10 @@ class GroceryListController extends Controller
         $groceryListInvites->status = GroceryListInvitesStatus::PENDING;
         $groceryListInvites->save();
 
-        Mail::to($email)->send(new GroceryListInviteMail(auth()->user(), $groceryList, $user, $email));
+        app(\App\Services\MailService::class)->send(
+            new GroceryListInviteMail(auth()->user(), $groceryList, $user, $email),
+            $email
+        );
 
         return response()->json([
             'message' => 'Boodschappenlijst is gedeeld.',
