@@ -89,4 +89,30 @@ class AdminEmailControllerTest extends TestCase
         $this->assertNotNull($response->json('data.0.triggered_by'));
         $this->assertEquals($user->name, $response->json('data.0.triggered_by.name'));
     }
+
+    public function test_filters_by_date_from(): void
+    {
+        SentEmail::factory()->create(['sent_at' => now()->subDays(10)]);
+        SentEmail::factory()->create(['sent_at' => now()->subDays(2)]);
+        SentEmail::factory()->create(['sent_at' => now()]);
+
+        $response = $this->actingAs($this->admin, 'sanctum')
+            ->getJson('/api/admin/emails?date_from=' . now()->subDays(3)->format('Y-m-d'));
+
+        $response->assertOk();
+        $this->assertCount(2, $response->json('data'));
+    }
+
+    public function test_filters_by_date_to(): void
+    {
+        SentEmail::factory()->create(['sent_at' => now()->subDays(10)]);
+        SentEmail::factory()->create(['sent_at' => now()->subDays(2)]);
+        SentEmail::factory()->create(['sent_at' => now()]);
+
+        $response = $this->actingAs($this->admin, 'sanctum')
+            ->getJson('/api/admin/emails?date_to=' . now()->subDays(3)->format('Y-m-d'));
+
+        $response->assertOk();
+        $this->assertCount(1, $response->json('data'));
+    }
 }

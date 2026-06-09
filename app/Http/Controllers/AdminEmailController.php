@@ -11,23 +11,11 @@ class AdminEmailController extends Controller
     public function index(Request $request): JsonResponse
     {
         $query = SentEmail::with('triggeredBy:id,name,email')
-            ->orderBy('created_at', 'desc');
-
-        if ($request->filled('status')) {
-            $query->where('status', $request->query('status'));
-        }
-
-        if ($request->filled('type')) {
-            $query->where('type', $request->query('type'));
-        }
-
-        if ($request->filled('date_from')) {
-            $query->whereDate('sent_at', '>=', $request->query('date_from'));
-        }
-
-        if ($request->filled('date_to')) {
-            $query->whereDate('sent_at', '<=', $request->query('date_to'));
-        }
+            ->orderBy('created_at', 'desc')
+            ->when($request->filled('status'), fn($q) => $q->where('status', $request->query('status')))
+            ->when($request->filled('type'), fn($q) => $q->where('type', $request->query('type')))
+            ->when($request->filled('date_from'), fn($q) => $q->whereDate('sent_at', '>=', $request->query('date_from')))
+            ->when($request->filled('date_to'), fn($q) => $q->whereDate('sent_at', '<=', $request->query('date_to')));
 
         if ($request->filled('limit')) {
             $emails = $query->limit((int) $request->query('limit'))->get();
