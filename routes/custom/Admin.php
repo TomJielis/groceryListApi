@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AdminEmailController;
 use App\Http\Controllers\AdminStatsController;
 use Illuminate\Support\Facades\Route;
 
@@ -15,4 +16,6 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => 'admin'], f
     Route::get('users', [AdminStatsController::class, 'usersList']);
     Route::get('users/{id}', [AdminStatsController::class, 'userDetail']);
     Route::post('users/{id}/block', [AdminStatsController::class, 'block']);
+
+    Route::get('emails', [AdminEmailController::class, 'index']);
 });
