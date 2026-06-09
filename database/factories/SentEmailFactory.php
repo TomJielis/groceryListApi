@@ -5,6 +5,9 @@ namespace Database\Factories;
 use App\Models\SentEmail;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
+/**
+ * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\SentEmail>
+ */
 class SentEmailFactory extends Factory
 {
     protected $model = SentEmail::class;
