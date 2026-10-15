@@ -3,7 +3,9 @@
     "allow": [
       "Bash(git checkout:*)",
       "Bash(php artisan make:migration:*)",
-      "Bash(php -l:*)"
+      "Bash(php -l:*)",
+      "Read(//Users/tomjielisvanwijgerden/own-projects/**)",
+      "Read(//Users/tomjielisvanwijgerden/**)"
     ]
   }
 }
