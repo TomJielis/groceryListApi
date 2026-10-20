@@ -48,10 +48,11 @@ class ListActivityPushTest extends TestCase
                 ->assertOk();
         }
 
-        // One delayed group job for all three items
-        Queue::assertPushed(SendListActivityPush::class, 1);
+        // Every item schedules a check; only the one of the last item sends, with all three counted
+        Queue::assertPushed(SendListActivityPush::class, 3);
         $this->runGroupJobs();
 
+        $this->assertCount(1, Queue::pushed(SendPushNotification::class));
         Queue::assertPushed(SendPushNotification::class, fn ($job) => $job->userId === $this->member->id
             && $job->type === 'items_added'
             && $job->replace === ['user' => 'Tom', 'list' => 'Weekend', 'count' => 3]
@@ -67,6 +68,25 @@ class ListActivityPushTest extends TestCase
 
         Queue::assertPushed(SendListActivityPush::class, fn ($job) => $job->delay !== null
             && now()->diffInSeconds($job->delay) >= 110);
+    }
+
+    public function test_the_push_waits_for_two_minutes_after_the_last_item(): void
+    {
+        $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/grocery-list-item/store', ['name' => 'Melk', 'list_id' => $this->list->id]);
+        $this->travel(90)->seconds();
+        $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/grocery-list-item/store', ['name' => 'Brood', 'list_id' => $this->list->id]);
+
+        [$first, $second] = Queue::pushed(SendListActivityPush::class)->values()->all();
+
+        // The check of the first item comes due, but a newer item came in: nothing yet
+        $first->handle();
+        Queue::assertNotPushed(SendPushNotification::class);
+
+        // Two minutes after the last item: one push for both
+        $second->handle();
+        Queue::assertPushed(SendPushNotification::class, fn ($job) => $job->replace['count'] === 2);
     }
 
     public function test_checking_off_items_is_grouped(): void
