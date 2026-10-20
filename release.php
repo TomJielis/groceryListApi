@@ -7,6 +7,8 @@ $commands = [
     'php artisan db:seed',
     'php artisan optimize:clear',
     'php artisan route:clear',
+    // Workers keep the old code in memory; this makes them finish their current job and restart (systemd starts them again)
+    'php artisan queue:restart',
 ];
 
 foreach ($commands as $cmd) {
