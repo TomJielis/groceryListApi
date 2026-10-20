@@ -59,4 +59,32 @@ class GroceryList extends Model
     {
         return $this->belongsTo(User::class, 'created_by', 'id');
     }
+
+    /**
+     * Ids of everyone on the list: the owner plus users who accepted an invite
+     *
+     * @return list<int>
+     */
+    public function memberIds(): array
+    {
+        $invitedIds = $this->groceryListInvites()
+            ->where('status', GroceryListInvitesStatus::ACCEPTED)
+            ->whereNotNull('user_id')
+            ->pluck('user_id');
+
+        return $invitedIds->push($this->created_by)->map(fn ($id) => (int) $id)->unique()->values()->all();
+    }
+
+    /**
+     * Whether something still needs to be bought. Items are versioned per name (the latest row is the current
+     * one, like GroceryListItemController::index), so only the latest row of each name counts.
+     */
+    public function hasOpenItems(): bool
+    {
+        $latestIds = GroceryListItem::selectRaw('MAX(id)')
+            ->where('list_id', $this->id)
+            ->groupBy('name');
+
+        return GroceryListItem::whereIn('id', $latestIds)->where('checked', false)->exists();
+    }
 }

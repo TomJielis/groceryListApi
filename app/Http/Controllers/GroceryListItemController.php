@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\SendListActivityPush;
+use App\Jobs\SendPushNotification;
+use App\Models\GroceryList;
 use App\Models\GroceryListItem;
 use Illuminate\Http\Request;
 
@@ -84,6 +87,10 @@ class GroceryListItemController extends Controller
             'unit_price' => $existingListItem['unit_price'] ?? null,
         ]);
 
+        if ($listItem->list_id) {
+            SendListActivityPush::record((int) $listItem->list_id, auth()->id(), 'items_added');
+        }
+
         return response()->json([
             'data' => $listItem,
         ]);
@@ -99,13 +106,47 @@ class GroceryListItemController extends Controller
             ->first();
 
         if ($latestItem) {
+            $wasChecked = (bool) $latestItem->checked;
             $latestItem->checked = $request->get('checked', false);
             $latestItem->save();
+
+            if (!$wasChecked && $request->boolean('checked')) {
+                $this->notifyChecked((int) $latestItem->list_id);
+            }
         }
 
         return response()->json([
             'data' => $latestItem ?? $listItem,
         ]);
+    }
+
+    // The last open item checked off: "finished shopping" right away, which replaces the pending
+    // "checked off N items" push. Otherwise the check joins that grouped push.
+    private function notifyChecked(int $listId): void
+    {
+        $list = GroceryList::withoutGlobalScopes()->find($listId);
+        if (!$list) {
+            return;
+        }
+
+        if ($list->hasOpenItems()) {
+            SendListActivityPush::record($list->id, auth()->id(), 'items_checked');
+            return;
+        }
+
+        SendListActivityPush::cancel($list->id, auth()->id(), 'items_checked');
+        foreach ($list->memberIds() as $memberId) {
+            if ($memberId === auth()->id()) {
+                continue;
+            }
+
+            SendPushNotification::dispatch(
+                $memberId,
+                'list_completed',
+                ['user' => auth()->user()->name, 'list' => $list->name],
+                ['url' => '/list/' . $list->id],
+            );
+        }
     }
 
     public function update(Request $request, GroceryListItem $listItem): \Illuminate\Http\JsonResponse

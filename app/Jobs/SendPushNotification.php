@@ -44,8 +44,12 @@ class SendPushNotification implements ShouldQueue
         }
 
         $language = $user->language ?: 'nl';
-        $title = __("push.{$this->type}.title", $this->replace, $language);
-        $body = __("push.{$this->type}.body", $this->replace, $language);
+        // With a count, texts can have singular|plural forms ("1 product" / "5 producten")
+        $translate = isset($this->replace['count'])
+            ? fn (string $key) => trans_choice($key, $this->replace['count'], $this->replace, $language)
+            : fn (string $key) => __($key, $this->replace, $language);
+        $title = $translate("push.{$this->type}.title");
+        $body = $translate("push.{$this->type}.body");
 
         $messages = $tokens->map(fn (string $token) => [
             'to' => $token,

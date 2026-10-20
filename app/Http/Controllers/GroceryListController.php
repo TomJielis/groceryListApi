@@ -152,9 +152,21 @@ class GroceryListController extends Controller
             return response()->json(['message' => 'Ongeldige aanvraag'], 400);
         }
 
-        GroceryListInvites::where('grocery_list_id', $data['groceryListId'])
-            ->where('user_id', $data['userId'])
-            ->delete();
+        $invites = GroceryListInvites::where('grocery_list_id', $data['groceryListId'])
+            ->where('user_id', $data['userId']);
+        // Only someone who actually joined is told; a pending invite that is withdrawn needs no push
+        $wasMember = (clone $invites)->where('status', GroceryListInvitesStatus::ACCEPTED)->exists();
+        $invites->delete();
+
+        $groceryList = GroceryList::withoutGlobalScopes()->find($data['groceryListId']);
+        if ($wasMember && $groceryList && (int) $data['userId'] !== auth()->id()) {
+            SendPushNotification::dispatch(
+                (int) $data['userId'],
+                'list_removed',
+                ['user' => auth()->user()->name, 'list' => $groceryList->name],
+                ['url' => '/'],
+            );
+        }
 
         return response()->json([
             'message' => 'Toegang tot de lijst is ingetrokken.',
@@ -189,9 +201,21 @@ class GroceryListController extends Controller
         }
 
 
+        // Collected before the invites are gone
+        $memberIds = array_diff($groceryList->memberIds(), [auth()->id()]);
+
         $groceryList->groceryListInvites()->delete();
         $groceryList->groceryListItems()->delete();
         $groceryList->delete();
+
+        foreach ($memberIds as $memberId) {
+            SendPushNotification::dispatch(
+                $memberId,
+                'list_deleted',
+                ['user' => auth()->user()->name, 'list' => $groceryList->name],
+                ['url' => '/'],
+            );
+        }
 
         return response()->json([
             'message' => 'Lijstitem is verwijderd.',
