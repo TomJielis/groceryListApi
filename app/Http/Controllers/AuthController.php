@@ -191,6 +191,16 @@ class AuthController extends Controller
     }
 
     /**
+     * Revokes only the token of this device; other devices stay logged in
+     */
+    public function logout(Request $request): JsonResponse
+    {
+        $request->user()->currentAccessToken()->delete();
+
+        return response()->json(['message' => 'Uitgelogd']);
+    }
+
+    /**
      * @param Request $request
      *
      * @return mixed
