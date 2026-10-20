@@ -35,11 +35,15 @@ class SendListActivityPush implements ShouldQueue
         $key = self::cacheKey($listId, $actorId, $type);
 
         // add() only succeeds for the first activity of this group, so the job is scheduled once
-        if (Cache::add($key, 0, now()->addMinutes(self::GROUP_MINUTES + 30))) {
+        $startsGroup = Cache::add($key, 0, now()->addMinutes(self::GROUP_MINUTES + 30));
+
+        // Count before dispatching: with QUEUE_CONNECTION=sync the job runs right away (no delay, so no
+        // grouping) and would otherwise find a count of 0 and send nothing
+        Cache::increment($key);
+
+        if ($startsGroup) {
             self::dispatch($listId, $actorId, $type)->delay(now()->addMinutes(self::GROUP_MINUTES));
         }
-
-        Cache::increment($key);
     }
 
     // Drops a pending group, e.g. "checked 8 items" when "finished shopping" already went out
