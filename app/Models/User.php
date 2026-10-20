@@ -45,7 +45,46 @@ class User extends Authenticatable implements MustVerifyEmail
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_admin' => 'boolean',
+            'notification_settings' => 'array',
         ];
+    }
+
+    /**
+     * Push notification settings a user can switch off in the app, and the push types each one covers
+     * (types are the keys in resources/lang/{nl,en}/push.php).
+     */
+    public const NOTIFICATION_SETTINGS = [
+        'invites' => ['list_shared', 'invite_accepted'],
+        'list_changes' => ['list_removed', 'list_deleted'],
+        'items_added' => ['items_added'],
+        'items_checked' => ['items_checked'],
+        'list_completed' => ['list_completed'],
+    ];
+
+    /**
+     * Every setting with its current value; everything is on unless the user switched it off
+     *
+     * @return array<string, bool>
+     */
+    public function notificationSettings(): array
+    {
+        $stored = $this->notification_settings ?? [];
+
+        return collect(self::NOTIFICATION_SETTINGS)
+            ->map(fn ($types, string $setting) => (bool) ($stored[$setting] ?? true))
+            ->all();
+    }
+
+    public function wantsPush(string $type): bool
+    {
+        foreach (self::NOTIFICATION_SETTINGS as $setting => $types) {
+            if (in_array($type, $types, true)) {
+                return $this->notificationSettings()[$setting];
+            }
+        }
+
+        // A push type without a setting is always sent
+        return true;
     }
 
     public function groceryLists()

@@ -34,7 +34,8 @@ class SendPushNotification implements ShouldQueue
     public function handle(): void
     {
         $user = User::find($this->userId);
-        if (!$user) {
+        // The user switched this kind of notification off in the app
+        if (!$user || !$user->wantsPush($this->type)) {
             return;
         }
 
