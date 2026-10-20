@@ -170,4 +170,32 @@ class PushNotificationTest extends TestCase
 
         Http::assertNothingSent();
     }
+
+    public function test_push_sets_the_badge_to_the_open_invites(): void
+    {
+        Http::fake(['exp.host/*' => Http::response(['data' => [['status' => 'ok']]])]);
+        $owner = User::factory()->create();
+        $user = User::factory()->create(['language' => 'nl']);
+        PushToken::create(['user_id' => $user->id, 'token' => self::TOKEN]);
+        // Two pending invites (one sent by email before signing up), one accepted and one declined that don't count
+        $statuses = [
+            [GroceryListInvitesStatus::PENDING, $user->id],
+            [GroceryListInvitesStatus::PENDING, null],
+            [GroceryListInvitesStatus::ACCEPTED, $user->id],
+            [GroceryListInvitesStatus::DECLINED, $user->id],
+        ];
+        foreach ($statuses as [$status, $userId]) {
+            $list = GroceryList::create(['name' => 'Lijst', 'created_by' => $owner->id]);
+            GroceryListInvites::create([
+                'grocery_list_id' => $list->id,
+                'user_id' => $userId,
+                'email' => $user->email,
+                'status' => $status,
+            ]);
+        }
+
+        (new SendPushNotification($user->id, 'list_shared', ['user' => 'Tom', 'list' => 'Lijst']))->handle();
+
+        Http::assertSent(fn (Request $request) => json_decode($request->body(), true)[0]['badge'] === 2);
+    }
 }

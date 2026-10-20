@@ -82,4 +82,16 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $this->hasMany(PushToken::class, 'user_id', 'id');
     }
+
+    /**
+     * Number of lists waiting for this user to accept or decline; shown as the app icon badge.
+     * Matches GroceryListController::pending: invites by user id, or by email when sent before signing up.
+     */
+    public function pendingInviteCount(): int
+    {
+        return GroceryListInvites::where('status', GroceryListInvitesStatus::PENDING)
+            ->where(fn ($query) => $query->where('user_id', $this->id)->orWhere('email', $this->email))
+            ->distinct()
+            ->count('grocery_list_id');
+    }
 }

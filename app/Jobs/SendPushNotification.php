@@ -51,12 +51,16 @@ class SendPushNotification implements ShouldQueue
         $title = $translate("push.{$this->type}.title");
         $body = $translate("push.{$this->type}.body");
 
+        // Every push sets the app icon badge to the open invites, so it is always current (0 clears it)
+        $badge = $user->pendingInviteCount();
+
         $messages = $tokens->map(fn (string $token) => [
             'to' => $token,
             'title' => $title,
             'body' => $body,
             'data' => (object) $this->data,
             'sound' => 'default',
+            'badge' => $badge,
         ])->values()->all();
 
         // Throws on a failed request, so the queue retries the job
