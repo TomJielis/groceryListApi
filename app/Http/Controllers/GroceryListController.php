@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\SendPushNotification;
 use App\Mail\GroceryListInviteMail;
 use App\Models\GroceryList;
 use App\Models\GroceryListInvites;
@@ -128,6 +129,16 @@ class GroceryListController extends Controller
             $email
         );
 
+        // Only existing users can have the app; new users get just the email. The invite shows on the lists screen.
+        if ($user) {
+            SendPushNotification::dispatch(
+                $user->id,
+                'list_shared',
+                ['user' => auth()->user()->name, 'list' => $groceryList->name],
+                ['url' => '/'],
+            );
+        }
+
         return response()->json([
             'message' => 'Boodschappenlijst is gedeeld.',
             'data' => $groceryList,
@@ -216,6 +227,15 @@ class GroceryListController extends Controller
         $groceryListInvites->status = $status;
 
         $groceryListInvites->save();
+
+        if ($status === GroceryListInvitesStatus::ACCEPTED && (int) $groceryList->created_by !== auth()->id()) {
+            SendPushNotification::dispatch(
+                (int) $groceryList->created_by,
+                'invite_accepted',
+                ['user' => auth()->user()->name, 'list' => $groceryList->name],
+                ['url' => '/list/' . $groceryList->id],
+            );
+        }
 
         return response()->json([
             'message' => 'Uitnodiging status is bijgewerkt.',

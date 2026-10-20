@@ -191,10 +191,15 @@ class AuthController extends Controller
     }
 
     /**
-     * Revokes only the token of this device; other devices stay logged in
+     * Revokes only the token of this device; other devices stay logged in.
+     * The app also sends its push token, so this device stops getting notifications for this account.
      */
     public function logout(Request $request): JsonResponse
     {
+        if ($pushToken = $request->get('pushToken')) {
+            $request->user()->pushTokens()->where('token', $pushToken)->delete();
+        }
+
         $request->user()->currentAccessToken()->delete();
 
         return response()->json(['message' => 'Uitgelogd']);

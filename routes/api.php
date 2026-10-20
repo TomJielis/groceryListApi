@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\PushTokenController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -27,6 +28,7 @@ Route::post('/reset-password', [AuthController::class, 'resetPassword'])->withou
 Route::post('/set-new-password', [AuthController::class, 'setNewPassword'])->withoutMiddleware('auth:sanctum');
 Route::post('/me', [AuthController::class, 'me']);
 Route::post('/logout', [AuthController::class, 'logout']);
+Route::post('/push-tokens', [PushTokenController::class, 'store']);
 Route::post('/update-language', [AuthController::class, 'updateLanguage']);
 Route::post('/approve-terms', [AuthController::class, 'approveTerms']);
 Route::post('/update', [AuthController::class, 'update']);
