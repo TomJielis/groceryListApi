@@ -7,6 +7,7 @@ use App\Mail\GroceryListInviteMail;
 use App\Models\GroceryList;
 use App\Models\GroceryListInvites;
 use App\Models\GroceryListInvitesStatus;
+use App\Models\GroceryListItem;
 use App\Models\User;
 use Illuminate\Http\Request;
 
@@ -23,7 +24,19 @@ class GroceryListController extends Controller
     {
         $offset = $request->get('from');
         $limit = $request->get('till');
+        // Items are versioned per name (a new row per change); the current item is the latest row of each name.
+        // The two counts above include every version and stay as they are for the web app;
+        // open_items_count is what is still to be bought right now (used by the mobile app).
+        $latestIds = GroceryListItem::selectRaw('MAX(id)')
+            ->whereColumn('list_id', 'grocery_lists.id')
+            ->groupBy('name');
+        $openItemsCount = GroceryListItem::selectRaw('COUNT(*)')
+            ->whereColumn('list_id', 'grocery_lists.id')
+            ->where('checked', false)
+            ->whereIn('id', $latestIds);
+
         $listItems = GroceryList::select('*')
+            ->selectSub($openItemsCount, 'open_items_count')
             ->withCount('groceryListItems')
             ->withCount('groceryListItemsChecked')
             ->with(['groceryListInvites.user', 'createdBy']);

@@ -578,9 +578,8 @@ class AdminStatsController extends Controller
     {
         $endOfMonth = $month->copy()->endOfMonth();
 
-        $latestVersion = User::where('created_at', '<=', $endOfMonth)
-            ->orderByDesc('accepted_terms_version')
-            ->value('accepted_terms_version');
+        // The terms version that currently applies (not the highest one found, which sorts as text: "1.10" < "1.9")
+        $latestVersion = (string) config('app.terms_version');
 
         $versionCounts = User::select('accepted_terms_version', DB::raw('COUNT(*) as count'))
             ->where('created_at', '<=', $endOfMonth)

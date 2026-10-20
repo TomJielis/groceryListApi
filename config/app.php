@@ -15,6 +15,10 @@ return [
 
     'name' => env('APP_NAME', 'Laravel'),
 
+    // Version of the terms of use & privacy policy users must accept. Keep in sync with termsVersion in the
+    // web app's nuxt.config.ts and TERMS_VERSION in the mobile app's composables/useAuth.ts.
+    'terms_version' => env('TERMS_VERSION', '1.1'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Environment
