@@ -74,6 +74,7 @@ class GroceryListItemController extends Controller
     public function store(Request $request): \Illuminate\Http\JsonResponse
     {
         $data = $request->all();
+        $this->ensureListAccess($data['list_id'] ?? null);
 
         $existingListItem = GroceryListItem::where('name', $data['name'])
             ->where('list_id', $data['list_id'] ?? null)
@@ -99,6 +100,8 @@ class GroceryListItemController extends Controller
 
     public function checked(Request $request, GroceryListItem $listItem): \Illuminate\Http\JsonResponse
     {
+        $this->ensureListAccess($listItem->list_id);
+
         // Find the latest record with the same name in the same list
         $latestItem = GroceryListItem::where('name', $listItem->name)
             ->where('list_id', $listItem->list_id)
@@ -151,6 +154,7 @@ class GroceryListItemController extends Controller
 
     public function update(Request $request, GroceryListItem $listItem): \Illuminate\Http\JsonResponse
     {
+        $this->ensureListAccess($listItem->list_id);
         $data = $request->all()['item'];
         $listItem->name = ucfirst($data['name']);
         $listItem->quantity = $data['quantity'];
@@ -165,6 +169,7 @@ class GroceryListItemController extends Controller
 
     public function increase(Request $request, GroceryListItem $listItem): \Illuminate\Http\JsonResponse
     {
+        $this->ensureListAccess($listItem->list_id);
         $listItem->increment('quantity', $request->get('amount', 1));
 
         return response()->json([
@@ -174,6 +179,7 @@ class GroceryListItemController extends Controller
 
     public function decrease(Request $request, GroceryListItem $listItem): \Illuminate\Http\JsonResponse
     {
+        $this->ensureListAccess($listItem->list_id);
         $amount = $request->get('amount', 1);
 
         if ($listItem->quantity - $amount <= 0) {
@@ -189,10 +195,22 @@ class GroceryListItemController extends Controller
 
     public function delete(Request $request, GroceryListItem $listItem): \Illuminate\Http\JsonResponse
     {
+        $this->ensureListAccess($listItem->list_id);
         $listItem->delete();
 
         return response()->json([
             'message' => 'Lijstitem succesvol verwijderd',
         ]);
+    }
+
+    // Items can only be touched on lists the user may see: their own or one they accepted an invite for.
+    // GroceryList's global scope applies exactly that rule, so a list someone else owns isn't found.
+    private function ensureListAccess($listId): void
+    {
+        abort_unless(
+            $listId && GroceryList::whereKey($listId)->exists(),
+            403,
+            'Je hebt geen toegang tot deze lijst'
+        );
     }
 }

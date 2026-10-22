@@ -10,6 +10,9 @@ use Illuminate\Support\Str;
 
 class MailService
 {
+    // Emails whose body holds a working link to someone's account; the log keeps only that they were sent
+    private const PRIVATE_BODY_TYPES = ['reset_password'];
+
     public function send(Mailable $mailable, string $email, ?string $name = null): void
     {
         $type = Str::snake(class_basename($mailable));
@@ -26,8 +29,10 @@ class MailService
                 // which returns the Symfony\Mime\Email that was rendered.
                 $symfonyEmail = $sentMessage->getOriginalMessage();
                 $subject = $symfonyEmail->getSubject();
-                $bodyHtml = $symfonyEmail->getHtmlBody();
-                $bodyText = $symfonyEmail->getTextBody();
+                if (!in_array($type, self::PRIVATE_BODY_TYPES, true)) {
+                    $bodyHtml = $symfonyEmail->getHtmlBody();
+                    $bodyText = $symfonyEmail->getTextBody();
+                }
             }
 
             SentEmail::create([

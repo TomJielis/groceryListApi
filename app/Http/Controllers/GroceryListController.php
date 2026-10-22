@@ -118,11 +118,25 @@ class GroceryListController extends Controller
 
         $user = User::where('email', $email)->first();
 
-        $groceryListInvites = GroceryListInvites::where('grocery_list_id', $groceryList->id)
+        // The existing invite for this person. Without an account only the email can match: matching on an
+        // empty user_id would pick up (and overwrite) another invite to an address without an account.
+        $existingInvites = GroceryListInvites::where('grocery_list_id', $groceryList->id)
             ->where(function ($query) use ($user, $email) {
-                $query->where('user_id', $user?->id)
-                      ->orWhere('email', $email);
-            })
+                $query->where('email', $email);
+                if ($user) {
+                    $query->orWhere('user_id', $user->id);
+                }
+            });
+
+        // Already a member: nothing to send, and no second invite that would show up as pending
+        if ((clone $existingInvites)->where('status', GroceryListInvitesStatus::ACCEPTED)->exists()) {
+            return response()->json([
+                'message' => 'Deze persoon heeft al toegang tot de lijst.',
+                'data' => $groceryList,
+            ]);
+        }
+
+        $groceryListInvites = $existingInvites
             ->whereIn('status', [GroceryListInvitesStatus::DECLINED, GroceryListInvitesStatus::PENDING])
             ->first();
 
@@ -165,6 +179,11 @@ class GroceryListController extends Controller
             return response()->json(['message' => 'Ongeldige aanvraag'], 400);
         }
 
+        // Only someone with access to the list (owner or member) can remove people from it
+        if (!GroceryList::find($data['groceryListId'])) {
+            return response()->json(['message' => 'Boodschappen lijst niet gevonden'], 404);
+        }
+
         $invites = GroceryListInvites::where('grocery_list_id', $data['groceryListId'])
             ->where('user_id', $data['userId']);
         // Only someone who actually joined is told; a pending invite that is withdrawn needs no push
@@ -189,7 +208,12 @@ class GroceryListController extends Controller
     public function favorite(Request $request): \Illuminate\Http\JsonResponse
     {
         $user = auth()->user();
-        $user->favorite_list_id = $request->get('listId') ?? null;
+        $listId = $request->get('listId');
+        // Only a list the user can see can be their favorite (null clears it)
+        if ($listId && !GroceryList::find($listId)) {
+            return response()->json(['message' => 'Boodschappen lijst niet gevonden'], 404);
+        }
+        $user->favorite_list_id = $listId ?? null;
         $user->save();
         return response()->json([
             'message' => 'Lijst is gekenmerkt als favoriet',

@@ -21,6 +21,8 @@ use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
+    private const RESET_LINK_MINUTES = 60;
+
     /**
      * @param RegisterUserRequest $request
      *
@@ -154,10 +156,12 @@ class AuthController extends Controller
         $newPassword = $request->get('password');
 
         $user = User::where('email', $email)->first();
-        $temporaryPasswordCode = TemporaryPasswordCode::where('user_id', '=', $user->id)
+        // A reset link works for an hour (and once)
+        $temporaryPasswordCode = $user ? TemporaryPasswordCode::where('user_id', '=', $user->id)
             ->where('code', '=', $token)
             ->where('is_used', '=', false)
-            ->first();
+            ->where('created_at', '>=', now()->subMinutes(self::RESET_LINK_MINUTES))
+            ->first() : null;
 
         if (!$temporaryPasswordCode) {
             return response()->json(['message' => 'Foutieve code'], 400);
@@ -167,6 +171,9 @@ class AuthController extends Controller
         $user->save();
         $temporaryPasswordCode->is_used = true;
         $temporaryPasswordCode->save();
+
+        // Whoever knew the old password is logged out everywhere
+        $user->tokens()->delete();
 
         return response()->json(['message' => 'Wachtwoord is geupdate'], 200);
     }

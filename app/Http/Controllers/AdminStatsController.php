@@ -376,6 +376,11 @@ class AdminStatsController extends Controller
         $user->blocked = !$user->blocked;
         $user->save();
 
+        // Logins only check `blocked` when signing in, so end the sessions that are already open
+        if ($user->blocked) {
+            $user->tokens()->delete();
+        }
+
         return response()->json(['message' => 'User blocked successfully']);
     }
 
