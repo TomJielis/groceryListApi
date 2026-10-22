@@ -249,10 +249,7 @@ class AdminStatsController extends Controller
         $currentMonth = $this->parseMonth($request->query('month'));
         $previousMonth = $currentMonth->copy()->subMonth();
 
-        $lastActive = PersonalAccessToken::where('tokenable_type', User::class)
-            ->where('tokenable_id', $user->id)
-            ->orderByDesc('last_used_at')
-            ->value('last_used_at');
+        $lastActive = $user->last_active_at;
 
         $ownedLists = GroceryList::withoutGlobalScopes()
             ->where('created_by', $user->id)
@@ -398,12 +395,17 @@ class AdminStatsController extends Controller
             ->whereMonth('created_at', $month->month)
             ->count();
 
-        $thirtyDaysAgo = $endOfMonth->copy()->subDays(30);
-        $active = PersonalAccessToken::where('tokenable_type', User::class)
-            ->where('last_used_at', '>=', $thirtyDaysAgo)
-            ->where('last_used_at', '<=', $endOfMonth)
-            ->distinct('tokenable_id')
-            ->count('tokenable_id');
+        // The current month counts who used the app in the last 30 days. last_active_at only holds the
+        // latest visit, so earlier months still come from the tokens (as close as that history goes).
+        if ($endOfMonth->isFuture()) {
+            $active = User::active()->count();
+        } else {
+            $active = PersonalAccessToken::where('tokenable_type', User::class)
+                ->where('last_used_at', '>=', $endOfMonth->copy()->subDays(30))
+                ->where('last_used_at', '<=', $endOfMonth)
+                ->distinct('tokenable_id')
+                ->count('tokenable_id');
+        }
 
         $verifiedEmail = User::where('created_at', '<=', $endOfMonth)
             ->whereNotNull('email_verified_at')

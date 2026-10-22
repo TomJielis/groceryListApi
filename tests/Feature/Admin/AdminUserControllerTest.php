@@ -28,9 +28,10 @@ class AdminUserControllerTest extends TestCase
         return $user;
     }
 
+    // Last used the app or website at $when (users.last_active_at, kept up to date by TrackLastActive)
     private function usedTokenAt(User $user, $when): void
     {
-        $user->createToken('test')->accessToken->forceFill(['last_used_at' => $when])->save();
+        $user->forceFill(['last_active_at' => $when])->save();
     }
 
     private function overview(string $query = '')
@@ -72,7 +73,9 @@ class AdminUserControllerTest extends TestCase
         $this->user(['email' => 'blocked@example.com', 'blocked' => true]);
         User::factory()->unverified()->create(['email' => 'new@example.com']);
 
-        $emails = fn (string $query) => collect($this->overview($query)->assertOk()->json('data'))->pluck('email')->sort()->values()->all();
+        // The admin asking counts as active too (that request itself); leave them out
+        $emails = fn (string $query) => collect($this->overview($query)->assertOk()->json('data'))
+            ->pluck('email')->reject(fn ($email) => $email === 'admin@example.com')->sort()->values()->all();
 
         $this->assertSame(['active@example.com'], $emails('status=active'));
         $this->assertNotContains('active@example.com', $emails('status=inactive'));
@@ -84,7 +87,7 @@ class AdminUserControllerTest extends TestCase
 
         $this->overview()
             ->assertJsonPath('summary.total', 5)
-            ->assertJsonPath('summary.active', 1)
+            ->assertJsonPath('summary.active', 2) // active@ and the admin
             ->assertJsonPath('summary.unverified', 1)
             ->assertJsonPath('summary.blocked', 1);
     }
@@ -96,19 +99,20 @@ class AdminUserControllerTest extends TestCase
         $latest = $this->user(['email' => 'latest@example.com']);
         $this->usedTokenAt($latest, now()->subHour());
 
-        $emails = collect($this->overview()->json('data'))->pluck('email')->all();
+        $emails = collect($this->overview()->json('data'))->pluck('email')
+            ->reject(fn ($email) => $email === 'admin@example.com')->values()->all();
 
         $this->assertSame(['latest@example.com', 'earlier@example.com'], array_slice($emails, 0, 2));
     }
 
     public function test_the_old_users_list_keeps_its_shape(): void
     {
-        $this->usedTokenAt($this->admin, '2026-10-17 09:59:47');
+        $user = $this->user(['email' => 'shape@example.com']);
+        $this->usedTokenAt($user, '2026-10-17 09:59:47');
 
-        $this->actingAs($this->admin, 'sanctum')
-            ->getJson('/api/admin/users')
-            // The website reads this exact format
-            ->assertJsonPath('users.0.last_active', '2026-10-17T09:59:47.000000Z');
+        $users = collect($this->actingAs($this->admin, 'sanctum')->getJson('/api/admin/users')->assertOk()->json('users'));
+        // The website reads this exact format
+        $this->assertSame('2026-10-17T09:59:47.000000Z', $users->firstWhere('id', $user->id)['last_active']);
 
         $this->actingAs($this->admin, 'sanctum')
             ->getJson('/api/admin/users')
