@@ -41,6 +41,17 @@ class AuthController extends Controller
      */
     public function login(Request $request)
     {
+        // Nothing to check without both fields: answer like any failed login (the app and website read
+        // `success`/`error`), but don't record it, so empty bot requests don't fill the failed-login list
+        if (!is_string($request->input('email')) || trim($request->input('email')) === ''
+            || !is_string($request->input('password')) || $request->input('password') === '') {
+            return response()->json([
+                'error' => 'Email and password are required',
+                'success' => false,
+                'status' => 422,
+            ]);
+        }
+
         $user = (new LoginJob($request))->handle();
         return response()->json($user);
     }

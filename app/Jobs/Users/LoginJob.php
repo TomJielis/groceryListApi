@@ -3,7 +3,7 @@
 namespace App\Jobs\Users;
 
 use App\Models\InvalidLoginAttempt;
-use Illuminate\Support\Facades\Log;
+use App\Models\SuccessfulLogin;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Bus\Queueable;
@@ -12,7 +12,6 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Auth;
-use Laravel\Sanctum\PersonalAccessToken;
 
 class LoginJob implements ShouldQueue
 {
@@ -97,6 +96,7 @@ class LoginJob implements ShouldQueue
             }
 
             $token = $user->createToken('nuxt-frontend', ['*'], now()->addDays(14))->plainTextToken;
+            SuccessfulLogin::record($user, $request);
 
             return [
                 'access_token' => $token,

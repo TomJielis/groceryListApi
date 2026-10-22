@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\InvalidLoginAttempt;
+use App\Models\SuccessfulLogin;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,6 +16,13 @@ use Illuminate\Support\Carbon;
 class AdminLoginAttemptController extends Controller
 {
     private const PERIODS = ['24h' => 24, '7d' => 24 * 7, '30d' => 24 * 30];
+
+    // From this many failed attempts, a successful login from the same address afterwards is a warning sign
+    private const SUSPICIOUS_FAILURES = 3;
+
+    // Requests from this machine itself: every old record (and website logins before the website passed the
+    // visitor's address on) has one of these, so they would only give false alarms
+    private const LOCAL_ADDRESSES = ['127.0.0.1', '::1'];
 
     public function index(Request $request): JsonResponse
     {
@@ -82,8 +90,44 @@ class AdminLoginAttemptController extends Controller
                         'accounts' => (int) $row->accounts,
                         'last_attempt' => Carbon::parse($row->last_attempt)->toJSON(),
                     ]),
+                'suspicious' => $this->suspicious($request),
             ],
         ]);
+    }
+
+    /**
+     * Addresses with several failed attempts that afterwards logged in successfully: someone may have
+     * guessed a password. Per address, the accounts that logged in from there after the first failure.
+     */
+    private function suspicious(Request $request): array
+    {
+        return $this->filtered($request)
+            ->whereNotIn('ip_address', self::LOCAL_ADDRESSES)
+            ->selectRaw('ip_address, COUNT(*) as attempts, MIN(attempted_at) as first_attempt')
+            ->groupBy('ip_address')
+            ->havingRaw('COUNT(*) >= ?', [self::SUSPICIOUS_FAILURES])
+            ->orderByDesc('attempts')
+            ->limit(10)
+            ->get()
+            ->map(function ($row) {
+                $logins = SuccessfulLogin::with('user:id,name,email')
+                    ->where('ip_address', $row->ip_address)
+                    ->where('logged_in_at', '>=', $row->first_attempt)
+                    ->orderByDesc('logged_in_at')
+                    ->get();
+
+                return $logins->isEmpty() ? null : [
+                    'ip_address' => $row->ip_address,
+                    'failed_attempts' => (int) $row->attempts,
+                    'accounts' => $logins->pluck('user')->filter()->unique('id')
+                        ->map(fn ($user) => ['id' => $user->id, 'name' => $user->name, 'email' => $user->email])
+                        ->values(),
+                    'last_login' => $logins->first()->logged_in_at,
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
     }
 
     // The same filters for the list and every summary number

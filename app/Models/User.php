@@ -142,6 +142,11 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(InvalidLoginAttempt::class, 'user_id', 'id');
     }
 
+    public function successfulLogins()
+    {
+        return $this->hasMany(SuccessfulLogin::class);
+    }
+
     public function pushTokens()
     {
         return $this->hasMany(PushToken::class, 'user_id', 'id');

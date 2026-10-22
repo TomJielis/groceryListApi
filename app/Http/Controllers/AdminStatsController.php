@@ -321,6 +321,11 @@ class AdminStatsController extends Controller
                 'last_active' => $lastActive,
                 'blocked' => $user->blocked,
             ],
+            // Newest first
+            'recent_logins' => $user->successfulLogins()
+                ->orderByDesc('logged_in_at')
+                ->limit(10)
+                ->get(['ip_address', 'client', 'app_version', 'logged_in_at']),
             'lists' => [
                 'owned' => $ownedLists->count(),
                 'shared_with_user' => $sharedListIds->count(),
