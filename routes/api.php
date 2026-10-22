@@ -34,3 +34,7 @@ Route::post('/approve-terms', [AuthController::class, 'approveTerms']);
 Route::post('/update', [AuthController::class, 'update']);
 Route::post('/deactivate', [AuthController::class, 'deactivate']);
 Route::get('/verify-email/{hash}', [AuthController::class, 'verifyUser'])->withoutMiddleware('auth:sanctum');
+
+// Lets the app tell "server down" from "no internet". Answers 503 in maintenance mode (php artisan down),
+// unlike Laravel's /up, which keeps answering 200.
+Route::get('/status', fn () => response()->json(['status' => 'ok']))->withoutMiddleware('auth:sanctum');
