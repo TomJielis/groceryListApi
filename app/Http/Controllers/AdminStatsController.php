@@ -217,30 +217,20 @@ class AdminStatsController extends Controller
     public function usersList(): JsonResponse
     {
         $users = User::select('id', 'name', 'email', 'created_at', 'email_verified_at', 'accepted_terms_version', 'blocked')
+            ->withActivity()
             ->orderByDesc('created_at')
             ->get()
-            ->map(function ($user) {
-                $lastActive = PersonalAccessToken::where('tokenable_type', User::class)
-                    ->where('tokenable_id', $user->id)
-                    ->orderByDesc('last_used_at')
-                    ->value('last_used_at');
-
-                $listsCount = GroceryList::withoutGlobalScopes()
-                    ->where('created_by', $user->id)
-                    ->count();
-
-                return [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'created_at' => $user->created_at,
-                    'email_verified' => $user->email_verified_at !== null,
-                    'terms_version' => $user->accepted_terms_version,
-                    'last_active' => $lastActive,
-                    'lists_count' => $listsCount,
-                    'blocked' => $user->blocked,
-                ];
-            });
+            ->map(fn (User $user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'created_at' => $user->created_at,
+                'email_verified' => $user->email_verified_at !== null,
+                'terms_version' => $user->accepted_terms_version,
+                'last_active' => $user->last_active,
+                'lists_count' => (int) $user->lists_count,
+                'blocked' => $user->blocked,
+            ]);
 
         return response()->json([
             'users' => $users,

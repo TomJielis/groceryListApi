@@ -3,10 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Laravel\Sanctum\PersonalAccessToken;
 class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
@@ -85,6 +87,28 @@ class User extends Authenticatable implements MustVerifyEmail
 
         // A push type without a setting is always sent
         return true;
+    }
+
+    /**
+     * Admin overviews: adds last_active (latest use of any login token) and lists_count (lists created)
+     * as subqueries, so a page of users costs one query instead of two extra per user.
+     */
+    public function scopeWithActivity(Builder $query): Builder
+    {
+        return $query->addSelect([
+            'last_active' => PersonalAccessToken::selectRaw('MAX(last_used_at)')
+                ->whereColumn('tokenable_id', 'users.id')
+                ->where('tokenable_type', self::class),
+            'lists_count' => GroceryList::withoutGlobalScopes()
+                ->selectRaw('COUNT(*)')
+                ->whereColumn('created_by', 'users.id'),
+        ]);
+    }
+
+    // Used a login token in the last 30 days
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->whereHas('tokens', fn ($q) => $q->where('last_used_at', '>=', now()->subDays(30)));
     }
 
     public function groceryLists()

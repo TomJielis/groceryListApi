@@ -18,6 +18,14 @@ class InvalidLoginAttempt extends Authenticatable implements MustVerifyEmail
         'blocked_till',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'attempted_at' => 'datetime',
+            'blocked_till' => 'datetime',
+        ];
+    }
+
     public function user()
     {
         return $this->belongsTo(User::class);
