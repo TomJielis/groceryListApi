@@ -103,6 +103,13 @@ class AdminUserControllerTest extends TestCase
 
     public function test_the_old_users_list_keeps_its_shape(): void
     {
+        $this->usedTokenAt($this->admin, '2026-10-17 09:59:47');
+
+        $this->actingAs($this->admin, 'sanctum')
+            ->getJson('/api/admin/users')
+            // The website reads this exact format
+            ->assertJsonPath('users.0.last_active', '2026-10-17T09:59:47.000000Z');
+
         $this->actingAs($this->admin, 'sanctum')
             ->getJson('/api/admin/users')
             ->assertOk()

@@ -95,7 +95,8 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function scopeWithActivity(Builder $query): Builder
     {
-        return $query->addSelect([
+        // Cast like the token's own last_used_at, so it is sent in the same format as before
+        return $query->withCasts(['last_active' => 'datetime'])->addSelect([
             'last_active' => PersonalAccessToken::selectRaw('MAX(last_used_at)')
                 ->whereColumn('tokenable_id', 'users.id')
                 ->where('tokenable_type', self::class),
