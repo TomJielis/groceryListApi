@@ -59,3 +59,15 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+## End-to-end test users
+
+The end-to-end tests of the website (Playwright) and the app (Maestro) make throwaway users through:
+
+```bash
+php artisan e2e:user create someone@e2e.test [--name=...] [--language=en|nl] [--admin]   # prints {"id","email","password"}
+php artisan e2e:user reset someone@e2e.test       # removes the user's lists and cards, keeps the user
+php artisan e2e:user delete 'e2e-web*@e2e.test'   # removes matching users and everything they made
+```
+
+It only runs with `APP_ENV=local` or `testing` and only touches addresses ending in `@e2e.test`, so real users are never affected. See the READMEs of the website and the app for running the tests.
