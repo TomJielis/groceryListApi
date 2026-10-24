@@ -21,7 +21,10 @@ class CardController extends Controller
     {
         $request->validate([
             'title' => 'required|string|max:255',
-            'attachment' => 'required|string', // base64 of url
+            // A data URL (photo or barcode) or a link; ~10 MB of text is a photo of about 7.5 MB
+            'attachment' => 'required|string|max:10000000',
+        ], [
+            'attachment.max' => 'De afbeelding is te groot. Kies een kleinere foto.',
         ]);
 
         $card = Card::create([

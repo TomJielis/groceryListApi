@@ -39,6 +39,12 @@ class SendPushNotification implements ShouldQueue
             return;
         }
 
+        // A device whose login has expired is logged out: it shouldn't get this account's pushes any more.
+        // (Ended logins are already gone: deleting the login deletes its push token.)
+        $user->pushTokens()
+            ->whereHas('accessToken', fn ($query) => $query->where('expires_at', '<', now()))
+            ->delete();
+
         $tokens = $user->pushTokens()->pluck('token');
         if ($tokens->isEmpty()) {
             return;

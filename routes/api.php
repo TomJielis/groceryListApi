@@ -22,10 +22,11 @@ Route::group(['as' => 'api.'], function () {
     }
 });
 
-Route::post('/register', [AuthController::class, 'register'])->withoutMiddleware('auth:sanctum');
-Route::post('/login', [AuthController::class, 'login'])->withoutMiddleware('auth:sanctum');
-Route::post('/reset-password', [AuthController::class, 'resetPassword'])->withoutMiddleware('auth:sanctum');
+Route::post('/register', [AuthController::class, 'register'])->withoutMiddleware('auth:sanctum')->middleware('throttle:register');
+Route::post('/login', [AuthController::class, 'login'])->withoutMiddleware('auth:sanctum')->middleware('throttle:login');
+Route::post('/reset-password', [AuthController::class, 'resetPassword'])->withoutMiddleware('auth:sanctum')->middleware('throttle:password-reset');
 Route::post('/set-new-password', [AuthController::class, 'setNewPassword'])->withoutMiddleware('auth:sanctum');
+Route::post('/check-reset-link', [AuthController::class, 'checkResetLink'])->withoutMiddleware('auth:sanctum');
 Route::post('/me', [AuthController::class, 'me']);
 Route::post('/logout', [AuthController::class, 'logout']);
 Route::post('/push-tokens', [PushTokenController::class, 'store']);

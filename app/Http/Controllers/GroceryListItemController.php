@@ -170,7 +170,8 @@ class GroceryListItemController extends Controller
     public function increase(Request $request, GroceryListItem $listItem): \Illuminate\Http\JsonResponse
     {
         $this->ensureListAccess($listItem->list_id);
-        $listItem->increment('quantity', $request->get('amount', 1));
+        $request->validate(['amount' => 'sometimes|integer|min:1|max:1000']);
+        $listItem->increment('quantity', (int) $request->get('amount', 1));
 
         return response()->json([
             'data' => $listItem,
@@ -180,7 +181,8 @@ class GroceryListItemController extends Controller
     public function decrease(Request $request, GroceryListItem $listItem): \Illuminate\Http\JsonResponse
     {
         $this->ensureListAccess($listItem->list_id);
-        $amount = $request->get('amount', 1);
+        $request->validate(['amount' => 'sometimes|integer|min:1|max:1000']);
+        $amount = (int) $request->get('amount', 1);
 
         if ($listItem->quantity - $amount <= 0) {
             $listItem->delete();

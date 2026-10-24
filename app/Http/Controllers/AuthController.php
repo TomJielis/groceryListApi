@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Contracts\Encryption\DecryptException;
 use App\Http\Requests\User\RegisterUserRequest;
 use App\Jobs\Users\LoginJob;
 use App\Jobs\Users\StoreUserJob;
@@ -17,11 +18,13 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
 
 
 class AuthController extends Controller
 {
     private const RESET_LINK_MINUTES = 60;
+    private const MIN_PASSWORD_LENGTH = 8;
 
     /**
      * @param RegisterUserRequest $request
@@ -30,7 +33,12 @@ class AuthController extends Controller
      */
     public function register(Request $request): JsonResponse
     {
-        $user = (new StoreUserJob($request->all()))->handle();
+        // Answered like a failed login (HTTP 200 with `error`): the app and the website show that message
+        if ($error = $this->registrationError($request)) {
+            return response()->json(['success' => false, 'error' => $error, 'message' => $error, 'status' => 422]);
+        }
+
+        $user = (new StoreUserJob(array_merge($request->all(), ['email' => trim($request->input('email'))])))->handle();
         return response()->json($user);
     }
 
@@ -90,18 +98,20 @@ class AuthController extends Controller
 
     public function verifyUser(Request $request, string $token)
     {
-        $userId = Crypt::decryptString($token);
-        $user = User::find($userId);
-
-        if (!$user) {
-            return response()->json(['message' => 'Url is verlopen'], 400);
+        // `reason` lets the app and the website show a fitting message (they read it from an HTTP 200 answer)
+        try {
+            $user = User::find(Crypt::decryptString($token));
+        } catch (DecryptException) {
+            $user = null;
         }
 
+        if (!$user) {
+            return response()->json(['success' => false, 'reason' => 'invalid_link', 'message' => 'Deze link is ongeldig.']);
+        }
+
+        // Opening the link again: nothing to do, the account is ready to use
         if ($user->email_verified_at) {
-            throw new HttpResponseException(response()->json([
-                'success' => false,
-                'message' => 'Gebruiker is al geverifieerd',
-            ]));
+            return response()->json(['success' => false, 'reason' => 'already_verified', 'message' => 'Gebruiker is al geverifieerd']);
         }
 
         $user->email_verified_at = Carbon::now();
@@ -109,6 +119,35 @@ class AuthController extends Controller
 
         return response()->json(['success' => true, 'message' => 'Gebruiker is geverifieerd'], 200);
 
+    }
+
+    // The first problem with a registration, in the language the user picked; null when it's fine
+    private function registrationError(Request $request): ?string
+    {
+        $english = $request->input('language') === 'en';
+        $data = array_merge($request->all(), ['email' => is_string($request->input('email')) ? trim($request->input('email')) : null]);
+        $validator = Validator::make($data, [
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255',
+            'password' => 'required|string|min:' . self::MIN_PASSWORD_LENGTH . '|max:255',
+        ]);
+
+        if ($validator->errors()->has('name')) {
+            return $english ? 'Please enter your name.' : 'Vul je naam in.';
+        }
+        if ($validator->errors()->has('email')) {
+            return $english ? 'Please enter a valid email address.' : 'Vul een geldig e-mailadres in.';
+        }
+        if ($validator->errors()->has('password')) {
+            return $english
+                ? 'Your password must be at least ' . self::MIN_PASSWORD_LENGTH . ' characters.'
+                : 'Je wachtwoord moet minimaal ' . self::MIN_PASSWORD_LENGTH . ' tekens hebben.';
+        }
+        if (User::where('email', $data['email'])->exists()) {
+            return $english ? 'An account with this email address already exists.' : 'Er bestaat al een account met dit e-mailadres.';
+        }
+
+        return null;
     }
 
     public function resetPassword(Request $request)
@@ -121,9 +160,10 @@ class AuthController extends Controller
 
         $user = User::where('email', $email)->first();
 
+        // The same answer as when an email is sent, so nobody can find out which addresses have an account
         if(!$user)
         {
-            return response()->json(['message' => 'Geen gebruiker gevonden met dit e-mailadres'], 404);
+            return response()->json(['message' => 'Wachtwoordherstel-e-mail verzonden'], 200);
         }
 
         TemporaryPasswordCode::where('user_id', '=', $user->id)
@@ -160,11 +200,37 @@ class AuthController extends Controller
     }
 
 
+    /**
+     * Whether a reset link can still be used, so the page can say "request a new one" before the user types
+     * anything. The same rules as setNewPassword: not used yet and at most an hour old.
+     */
+    public function checkResetLink(Request $request): JsonResponse
+    {
+        $token = $request->get('token');
+
+        $valid = is_string($token) && TemporaryPasswordCode::where('code', $token)
+            ->where('is_used', false)
+            ->where('created_at', '>=', now()->subMinutes(self::RESET_LINK_MINUTES))
+            ->exists();
+
+        return response()->json(['valid' => $valid]);
+    }
+
     public function setNewPassword(Request $request)
     {
         $email = $request->get('email');
         $token = $request->get('token');
         $newPassword = $request->get('password');
+
+        if (!is_string($newPassword) || mb_strlen($newPassword) < self::MIN_PASSWORD_LENGTH) {
+            return response()->json([
+                'reason' => 'password_too_short',
+                'message' => 'Je wachtwoord moet minimaal ' . self::MIN_PASSWORD_LENGTH . ' tekens hebben.',
+            ], 400);
+        }
+        if ($request->has('repeatPassword') && $request->get('repeatPassword') !== $newPassword) {
+            return response()->json(['reason' => 'passwords_do_not_match', 'message' => 'De wachtwoorden zijn niet hetzelfde.'], 400);
+        }
 
         $user = User::where('email', $email)->first();
         // A reset link works for an hour (and once)
@@ -174,8 +240,12 @@ class AuthController extends Controller
             ->where('created_at', '>=', now()->subMinutes(self::RESET_LINK_MINUTES))
             ->first() : null;
 
+        // Used before, expired, or not a real link
         if (!$temporaryPasswordCode) {
-            return response()->json(['message' => 'Foutieve code'], 400);
+            return response()->json([
+                'reason' => 'invalid_link',
+                'message' => 'Deze link is ongeldig, al gebruikt of verlopen. Vraag een nieuwe aan.',
+            ], 400);
         }
 
         $user->password = Hash::make($newPassword);

@@ -630,7 +630,8 @@ class AdminStatsController extends Controller
     private function parseMonth(?string $monthString): Carbon
     {
         if ($monthString && preg_match('/^\d{4}-\d{2}$/', $monthString)) {
-            return Carbon::createFromFormat('Y-m', $monthString)->startOfMonth();
+            // '!' sets the missing day to the 1st; otherwise today's day is used and the 31st overflows a month
+            return Carbon::createFromFormat('!Y-m', $monthString)->startOfMonth();
         }
         return Carbon::now()->startOfMonth();
     }
