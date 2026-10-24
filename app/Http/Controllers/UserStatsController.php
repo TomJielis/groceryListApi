@@ -156,11 +156,15 @@ class UserStatsController extends Controller
 
     private function getAvailableMonths(int $userId, array $listIds): array
     {
-        return GroceryListItem::selectRaw("DISTINCT DATE_FORMAT(created_at, '%Y-%m') as month")
-            ->whereIn('list_id', $listIds)
+        // Formatted in PHP rather than with MySQL's DATE_FORMAT, so it also runs on the tests' SQLite database
+        return GroceryListItem::whereIn('list_id', $listIds)
             ->where('created_by', $userId)
-            ->orderByDesc('month')
-            ->pluck('month')
+            ->whereNotNull('created_at')
+            ->pluck('created_at')
+            ->map(fn ($createdAt) => $createdAt->format('Y-m'))
+            ->unique()
+            ->sortDesc()
+            ->values()
             ->toArray();
     }
 

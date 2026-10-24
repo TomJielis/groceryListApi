@@ -263,6 +263,8 @@ class AuthController extends Controller
     {
         /** @var User $user */
         $user = \auth()->user();
+        // Others who had one of these lists as favorite no longer point at a list that's gone
+        User::whereIn('favorite_list_id', $user->groceryLists->pluck('id'))->update(['favorite_list_id' => null]);
         foreach ($user->groceryLists as $groceryList)
         {
             $groceryList->groceryListItems()->delete();
