@@ -165,7 +165,7 @@
     <div class="header">
         <div class="brand-row">
             <span class="dot"></span>
-            <span class="brand">TomJielis.com</span>
+            <span class="brand">{{ config('app.name') }}</span>
         </div>
         <div class="title">@yield('header-title')</div>
     </div>

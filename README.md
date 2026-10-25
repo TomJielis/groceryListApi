@@ -71,3 +71,7 @@ php artisan e2e:user delete 'e2e-web*@e2e.test'   # removes matching users and e
 ```
 
 It only runs with `APP_ENV=local` or `testing` and only touches addresses ending in `@e2e.test`, so real users are never affected. See the READMEs of the website and the app for running the tests.
+
+## App name
+
+The name in the mails (logo text, texts, sender name) comes from `APP_NAME` in `.env`; the translations in `resources/lang` read it through `config('app.name')`. Changing it also renames the session cookie and the cache prefix, unless `SESSION_COOKIE` and `CACHE_PREFIX` are set: existing sessions and cached values are then not found once.

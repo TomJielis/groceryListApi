@@ -1,4 +1,8 @@
 <?php
+
+// The app's name, set with APP_NAME in .env
+$app = config('app.name');
+
 return [
     'title' => 'Uitnodiging voor boodschappenlijst',
     'greeting' => 'Hallo :name,',
@@ -7,7 +11,7 @@ return [
     'create_account_button' => 'Account aanmaken',
     'already_account' => 'Heb je al een account? Log dan in met je bestaande gegevens.',
     'enjoy' => 'Veel plezier met het samenstellen van je boodschappenlijst!',
-    'team' => '– Het Boodschappenlijst Team',
+    'team' => '– Het ' . $app . ' Team',
     'footer' => 'Je ontvangt deze e-mail omdat je bent uitgenodigd voor een boodschappenlijst op www.Tomjielis.com.'
 ];
 
