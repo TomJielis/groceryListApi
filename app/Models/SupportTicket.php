@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Str;
 
 class SupportTicket extends Model
 {
@@ -13,10 +12,7 @@ class SupportTicket extends Model
     public const ANSWERED = 'answered';
     public const CLOSED = 'closed';
 
-    protected $fillable = ['user_id', 'name', 'email', 'subject', 'status', 'unread_by_user', 'language', 'access_token', 'last_message_at', 'closed_at'];
-
-    // The token only goes out in the response that creates the ticket and in the links in the emails
-    protected $hidden = ['access_token'];
+    protected $fillable = ['user_id', 'name', 'email', 'subject', 'status', 'unread_by_user', 'language', 'last_message_at', 'closed_at'];
 
     protected function casts(): array
     {
@@ -30,7 +26,6 @@ class SupportTicket extends Model
     protected static function booted(): void
     {
         static::creating(function (SupportTicket $ticket) {
-            $ticket->access_token ??= Str::random(48);
             $ticket->last_message_at ??= now();
         });
     }
@@ -66,17 +61,6 @@ class SupportTicket extends Model
         ]);
 
         return $message;
-    }
-
-    // Link in the emails: the website page that shows the conversation and takes a reply, no login needed
-    public function publicUrl(): string
-    {
-        return rtrim(config('app.url'), '/') . '/support/ticket/' . $this->access_token;
-    }
-
-    public function adminUrl(): string
-    {
-        return rtrim(config('app.url'), '/') . '/admin/support/' . $this->id;
     }
 
 }

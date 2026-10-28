@@ -4,12 +4,9 @@ use App\Http\Controllers\AdminSupportController;
 use App\Http\Controllers\SupportController;
 use Illuminate\Support\Facades\Route;
 
+// Only with an account; people who can't log in mail the support address instead
 Route::group(['prefix' => 'support', 'as' => 'support.'], function () {
-    // Without an account too: someone who can't log in must still be able to ask
-    Route::post('tickets', [SupportController::class, 'store'])->withoutMiddleware('auth:sanctum')->middleware('throttle:support');
-    Route::get('t/{token}', [SupportController::class, 'showByToken'])->withoutMiddleware('auth:sanctum')->middleware('throttle:support-read');
-    Route::post('t/{token}/messages', [SupportController::class, 'replyByToken'])->withoutMiddleware('auth:sanctum')->middleware('throttle:support');
-
+    Route::post('tickets', [SupportController::class, 'store'])->middleware('throttle:support');
     Route::get('tickets', [SupportController::class, 'index']);
     Route::get('unread-count', [SupportController::class, 'unreadCount']);
     Route::get('tickets/{id}', [SupportController::class, 'show'])->whereNumber('id');

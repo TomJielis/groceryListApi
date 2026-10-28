@@ -32,4 +32,18 @@ class PushTokenController extends Controller
 
         return response()->json(['message' => 'Push token opgeslagen']);
     }
+
+    /**
+     * The app on this device can't show notifications (switched off in the phone's settings): stop pushing to it, so
+     * what would have been a push (e.g. a support answer) goes by mail instead
+     */
+    public function destroyCurrent(Request $request): JsonResponse
+    {
+        $accessToken = $request->user()->currentAccessToken();
+        if ($accessToken instanceof PersonalAccessToken) {
+            $request->user()->pushTokens()->where('access_token_id', $accessToken->id)->delete();
+        }
+
+        return response()->json(['message' => 'Push token verwijderd']);
+    }
 }

@@ -88,9 +88,8 @@ Deleting an account (`/api/deactivate`) removes that user's failed login attempt
 
 ## Support desk
 
-People ask questions from the app and the website (`POST /api/support/tickets`, also without an account). Each question is a ticket with a conversation; admins answer it in the admin of the app or the website (`/api/admin/support/...`).
+Signed-in users ask questions in the app (`POST /api/support/tickets`). Each question is a ticket with a conversation; admins answer it in the app's admin (`/api/admin/support/...`). The website only has `/support` with the support address: people without an account (or without the app) mail that.
 
-- **Notifications:** a new question or reply is mailed to `SUPPORT_NOTIFY_EMAIL` (use a personal address) and pushed to every admin. An answer is mailed to the person who asked and pushed to them when they have an account.
-- **Replying happens through the link, not by email.** The answer mail has a button to the conversation on the website (`/support/ticket/<token>`, no login needed) and says that replies to the mail are not read; app users reply in the app. The API reads no mailbox. Asking sends the asker no confirmation mail (they see the link right away), so the form can't be used to mail text of your own choosing to someone else.
-- **In the app mailbox** (the account that sends the mail), turn on an auto-reply that points to the button or the support page, and forward it to your own address, for the few people who reply by email anyway.
-- **Spam protection:** rate limits per sender and per address, and a hidden `company` field that bots fill in.
+- **Notifications, push first:** a new question or reply goes as a push to every admin with the app; only when no admin can be reached by push is it mailed to `SUPPORT_NOTIFY_EMAIL`. An answer goes as a push to the person who asked; only when their app can't be reached (no device, or notifications switched off on the phone, which the app reports with `DELETE /api/push-tokens/current`) is it mailed, telling them to open the app. Nobody gets both.
+- **No replies by email:** the mails say that replies to them are not read. In the mailbox that sends the app's mail, turn on an auto-reply pointing to the app or the support page, and forward it to your own address, for the few people who reply anyway.
+- **Limits:** 15 questions or replies per user per hour. The mail log keeps no conversation text (`support_mail` is a private body type).

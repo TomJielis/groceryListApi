@@ -30,6 +30,7 @@ Route::post('/check-reset-link', [AuthController::class, 'checkResetLink'])->wit
 Route::post('/me', [AuthController::class, 'me']);
 Route::post('/logout', [AuthController::class, 'logout']);
 Route::post('/push-tokens', [PushTokenController::class, 'store']);
+Route::delete('/push-tokens/current', [PushTokenController::class, 'destroyCurrent']);
 Route::post('/update-language', [AuthController::class, 'updateLanguage']);
 Route::post('/approve-terms', [AuthController::class, 'approveTerms']);
 Route::post('/update', [AuthController::class, 'update']);

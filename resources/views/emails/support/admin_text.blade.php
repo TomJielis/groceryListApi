@@ -2,6 +2,4 @@
 
 {!! $body !!}
 
-{!! __('support.admin_button') !!}: {!! $ticket->adminUrl() !!}
-
 {!! __('support.admin_hint') !!}

@@ -9,11 +9,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * Support questions from the app and the website.
- *
- * Asking works with and without an account (someone who can't log in must still be able to ask). Without an account the
- * conversation is reached through the secret link in the emails (/support/t/{token}); a signed-in user also finds
- * their own tickets under /support/tickets.
+ * Support questions from the app and the website, for signed-in users only (someone who can't log in mails the
+ * support address). The person who asked sees and answers their tickets here; the admin in AdminSupportController.
  */
 class SupportController extends Controller
 {
@@ -23,36 +20,30 @@ class SupportController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        // The route skips the auth middleware so guests can ask too; a token that is sent along still counts
-        /** @var User|null $user */
-        $user = auth('sanctum')->user();
+        /** @var User $user */
+        $user = $request->user();
 
         $data = $request->validate([
-            'name' => [$user ? 'nullable' : 'required', 'string', 'max:100'],
-            'email' => [$user ? 'nullable' : 'required', 'email', 'max:255'],
             'subject' => ['required', 'string', 'max:150'],
             'message' => ['required', 'string', 'max:5000'],
             'language' => ['nullable', 'in:nl,en'],
             'via' => ['nullable', 'in:app,website'],
-            // Hidden field that people never see: a bot fills in every field
-            'company' => ['prohibited'],
         ]);
 
+        // Name and address as they were when asking: the admin sees who asked, also after a name change
         $ticket = SupportTicket::create([
-            'user_id' => $user?->id,
-            'name' => $user->name ?? $data['name'],
-            'email' => $user->email ?? $data['email'],
+            'user_id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
             'subject' => $data['subject'],
-            'language' => $data['language'] ?? $user?->language ?? 'nl',
+            'language' => $data['language'] ?? $user->language ?? 'nl',
             'status' => SupportTicket::OPEN,
         ]);
         $message = $ticket->addMessage($data['message'], $data['via'] ?? 'website');
 
         $this->notifier->questionAsked($ticket, $message);
 
-        return response()->json([
-            'data' => $this->present($ticket) + ['access_token' => $ticket->access_token],
-        ], 201);
+        return response()->json(['data' => $this->present($ticket)], 201);
     }
 
     // The signed-in user's own tickets, newest activity first
@@ -82,16 +73,7 @@ class SupportController extends Controller
         return $this->addReply($request, $this->ownTicket($request, $id));
     }
 
-    // Through the link in the emails: no login needed
-    public function showByToken(string $token): JsonResponse
-    {
-        return response()->json(['data' => $this->present($this->markRead($this->ticketByToken($token)))]);
-    }
 
-    public function replyByToken(Request $request, string $token): JsonResponse
-    {
-        return $this->addReply($request, $this->ticketByToken($token));
-    }
 
     private function addReply(Request $request, SupportTicket $ticket): JsonResponse
     {
@@ -122,10 +104,6 @@ class SupportController extends Controller
         return $request->user()->supportTickets()->findOrFail($id);
     }
 
-    private function ticketByToken(string $token): SupportTicket
-    {
-        return SupportTicket::where('access_token', $token)->firstOrFail();
-    }
 
     // The conversation as the person who asked sees it: the admin shows up as the app, not by name
     private function present(SupportTicket $ticket): array
