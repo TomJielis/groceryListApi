@@ -28,4 +28,16 @@ return [
         'title' => 'Shopping done',
         'body' => ':user checked off everything on ":list".',
     ],
+    'support_reply' => [
+        'title' => 'Reply to your question',
+        'body' => '":subject" has been answered.',
+    ],
+    'support_new' => [
+        'title' => 'New support question',
+        'body' => ':name: :subject',
+    ],
+    'support_message' => [
+        'title' => 'New reply on a support question',
+        'body' => ':name: :subject',
+    ],
 ];

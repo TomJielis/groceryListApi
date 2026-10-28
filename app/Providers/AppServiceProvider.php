@@ -85,5 +85,27 @@ class AppServiceProvider extends ServiceProvider
                 429,
                 $headers,
             )));
+
+        // Every support message sends emails, and asking works without an account: limit per address and per
+        // sender (the signed-in user, the ticket link or the email address that was filled in)
+        RateLimiter::for('support', function (Request $request) use ($fromThisMachine, $email) {
+            $response = fn (Request $request, array $headers) => response()->json(
+                ['message' => 'Too many messages. Please try again later. / Te veel berichten. Probeer het later opnieuw.'],
+                429,
+                $headers,
+            );
+            $sender = auth('sanctum')->id() ?? $request->route('token') ?? $email($request);
+
+            return array_values(array_filter([
+                $fromThisMachine($request) ? null : Limit::perHour(20)->by('support-ip:' . $request->ip())->response($response),
+                Limit::perHour(15)->by('support-sender:' . $sender)->response($response),
+            ]));
+        });
+
+        // Reading a conversation by its link: enough for normal use, too little to guess links. Through the website's
+        // server every visitor has the same address, so count per link there instead of per address.
+        RateLimiter::for('support-read', fn (Request $request) => $fromThisMachine($request)
+            ? Limit::perMinute(30)->by('support-read-link:' . $request->route('token'))
+            : Limit::perMinute(30)->by('support-read:' . $request->ip()));
     }
 }

@@ -78,10 +78,19 @@ The name in the mails (logo text, texts, sender name) comes from `APP_NAME` in `
 
 ## Removing old personal data
 
-`php artisan privacy:prune` removes login history, failed login attempts and the email log older than `PERSONAL_DATA_RETENTION_MONTHS` (12 by default), as the privacy policy (article 8) promises. It is scheduled daily at 03:30 in `routes/console.php`, which only runs when the server has Laravel's scheduler in its crontab:
+`php artisan privacy:prune` removes login history, failed login attempts, the email log and support conversations (by their last message) older than `PERSONAL_DATA_RETENTION_MONTHS` (12 by default), as the privacy policy (article 8) promises. It is scheduled daily at 03:30 in `routes/console.php`, which only runs when the server has Laravel's scheduler in its crontab:
 
 ```
 * * * * * cd /path/to/groceryListApi && php artisan schedule:run >> /dev/null 2>&1
 ```
 
-Deleting an account (`/api/deactivate`) removes that user's failed login attempts, the mails sent to them and their sessions right away.
+Deleting an account (`/api/deactivate`) removes that user's failed login attempts, the mails sent to them, their support questions and their sessions right away.
+
+## Support desk
+
+People ask questions from the app and the website (`POST /api/support/tickets`, also without an account). Each question is a ticket with a conversation; admins answer it in the admin of the app or the website (`/api/admin/support/...`).
+
+- **Notifications:** a new question or reply is mailed to `SUPPORT_NOTIFY_EMAIL` (use a personal address) and pushed to every admin. An answer is mailed to the person who asked and pushed to them when they have an account.
+- **Replying happens through the link, not by email.** The answer mail has a button to the conversation on the website (`/support/ticket/<token>`, no login needed) and says that replies to the mail are not read; app users reply in the app. The API reads no mailbox. Asking sends the asker no confirmation mail (they see the link right away), so the form can't be used to mail text of your own choosing to someone else.
+- **In the app mailbox** (the account that sends the mail), turn on an auto-reply that points to the button or the support page, and forward it to your own address, for the few people who reply by email anyway.
+- **Spam protection:** rate limits per sender and per address, and a hidden `company` field that bots fill in.

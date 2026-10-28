@@ -28,4 +28,16 @@ return [
         'title' => 'Boodschappen gedaan',
         'body' => ':user heeft alles op ":list" afgevinkt.',
     ],
+    'support_reply' => [
+        'title' => 'Antwoord op je vraag',
+        'body' => '":subject" is beantwoord.',
+    ],
+    'support_new' => [
+        'title' => 'Nieuwe supportvraag',
+        'body' => ':name: :subject',
+    ],
+    'support_message' => [
+        'title' => 'Nieuwe reactie op een supportvraag',
+        'body' => ':name: :subject',
+    ],
 ];

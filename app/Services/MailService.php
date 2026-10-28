@@ -10,8 +10,9 @@ use Illuminate\Support\Str;
 
 class MailService
 {
-    // Emails whose body holds a working link to someone's account; the log keeps only that they were sent
-    private const PRIVATE_BODY_TYPES = ['reset_password'];
+    // Emails whose body holds a working link to someone's account or support conversation, or the conversation itself;
+    // the log keeps only that they were sent
+    private const PRIVATE_BODY_TYPES = ['reset_password', 'support_mail'];
 
     public function send(Mailable $mailable, string $email, ?string $name = null): void
     {

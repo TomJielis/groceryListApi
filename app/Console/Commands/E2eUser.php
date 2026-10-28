@@ -104,6 +104,7 @@ class E2eUser extends Command
         // Invites and mails to test addresses without an account
         DB::table('grocery_list_invites')->where('email', 'like', $pattern)->delete();
         DB::table('sent_emails')->where('recipient_email', 'like', $pattern)->delete();
+        DB::table('support_tickets')->where('email', 'like', $pattern)->delete();
 
         $this->info("Deleted {$count} e2e user(s).");
         return self::SUCCESS;
@@ -136,6 +137,7 @@ class E2eUser extends Command
             DB::table('invalid_login_attempts')->whereIn('user_id', $userIds)->orWhereIn('username', $emails)->delete();
             DB::table('password_reset_tokens')->whereIn('email', $emails)->delete();
             DB::table('sent_emails')->whereIn('triggered_by_user_id', $userIds)->orWhereIn('recipient_email', $emails)->delete();
+            DB::table('support_tickets')->whereIn('user_id', $userIds)->orWhereIn('email', $emails)->delete();
             DB::table('users')->whereIn('id', $userIds)->delete();
         });
 
