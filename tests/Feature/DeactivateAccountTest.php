@@ -67,6 +67,28 @@ class DeactivateAccountTest extends TestCase
         $this->assertSame(0, DB::table('personal_access_tokens')->where('tokenable_id', $this->user->id)->count());
     }
 
+    public function test_their_login_data_and_mails_are_removed(): void
+    {
+        $now = now()->toDateTimeString();
+        foreach ([$this->user, $this->friend] as $person) {
+            DB::table('successful_logins')->insert(['user_id' => $person->id, 'ip_address' => '203.0.113.7', 'client' => 'app', 'logged_in_at' => $now, 'created_at' => $now, 'updated_at' => $now]);
+            DB::table('invalid_login_attempts')->insert(['user_id' => $person->id, 'username' => $person->email, 'ip_address' => '203.0.113.7', 'attempted_at' => $now, 'created_at' => $now, 'updated_at' => $now]);
+            DB::table('sent_emails')->insert(['type' => 'reset_password', 'recipient_email' => $person->email, 'subject' => 'Reset', 'status' => 'sent', 'created_at' => $now, 'updated_at' => $now]);
+        }
+        // A failed attempt with their address but no user id (e.g. before the account existed)
+        DB::table('invalid_login_attempts')->insert(['user_id' => null, 'username' => $this->user->email, 'ip_address' => '203.0.113.8', 'attempted_at' => $now, 'created_at' => $now, 'updated_at' => $now]);
+
+        $this->deactivate()->assertOk();
+
+        $this->assertDatabaseMissing('successful_logins', ['user_id' => $this->user->id]);
+        $this->assertDatabaseMissing('invalid_login_attempts', ['username' => $this->user->email]);
+        $this->assertDatabaseMissing('sent_emails', ['recipient_email' => $this->user->email]);
+        // The friend's stay
+        $this->assertDatabaseHas('successful_logins', ['user_id' => $this->friend->id]);
+        $this->assertDatabaseHas('invalid_login_attempts', ['username' => $this->friend->email]);
+        $this->assertDatabaseHas('sent_emails', ['recipient_email' => $this->friend->email]);
+    }
+
     public function test_other_peoples_things_stay(): void
     {
         $this->deactivate()->assertOk();

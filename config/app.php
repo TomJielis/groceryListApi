@@ -17,7 +17,10 @@ return [
 
     // Version of the terms of use & privacy policy users must accept. Keep in sync with termsVersion in the
     // web app's nuxt.config.ts and TERMS_VERSION in the mobile app's composables/useAuth.ts.
-    'terms_version' => env('TERMS_VERSION', '1.1'),
+    'terms_version' => env('TERMS_VERSION', '1.2'),
+
+    // How long login history, failed login attempts and the email log are kept (privacy policy, article 8)
+    'personal_data_retention_months' => (int) env('PERSONAL_DATA_RETENTION_MONTHS', 12),
 
     /*
     |--------------------------------------------------------------------------

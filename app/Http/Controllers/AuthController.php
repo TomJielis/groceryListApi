@@ -17,6 +17,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 
@@ -277,6 +278,11 @@ class AuthController extends Controller
 
         $user->temporaryPasswordCodes()->delete();
         $user->personalAccessTokens()->delete();
+        // Personal data that isn't linked to the user row (so it isn't removed with it): failed logins with their
+        // email address, the mails sent to them and their web sessions. Login history and push tokens go with the user.
+        DB::table('invalid_login_attempts')->where('user_id', $user->id)->orWhere('username', $user->email)->delete();
+        DB::table('sent_emails')->where('recipient_email', $user->email)->delete();
+        DB::table('sessions')->where('user_id', $user->id)->delete();
         $user->delete();
     }
 

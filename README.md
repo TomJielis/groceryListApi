@@ -75,3 +75,13 @@ It only runs with `APP_ENV=local` or `testing` and only touches addresses ending
 ## App name
 
 The name in the mails (logo text, texts, sender name) comes from `APP_NAME` in `.env`; the translations in `resources/lang` read it through `config('app.name')`. Changing it also renames the session cookie and the cache prefix, unless `SESSION_COOKIE` and `CACHE_PREFIX` are set: existing sessions and cached values are then not found once.
+
+## Removing old personal data
+
+`php artisan privacy:prune` removes login history, failed login attempts and the email log older than `PERSONAL_DATA_RETENTION_MONTHS` (12 by default), as the privacy policy (article 8) promises. It is scheduled daily at 03:30 in `routes/console.php`, which only runs when the server has Laravel's scheduler in its crontab:
+
+```
+* * * * * cd /path/to/groceryListApi && php artisan schedule:run >> /dev/null 2>&1
+```
+
+Deleting an account (`/api/deactivate`) removes that user's failed login attempts, the mails sent to them and their sessions right away.
