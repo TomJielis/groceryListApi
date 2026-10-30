@@ -22,49 +22,26 @@ class GroceryListItemController extends Controller
         $limit = $request->get('till');
         $listId = $request->get('listId');
 
-        // Subquery to get latest item ID per name in each list
-        $latestIdsSubquery = GroceryListItem::selectRaw('MAX(id) as id')
-            ->when($listId, function ($query) use ($listId) {
-                $query->where('list_id', $listId);
-            })
+        // The lists the user may see (own and accepted shares; GroceryList's global scope), narrowed down first so
+        // the grouping below only touches their items, not those of every user
+        $listIds = GroceryList::query()->pluck('id');
+        if (isset($listId)) {
+            $listIds = $listIds->filter(fn ($id) => (int) $id === (int) $listId)->values();
+        }
+
+        // The latest item per name in each list
+        $latestIds = GroceryListItem::selectRaw('MAX(id) as id')
+            ->whereIn('list_id', $listIds)
             ->groupBy('list_id', 'name');
 
         $listItems = GroceryListItem::select('grocery_list_items.*')
-            ->joinSub($latestIdsSubquery, 'latest', function ($join) {
-                $join->on('grocery_list_items.id', '=', 'latest.id');
-            })
-            ->join('grocery_lists', 'grocery_lists.id', '=', 'grocery_list_items.list_id')
-            ->leftJoin('grocery_list_invites', 'grocery_list_invites.grocery_list_id', '=', 'grocery_lists.id')
-            ->where(function ($subQuery) {
-                $subQuery->where('grocery_lists.created_by', auth()->user()->id)
-                    ->orWhere(function ($query) {
-                        $query->where('grocery_list_invites.user_id', '=', auth()->user()->id)
-                            ->where('grocery_list_invites.status', 'accepted');
-                    });
-            });
-
-        if (isset($listId)) {
-            $listItems->where('grocery_list_items.list_id', $listId);
-        }
+            ->joinSub($latestIds, 'latest', 'grocery_list_items.id', '=', 'latest.id')
+            ->orderBy('grocery_list_items.id');
 
         if (isset($offset) && isset($limit)) {
             $listItems->limit($limit)
                 ->offset($offset);
         }
-
-        $listItems->groupBy(
-            'grocery_list_items.id',
-            'grocery_list_items.name',
-            'grocery_list_items.quantity',
-            'grocery_list_items.checked',
-            'grocery_list_items.list_id',
-            'grocery_list_items.created_at',
-            'grocery_list_items.updated_at',
-            'grocery_list_items.unit_price',
-            'grocery_list_items.created_by',
-            'grocery_list_items.updated_by',
-
-        );
 
         return response()->json([
             'data' => $listItems->get(),
