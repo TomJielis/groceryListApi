@@ -43,6 +43,31 @@ class ItemIndexTest extends TestCase
         $this->assertSame($newestMelk->id, collect($response->json('data'))->firstWhere('name', 'Melk')['id']);
     }
 
+    public function test_an_edit_only_changes_the_fields_it_sends(): void
+    {
+        $user = User::factory()->create();
+        $list = GroceryList::create(['name' => 'Own', 'created_by' => $user->id]);
+        $item = GroceryListItem::create(['name' => 'Hummus', 'quantity' => 1, 'list_id' => $list->id, 'unit_price' => 1.5]);
+        $update = fn (array $fields) => $this->actingAs($user, 'sanctum')
+            ->postJson("/api/grocery-list-item/{$item->id}/update", ['item' => $fields])->assertOk();
+
+        // Someone with an older copy (no price yet) changes only the quantity: the price stays
+        $update(['quantity' => 2]);
+        $this->assertSame(2, (int) $item->fresh()->quantity);
+        $this->assertEquals(1.5, $item->fresh()->unit_price);
+
+        // A price sent as null clears it
+        $update(['unit_price' => null]);
+        $this->assertNull($item->fresh()->unit_price);
+
+        // The website sends every field, as before
+        $update(['name' => 'hummus naturel', 'quantity' => 3, 'unit_price' => 2.25]);
+        $fresh = $item->fresh();
+        $this->assertSame('Hummus naturel', $fresh->name);
+        $this->assertSame(3, (int) $fresh->quantity);
+        $this->assertEquals(2.25, $fresh->unit_price);
+    }
+
     public function test_one_list_gives_its_items_and_a_foreign_list_gives_nothing(): void
     {
         $user = User::factory()->create();

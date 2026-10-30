@@ -132,10 +132,19 @@ class GroceryListItemController extends Controller
     public function update(Request $request, GroceryListItem $listItem): \Illuminate\Http\JsonResponse
     {
         $this->ensureListAccess($listItem->list_id);
-        $data = $request->all()['item'];
-        $listItem->name = ucfirst($data['name']);
-        $listItem->quantity = $data['quantity'];
-        $listItem->unit_price = $data['unit_price'];
+        $data = $request->input('item', []);
+        // Only what the request contains: the app sends just the fields that were changed, so an edit made with an
+        // older copy of the item (someone else changed the price meanwhile) can't wipe that price. A field sent as
+        // null does count: that's a price being cleared. The website sends every field, as before.
+        if (array_key_exists('name', $data)) {
+            $listItem->name = ucfirst($data['name']);
+        }
+        if (array_key_exists('quantity', $data)) {
+            $listItem->quantity = $data['quantity'];
+        }
+        if (array_key_exists('unit_price', $data)) {
+            $listItem->unit_price = $data['unit_price'];
+        }
 
         $listItem->save();
 
