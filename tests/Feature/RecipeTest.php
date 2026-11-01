@@ -98,15 +98,17 @@ class RecipeTest extends TestCase
         $this->assertSame($this->cookbookOf($user)->id, Recipe::find($id)->cookbook_id);
     }
 
-    public function test_the_overview_lists_own_recipes_without_steps(): void
+    public function test_the_overview_lists_own_recipes_a_to_z_without_steps(): void
     {
         $user = User::factory()->create();
-        $this->createRecipe($user, ['title' => 'Eerste']);
         $this->createRecipe($user, ['title' => 'Tweede']);
+        $this->createRecipe($user, ['title' => 'Appeltaart']);
+        $this->createRecipe($user, ['title' => 'Eerste']);
         $this->createRecipe(User::factory()->create(), ['title' => 'Van iemand anders']);
 
         $recipes = $this->actingAs($user, 'sanctum')->getJson('/api/recipes/index')->assertOk()->json('data');
-        $this->assertSame(['Tweede', 'Eerste'], array_column($recipes, 'title'));
+        // A to Z
+        $this->assertSame(['Appeltaart', 'Eerste', 'Tweede'], array_column($recipes, 'title'));
         $this->assertSame(['Penne', 'Pesto', 'Peper en zout'], $recipes[0]['ingredient_names']);
         $this->assertArrayNotHasKey('steps', $recipes[0]);
     }

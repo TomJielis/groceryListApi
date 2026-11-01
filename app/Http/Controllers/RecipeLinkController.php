@@ -95,14 +95,20 @@ class RecipeLinkController extends Controller
         ]]);
     }
 
-    // The recipe's photo while the link works, for whoever opens it (no login: the website shows it too)
+    // The recipe's photo while the link works, for whoever opens it (no login: the website shows it too). ?size=thumb
+    // gives the small copy: what WhatsApp and the like show in a link's preview block.
     public function image(Request $request, string $token): Response
     {
         $link = RecipeLink::where('token', $token)->with('recipe')->first();
         $disk = Storage::disk(Recipe::IMAGE_DISK);
         abort_unless($link && $link->isUsable() && $link->recipe?->image_path && $disk->exists($link->recipe->image_path), 404);
 
-        return $disk->response($link->recipe->image_path, null, [
+        $path = $link->recipe->image_path;
+        if ($request->query('size') === 'thumb' && $disk->exists(Recipe::thumbPath($path))) {
+            $path = Recipe::thumbPath($path);
+        }
+
+        return $disk->response($path, null, [
             'Content-Type' => 'image/jpeg',
             'Cache-Control' => 'private, max-age=3600',
         ]);

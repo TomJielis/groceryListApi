@@ -59,6 +59,9 @@ class RecipeLinkTest extends TestCase
         $this->assertSame(['Kook de pasta.'], $recipe['steps']);
         $this->assertSame("https://api.example.com/api/recipe-links/{$token}/image", $recipe['image_url']);
         $this->get("/api/recipe-links/{$token}/image")->assertOk();
+        // The small copy, for link previews
+        $thumb = Storage::disk(Recipe::IMAGE_DISK)->get(Recipe::thumbPath($this->recipe->fresh()->image_path));
+        $this->assertSame($thumb, $this->get("/api/recipe-links/{$token}/image?size=thumb")->assertOk()->streamedContent());
     }
 
     public function test_saving_makes_an_own_copy_with_its_own_photo(): void

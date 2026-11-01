@@ -34,8 +34,9 @@ class RecipeController extends Controller
     {
         $recipes = Recipe::visibleTo($request->user())
             ->with(['ingredients:id,recipe_id,name,position', 'favoritedBy:id'])
-            // Newest first; the id breaks ties between recipes saved in the same second
-            ->orderByDesc('id')
+            // A to Z (MySQL's collation ignores capitals and accents); the id breaks ties
+            ->orderBy('title')
+            ->orderBy('id')
             ->get();
 
         return response()->json([
