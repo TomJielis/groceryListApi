@@ -2,3 +2,10 @@
 !private/
 !public/
 !.gitignore
+# The recipes imported from Receptenmaker (php artisan recipes:import), kept with the code; not which ones were
+# imported per user (imported-user-*.json), that differs per environment
+!imports/
+imports/*
+!imports/receptenmaker/
+imports/receptenmaker/*
+!imports/receptenmaker/recepten.json
