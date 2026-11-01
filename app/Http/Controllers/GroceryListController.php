@@ -112,7 +112,8 @@ class GroceryListController extends Controller
             return response()->json(['message' => 'Ongeldig e-mailadres'], 400);
         }
 
-        if($email === auth()->user()?->email){
+        // Emails are kept as typed and the database compares them ignoring case, so this does too
+        if(strcasecmp($email, (string) auth()->user()?->email) === 0){
             return response()->json(['message' => 'Je kan de lijst niet met jezelf delen'], 400);
         }
 

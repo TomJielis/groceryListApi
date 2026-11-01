@@ -16,6 +16,22 @@ return [
         'title' => 'List deleted',
         'body' => ':user has deleted the grocery list ":list".',
     ],
+    'cookbook_shared' => [
+        'title' => 'New shared cookbook',
+        'body' => ':user wants to share the cookbook ":cookbook" with you.',
+    ],
+    'cookbook_invite_accepted' => [
+        'title' => 'Invite accepted',
+        'body' => ':user has joined your cookbook ":cookbook".',
+    ],
+    'cookbook_removed' => [
+        'title' => 'Removed from cookbook',
+        'body' => ':user removed you from the cookbook ":cookbook".',
+    ],
+    'cookbook_deleted' => [
+        'title' => 'Cookbook deleted',
+        'body' => ':user deleted the cookbook ":cookbook".',
+    ],
     'items_added' => [
         'title' => 'New on ":list"',
         'body' => '{1} :user added 1 item.|[2,*] :user added :count items.',

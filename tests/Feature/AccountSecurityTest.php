@@ -107,6 +107,18 @@ class AccountSecurityTest extends TestCase
         $this->assertDatabaseCount('sent_emails', 0);
     }
 
+    public function test_sharing_with_your_own_address_in_other_letters_is_refused(): void
+    {
+        $owner = User::factory()->create(['email' => 'tom@example.com']);
+        $list = GroceryList::create(['name' => 'Weekend', 'created_by' => $owner->id]);
+
+        $this->actingAs($owner, 'sanctum')
+            ->postJson('/api/grocery-list/share', ['groceryListId' => $list->id, 'email' => 'Tom@Example.com'])
+            ->assertStatus(400);
+
+        $this->assertDatabaseCount('grocery_list_invites', 0);
+    }
+
     public function test_invites_to_addresses_without_an_account_stay_separate(): void
     {
         // The invite email is written in the sender's language (every real account has one)

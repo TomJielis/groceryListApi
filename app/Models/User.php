@@ -56,8 +56,8 @@ class User extends Authenticatable implements MustVerifyEmail
      * (types are the keys in resources/lang/{nl,en}/push.php).
      */
     public const NOTIFICATION_SETTINGS = [
-        'invites' => ['list_shared', 'invite_accepted'],
-        'list_changes' => ['list_removed', 'list_deleted'],
+        'invites' => ['list_shared', 'invite_accepted', 'cookbook_shared', 'cookbook_invite_accepted'],
+        'list_changes' => ['list_removed', 'list_deleted', 'cookbook_removed', 'cookbook_deleted'],
         'items_added' => ['items_added'],
         'items_checked' => ['items_checked'],
         'list_completed' => ['list_completed'],
@@ -126,6 +126,16 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(Card::class);
     }
 
+    public function cookbooks()
+    {
+        return $this->hasMany(Cookbook::class, 'created_by', 'id');
+    }
+
+    public function cookbookInvites()
+    {
+        return $this->hasMany(CookbookInvite::class, 'user_id', 'id');
+    }
+
     public function groceryListInvites()
     {
         return $this->hasMany(GroceryListInvites::class, 'user_id', 'id');
@@ -157,14 +167,21 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * Number of lists waiting for this user to accept or decline; shown as the app icon badge.
-     * Matches GroceryListController::pending: invites by user id, or by email when sent before signing up.
+     * Number of lists and cookbooks waiting for this user to accept or decline; shown as the app icon badge.
+     * Matches GroceryListController::pending and CookbookController::pending: invites by user id, or by email when
+     * sent before signing up.
      */
     public function pendingInviteCount(): int
     {
-        return GroceryListInvites::where('status', GroceryListInvitesStatus::PENDING)
+        $lists = GroceryListInvites::where('status', GroceryListInvitesStatus::PENDING)
             ->where(fn ($query) => $query->where('user_id', $this->id)->orWhere('email', $this->email))
             ->distinct()
             ->count('grocery_list_id');
+        $cookbooks = CookbookInvite::where('status', GroceryListInvitesStatus::PENDING)
+            ->where(fn ($query) => $query->where('user_id', $this->id)->orWhere('email', $this->email))
+            ->distinct()
+            ->count('cookbook_id');
+
+        return $lists + $cookbooks;
     }
 }

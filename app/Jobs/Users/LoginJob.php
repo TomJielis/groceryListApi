@@ -95,8 +95,9 @@ class LoginJob implements ShouldQueue
                 ];
             }
 
-            $token = $user->createToken('nuxt-frontend', ['*'], now()->addDays(14))->plainTextToken;
-            SuccessfulLogin::record($user, $request);
+            $login = SuccessfulLogin::record($user, $request);
+            // Named after where it was made (app, website or other), like the login it belongs to
+            $token = $user->createToken($login->client, ['*'], now()->addDays(14))->plainTextToken;
 
             return [
                 'access_token' => $token,

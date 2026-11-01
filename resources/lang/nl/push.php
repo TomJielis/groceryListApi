@@ -16,6 +16,22 @@ return [
         'title' => 'Lijst verwijderd',
         'body' => ':user heeft de boodschappenlijst ":list" verwijderd.',
     ],
+    'cookbook_shared' => [
+        'title' => 'Nieuw gedeeld kookboek',
+        'body' => ':user wil het kookboek ":cookbook" met je delen.',
+    ],
+    'cookbook_invite_accepted' => [
+        'title' => 'Uitnodiging geaccepteerd',
+        'body' => ':user doet nu mee met je kookboek ":cookbook".',
+    ],
+    'cookbook_removed' => [
+        'title' => 'Verwijderd uit kookboek',
+        'body' => ':user heeft je verwijderd uit het kookboek ":cookbook".',
+    ],
+    'cookbook_deleted' => [
+        'title' => 'Kookboek verwijderd',
+        'body' => ':user heeft het kookboek ":cookbook" verwijderd.',
+    ],
     'items_added' => [
         'title' => 'Nieuw op ":list"',
         'body' => '{1} :user heeft 1 product toegevoegd.|[2,*] :user heeft :count producten toegevoegd.',

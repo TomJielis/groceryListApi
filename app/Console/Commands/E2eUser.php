@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Cookbook;
 use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -17,7 +18,7 @@ class E2eUser extends Command
     public const DOMAIN = '@e2e.test';
 
     protected $signature = 'e2e:user
-        {action : create, reset (removes the lists and cards of the user, keeps the user) or delete}
+        {action : create, reset (removes the lists, cards and recipes of the user, keeps the user) or delete}
         {email? : An address ending in @e2e.test; delete also takes a * wildcard, or no address for every @e2e.test user}
         {--name=E2E User : Name of the user to create}
         {--admin : Make the user an admin}
@@ -90,6 +91,7 @@ class E2eUser extends Command
             DB::transaction(function () use ($userId) {
                 $this->deleteLists([$userId]);
                 DB::table('cards')->where('user_id', $userId)->delete();
+                $this->leaveCookbooks([$userId]);
             });
         }
         return self::SUCCESS;
@@ -103,6 +105,7 @@ class E2eUser extends Command
         $count = $this->deleteUsers($emails);
         // Invites and mails to test addresses without an account
         DB::table('grocery_list_invites')->where('email', 'like', $pattern)->delete();
+        DB::table('cookbook_invites')->where('email', 'like', $pattern)->delete();
         DB::table('sent_emails')->where('recipient_email', 'like', $pattern)->delete();
         DB::table('support_tickets')->where('email', 'like', $pattern)->delete();
 
@@ -129,6 +132,8 @@ class E2eUser extends Command
             DB::table('grocery_list_invites')->whereIn('user_id', $userIds)->orWhereIn('email', $emails)->delete();
 
             DB::table('cards')->whereIn('user_id', $userIds)->delete();
+            $this->leaveCookbooks($userIds);
+            DB::table('cookbook_invites')->whereIn('email', $emails)->delete();
             DB::table('push_tokens')->whereIn('user_id', $userIds)->delete();
             DB::table('successful_logins')->whereIn('user_id', $userIds)->delete();
             DB::table('temporary_password_codes')->whereIn('user_id', $userIds)->delete();
@@ -142,6 +147,19 @@ class E2eUser extends Command
         });
 
         return count($userIds);
+    }
+
+    /**
+     * Like deleting an account: their cookbooks go with recipes and photos, and they leave the ones shared with them
+     *
+     * @param list<int> $userIds
+     */
+    private function leaveCookbooks(array $userIds): void
+    {
+        foreach (Cookbook::whereIn('created_by', $userIds)->get() as $cookbook) {
+            $cookbook->deleteWithRecipes();
+        }
+        DB::table('cookbook_invites')->whereIn('user_id', $userIds)->delete();
     }
 
     /**

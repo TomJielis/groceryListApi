@@ -26,7 +26,7 @@ class GroceryListInviteMail extends Mailable
         $this->invitedUser = $invitedUser;
         $this->list = $list;
         $this->email = $email;
-        $this->url = config('app.url') . '/auth/register/' . (isset($email) ? '?email=' . $email : '');
+        $this->url = config('app.url') . '/auth/register/' . (isset($email) ? '?email=' . urlencode($email) : '');
 
         $this->language = $invitedUser ? $invitedUser->language : $user->language;
         $this->markdown = 'emails.grocerylist.invite';

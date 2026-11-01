@@ -31,6 +31,8 @@ class SuccessfulLoginTest extends TestCase
         $this->assertSame('203.0.113.9', $login->ip_address);
         $this->assertSame('app', $login->client);
         $this->assertSame('28', $login->app_version);
+        // The login token says where it was made too
+        $this->assertSame(['app'], $user->tokens()->pluck('name')->all());
     }
 
     public function test_a_login_through_the_website_is_recorded_as_website(): void
@@ -40,6 +42,7 @@ class SuccessfulLoginTest extends TestCase
         $this->login($user, 'password', 'node');
 
         $this->assertSame('website', SuccessfulLogin::sole()->client);
+        $this->assertSame(['website'], $user->tokens()->pluck('name')->all());
     }
 
     public function test_a_failed_login_is_not_recorded_as_successful(): void
