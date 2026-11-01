@@ -21,6 +21,8 @@ class Recipe extends Model
     protected $fillable = [
         'cookbook_id',
         'created_by',
+        // The recipe this copy was saved from (RecipeLinkController::save)
+        'copied_from_recipe_id',
         'title',
         'description',
         'category',
