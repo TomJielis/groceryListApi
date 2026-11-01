@@ -2,10 +2,13 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Models\Cookbook;
+use App\Models\CookbookInvite;
 use App\Models\GroceryList;
 use App\Models\GroceryListInvites;
 use App\Models\GroceryListInvitesStatus;
 use App\Models\GroceryListItem;
+use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -18,7 +21,7 @@ class AdminStatsControllerTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const ENDPOINTS = ['users', 'items', 'lists', 'activity', 'versions', 'top-items'];
+    private const ENDPOINTS = ['users', 'items', 'lists', 'recipes', 'activity', 'versions', 'top-items'];
 
     private User $admin;
     private User $user;
@@ -111,5 +114,48 @@ class AdminStatsControllerTest extends TestCase
             ->assertJsonPath('current_month.period', '2026-02')
             ->assertJsonPath('previous_month.period', '2026-01')
             ->assertJsonPath('current_month.value', 0);
+    }
+
+    private function addRecipe(Cookbook $cookbook, User $by, string $title = 'Pasta'): Recipe
+    {
+        return Recipe::create(['cookbook_id' => $cookbook->id, 'created_by' => $by->id, 'title' => $title, 'category' => 'main', 'servings' => 4, 'prep_minutes' => 0, 'difficulty' => 'easy']);
+    }
+
+    public function test_recipes_and_cookbooks_this_month_and_in_total(): void
+    {
+        $own = Cookbook::create(['name' => 'Mijn recepten', 'created_by' => $this->user->id]);
+        $shared = Cookbook::create(['name' => 'Samen', 'created_by' => $this->user->id]);
+        CookbookInvite::create(['cookbook_id' => $shared->id, 'user_id' => $this->admin->id, 'email' => $this->admin->email, 'status' => GroceryListInvitesStatus::ACCEPTED]);
+        $this->addRecipe($own, $this->user);
+        $this->addRecipe($shared, $this->admin);
+        // Last month's recipe counts in the total, not in this month
+        $old = $this->addRecipe($own, $this->user, 'Oud');
+        $old->forceFill(['created_at' => now()->subMonthNoOverflow()->startOfMonth()])->save();
+
+        $this->stats('recipes')->assertOk()
+            ->assertJsonPath('current_month.value', 2)
+            ->assertJsonPath('current_month.breakdown.added', 2)
+            ->assertJsonPath('current_month.breakdown.cookbooks_created', 2)
+            ->assertJsonPath('current_month.breakdown.total_recipes', 3)
+            ->assertJsonPath('current_month.breakdown.total_cookbooks', 2)
+            ->assertJsonPath('current_month.breakdown.shared_cookbooks', 1)
+            ->assertJsonPath('previous_month.breakdown.added', 1);
+    }
+
+    public function test_a_users_details_show_their_cookbooks_and_recipes(): void
+    {
+        $own = Cookbook::create(['name' => 'Mijn recepten', 'created_by' => $this->user->id]);
+        $theirs = Cookbook::create(['name' => 'Van de admin', 'created_by' => $this->admin->id]);
+        CookbookInvite::create(['cookbook_id' => $theirs->id, 'user_id' => $this->user->id, 'email' => $this->user->email, 'status' => GroceryListInvitesStatus::ACCEPTED]);
+        $this->addRecipe($own, $this->user);
+        $this->addRecipe($theirs, $this->user);
+        $this->addRecipe($theirs, $this->admin);
+
+        $this->actingAs($this->admin, 'sanctum')->getJson("/api/admin/users/{$this->user->id}")->assertOk()
+            ->assertJsonPath('recipes.cookbooks_owned', 1)
+            ->assertJsonPath('recipes.cookbooks_shared_with_user', 1)
+            ->assertJsonPath('recipes.recipes_added', 2)
+            ->assertJsonPath('recipes.recipes_access', 3)
+            ->assertJsonPath('recipes.current_month.added', 2);
     }
 }

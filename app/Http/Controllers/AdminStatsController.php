@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Cookbook;
+use App\Models\CookbookInvite;
 use App\Models\GroceryList;
 use App\Models\GroceryListInvites;
 use App\Models\GroceryListInvitesStatus;
 use App\Models\GroceryListItem;
 use App\Models\InvalidLoginAttempt;
+use App\Models\Recipe;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -77,6 +80,29 @@ class AdminStatsController extends Controller
             'previous_month' => [
                 'period' => $previousMonth->format('Y-m'),
                 'value' => $previousData['created'],
+                'breakdown' => $previousData,
+            ],
+        ]);
+    }
+
+    // Recipes and cookbooks: added in the month, and how many there are by its end
+    public function recipes(Request $request): JsonResponse
+    {
+        $currentMonth = $this->parseMonth($request->query('month'));
+        $previousMonth = $currentMonth->copy()->subMonth();
+
+        $currentData = $this->getRecipesData($currentMonth);
+        $previousData = $this->getRecipesData($previousMonth);
+
+        return response()->json([
+            'current_month' => [
+                'period' => $currentMonth->format('Y-m'),
+                'value' => $currentData['added'],
+                'breakdown' => $currentData,
+            ],
+            'previous_month' => [
+                'period' => $previousMonth->format('Y-m'),
+                'value' => $previousData['added'],
                 'breakdown' => $previousData,
             ],
         ]);
@@ -328,6 +354,7 @@ class AdminStatsController extends Controller
                 'shared_with_user' => $sharedListIds->count(),
                 'total_access' => $allAccessibleListIds->count(),
             ],
+            'recipes' => $this->getUserRecipes($user, $currentMonth, $previousMonth),
             'items' => [
                 'current_month' => [
                     'period' => $currentMonth->format('Y-m'),
@@ -457,6 +484,40 @@ class AdminStatsController extends Controller
             'checked' => $checked,
             'avg_per_user' => $avgPerUser,
             'avg_per_list' => $avgPerList,
+        ];
+    }
+
+    // A user's cookbooks (own and shared with them) and the recipes they added, in all and in the two months
+    private function getUserRecipes(User $user, Carbon $currentMonth, Carbon $previousMonth): array
+    {
+        $added = fn (Carbon $month) => Recipe::where('created_by', $user->id)
+            ->whereYear('created_at', $month->year)
+            ->whereMonth('created_at', $month->month)
+            ->count();
+
+        return [
+            'cookbooks_owned' => Cookbook::where('created_by', $user->id)->count(),
+            'cookbooks_shared_with_user' => CookbookInvite::where('user_id', $user->id)
+                ->where('status', GroceryListInvitesStatus::ACCEPTED)
+                ->count(),
+            'recipes_added' => Recipe::where('created_by', $user->id)->count(),
+            'recipes_access' => Recipe::visibleTo($user)->count(),
+            'current_month' => ['added' => $added($currentMonth)],
+            'previous_month' => ['added' => $added($previousMonth)],
+        ];
+    }
+
+    private function getRecipesData(Carbon $month): array
+    {
+        $endOfMonth = $month->copy()->endOfMonth();
+        $inMonth = fn ($query) => $query->whereYear('created_at', $month->year)->whereMonth('created_at', $month->month);
+
+        return [
+            'added' => $inMonth(Recipe::query())->count(),
+            'cookbooks_created' => $inMonth(Cookbook::query())->count(),
+            'total_recipes' => Recipe::where('created_at', '<=', $endOfMonth)->count(),
+            'total_cookbooks' => Cookbook::where('created_at', '<=', $endOfMonth)->count(),
+            'shared_cookbooks' => Cookbook::where('created_at', '<=', $endOfMonth)->has('acceptedInvites')->count(),
         ];
     }
 
