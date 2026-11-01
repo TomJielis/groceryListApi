@@ -331,9 +331,10 @@ class RecipeTest extends TestCase
         Storage::disk(Recipe::IMAGE_DISK)->assertMissing($path);
     }
 
-    public function test_photo_addresses_use_the_public_https_address(): void
+    public function test_photo_addresses_use_the_apis_public_address(): void
     {
-        config(['app.url' => 'https://api.example.com']);
+        // APP_URL is the website; the photos are on the API
+        config(['app.url' => 'https://example.com', 'app.api_url' => 'https://api.example.com']);
         $user = User::factory()->create();
         $id = $this->createRecipe($user);
 

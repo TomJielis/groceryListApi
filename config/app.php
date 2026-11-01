@@ -15,6 +15,10 @@ return [
 
     'name' => env('APP_NAME', 'Laravel'),
 
+    // The API's own public address (e.g. https://api.tomjielis.com), for links to it like recipe photos. APP_URL is
+    // the website, used for the links in mails. Empty: the address the request came in on.
+    'api_url' => env('API_URL'),
+
     // Version of the terms of use & privacy policy users must accept. Keep in sync with termsVersion in the
     // web app's nuxt.config.ts and TERMS_VERSION in the mobile app's composables/useAuth.ts.
     'terms_version' => env('TERMS_VERSION', '1.3'),
