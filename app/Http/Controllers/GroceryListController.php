@@ -152,19 +152,20 @@ class GroceryListController extends Controller
         $groceryListInvites->status = GroceryListInvitesStatus::PENDING;
         $groceryListInvites->save();
 
-        app(\App\Services\MailService::class)->send(
-            new GroceryListInviteMail(auth()->user(), $groceryList, $user, $email),
-            $email
-        );
-
-        // Only existing users can have the app; new users get just the email. The invite shows on the lists screen.
+        // Someone with an account gets a push (the invite shows on the lists screen), and the email only when the push
+        // reaches none of their devices; someone without an account gets the email to register
+        $mail = new GroceryListInviteMail(auth()->user(), $groceryList, $user, $email);
         if ($user) {
             SendPushNotification::dispatch(
                 $user->id,
                 'list_shared',
                 ['user' => auth()->user()->name, 'list' => $groceryList->name],
                 ['url' => '/'],
+                $mail,
+                $email,
             );
+        } else {
+            app(\App\Services\MailService::class)->send($mail, $email);
         }
 
         return response()->json([

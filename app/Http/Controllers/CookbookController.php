@@ -119,19 +119,20 @@ class CookbookController extends Controller
             'status' => GroceryListInvitesStatus::PENDING,
         ])->save();
 
-        app(\App\Services\MailService::class)->send(
-            new CookbookInviteMail($request->user(), $cookbook, $invitedUser, $email),
-            $email
-        );
-
-        // Only existing users can have the app; new users get just the email. The invite shows on the recipes screen.
+        // Someone with an account gets a push (the invite shows on the recipes screen), and the email only when the push
+        // reaches none of their devices; someone without an account gets the email to register
+        $mail = new CookbookInviteMail($request->user(), $cookbook, $invitedUser, $email);
         if ($invitedUser) {
             SendPushNotification::dispatch(
                 $invitedUser->id,
                 'cookbook_shared',
                 ['user' => $request->user()->name, 'cookbook' => $cookbook->name],
                 ['url' => '/recipes'],
+                $mail,
+                $email,
             );
+        } else {
+            app(\App\Services\MailService::class)->send($mail, $email);
         }
 
         return response()->json(['message' => __('recipes.shared', [], $language), 'data' => $this->present($request, $this->fresh($cookbook))]);
