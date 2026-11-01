@@ -17,7 +17,10 @@ use Illuminate\Support\Facades\Http;
  * or login token is needed. All recipes go into one cookbook the user may see (--cookbook, its id), whatever cookbook
  * they were in in the other app.
  *
- * Running it again only adds what wasn't imported yet: the imported ids are kept next to the file.
+ * Running it again only adds what wasn't imported yet: the imported ids are kept next to the file. --refresh-photos
+ * only fetches the photos again (in the larger size) for the recipes imported before, without adding or removing any.
+ *
+ * Run it as the web server's user (sudo -u www-data php artisan ...): the photos it saves must be readable for the API.
  */
 class ImportRecipes extends Command
 {
@@ -25,7 +28,8 @@ class ImportRecipes extends Command
         {file : JSON file with the recipes}
         {--user= : Email address of the user they are for}
         {--cookbook= : Id of the cookbook they all go into}
-        {--dry-run : Only show what would be imported}';
+        {--dry-run : Only show what would be imported}
+        {--refresh-photos : Only fetch the photos again for the recipes imported before}';
 
     protected $description = 'Import recipes from another recipe app (JSON) into a user\'s cookbooks';
 
@@ -95,6 +99,10 @@ class ImportRecipes extends Command
         // Ids imported before (for this user), so running it again doesn't add them twice
         $logFile = dirname($file) . '/imported-user-' . $user->id . '.json';
         $imported = is_file($logFile) ? json_decode(file_get_contents($logFile), true) : [];
+        if ($this->option('refresh-photos')) {
+            return $this->refreshPhotos($recipes, $imported, $user, $cookbook);
+        }
+
         $todo = array_values(array_filter($recipes, fn (array $recipe) => !in_array((string) $recipe['id'], $imported, true)));
 
         $this->info(count($todo) . ' of ' . count($recipes) . " recipes to import for {$user->email} into \"{$cookbook->name}\".");
@@ -253,7 +261,43 @@ class ImportRecipes extends Command
         return ['name' => mb_substr(mb_strtoupper(mb_substr($rest, 0, 1)) . mb_substr($rest, 1), 0, 255), 'amount' => $amount, 'unit' => $unit];
     }
 
-    // The first photo, saved like one taken in the app (smaller JPEG plus the small copy); null when it can't be had
+    /**
+     * The photos of recipes imported before, fetched again: each recipe in the cookbook is matched to the one in the
+     * file it was made from by its title (recipes with the same title in the order they were imported)
+     */
+    private function refreshPhotos(array $recipes, array $imported, User $user, Cookbook $cookbook): int
+    {
+        $byTitle = Recipe::where('cookbook_id', $cookbook->id)->where('created_by', $user->id)->orderBy('id')->get()->groupBy('title');
+        $refreshed = 0;
+        $failed = 0;
+
+        foreach ($recipes as $recipe) {
+            if (empty($recipe['images']) || !in_array((string) $recipe['id'], $imported, true)) {
+                continue;
+            }
+            $model = $byTitle->get($this->title($recipe))?->shift();
+            if (!$model) {
+                continue;
+            }
+            $imagePath = $this->photo($recipe);
+            if (!$imagePath) {
+                $failed++;
+                continue;
+            }
+            $model->deleteImage();
+            $model->update(['image_path' => $imagePath]);
+            $refreshed++;
+            $this->line('✓ ' . $model->title);
+        }
+
+        $this->info("Fetched {$refreshed} photos again" . ($failed ? ", {$failed} couldn't be downloaded (their old photo stays)" : '') . '.');
+        return self::SUCCESS;
+    }
+
+    /**
+     * The first photo, saved like one taken in the app (smaller JPEG plus the small copy); null when it can't be had.
+     * The other app keeps each photo in several sizes; the larger one (1024x768) is tried first.
+     */
     private function photo(array $recipe): ?string
     {
         $url = $recipe['images'][0] ?? null;
@@ -261,16 +305,18 @@ class ImportRecipes extends Command
             return null;
         }
 
-        try {
-            $response = Http::timeout(20)->get($url);
-        } catch (\Throwable) {
-            return null;
-        }
-        $contents = $response->successful() ? $response->body() : '';
-        if ($contents === '' || (function_exists('imagecreatefromstring') && @imagecreatefromstring($contents) === false)) {
-            return null;
+        foreach (array_unique([preg_replace('#/\d+x\d+/#', '/1024x768/', $url), $url]) as $candidate) {
+            try {
+                $response = Http::timeout(20)->get($candidate);
+            } catch (\Throwable) {
+                continue;
+            }
+            $contents = $response->successful() ? $response->body() : '';
+            if ($contents !== '' && (!function_exists('imagecreatefromstring') || @imagecreatefromstring($contents) !== false)) {
+                return $this->images->store($contents);
+            }
         }
 
-        return $this->images->store($contents);
+        return null;
     }
 }

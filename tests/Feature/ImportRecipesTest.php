@@ -18,6 +18,8 @@ class ImportRecipesTest extends TestCase
 
     private string $file;
 
+    private string $photo;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -26,9 +28,13 @@ class ImportRecipesTest extends TestCase
         $photo = imagecreatetruecolor(40, 20);
         ob_start();
         imagejpeg($photo);
+        $this->photo = ob_get_clean();
         Http::fake([
-            'photos.example.com/ok.jpg' => Http::response(ob_get_clean()),
-            'photos.example.com/broken.jpg' => Http::response('not a photo'),
+            // The larger size of the first photo exists, the second one only has the size in the file
+            'photos.example.com/ok/1024x768/image.jpg' => Http::response($this->photo),
+            'photos.example.com/only-small/1024x768/image.jpg' => Http::response('', 404),
+            'photos.example.com/only-small/400x300/image.jpg' => Http::response($this->photo),
+            'photos.example.com/broken/*' => Http::response('not a photo'),
         ]);
 
         $this->file = sys_get_temp_dir() . '/recipes-' . uniqid() . '/recepten.json';
@@ -40,12 +46,12 @@ class ImportRecipesTest extends TestCase
                 'method' => "Bereiding:\n1. Snijd de kip.\n⸻\nStap 2\nBak de kip.<br />", 'notes' => 'Lekker met naan', 'servings' => '4', 'prep_minutes' => '',
                 'cook_minutes' => '30', 'oven_minutes' => '', 'oven_celsius' => '', 'kcal' => '650', 'protein' => '', 'carbs' => '', 'fat' => '',
                 'source_url' => 'https://www.google.com/search?q=https%3A%2F%2Fexample.com%2Ftikka%2F&sca_esv=1',
-                'categories' => ['Kip'], 'cookbooks' => ['Iesje'], 'images' => ['https://photos.example.com/ok.jpg'],
+                'categories' => ['Kip'], 'cookbooks' => ['Iesje'], 'images' => ['https://photos.example.com/ok/400x300/image.jpg'],
             ],
             [
                 'id' => '12', 'title' => '', 'ingredients' => '', 'method' => '', 'notes' => '', 'servings' => '0', 'prep_minutes' => '',
                 'cook_minutes' => '', 'oven_minutes' => '', 'oven_celsius' => '999', 'kcal' => '', 'protein' => '', 'carbs' => '', 'fat' => '',
-                'source_url' => '', 'categories' => ['Nagerecht'], 'cookbooks' => [], 'images' => ['https://photos.example.com/broken.jpg'],
+                'source_url' => '', 'categories' => ['Nagerecht'], 'cookbooks' => [], 'images' => ['https://photos.example.com/broken/400x300/image.jpg'],
             ],
         ]));
     }
@@ -106,5 +112,40 @@ class ImportRecipesTest extends TestCase
         $own = Cookbook::create(['name' => 'Mijn recepten', 'created_by' => $user->id]);
         Artisan::call('recipes:import', ['file' => $this->file, '--user' => $user->email, '--cookbook' => $own->id, '--dry-run' => true]);
         $this->assertSame(0, Recipe::count());
+    }
+
+    public function test_the_larger_photo_is_fetched_and_refresh_photos_replaces_only_the_photos(): void
+    {
+        $user = User::factory()->create();
+        $cookbook = Cookbook::create(['name' => 'Mijn recepten', 'created_by' => $user->id]);
+        $options = ['file' => $this->file, '--user' => $user->email, '--cookbook' => $cookbook->id];
+        Artisan::call('recipes:import', $options);
+        Http::assertSent(fn ($request) => $request->url() === 'https://photos.example.com/ok/1024x768/image.jpg');
+
+        $tikka = Recipe::where('title', 'Kip tikka masala')->sole();
+        $oldPath = $tikka->image_path;
+
+        $this->assertSame(0, Artisan::call('recipes:import', [...$options, '--refresh-photos' => true]));
+
+        $tikka->refresh();
+        $this->assertNotSame($oldPath, $tikka->image_path);
+        Storage::disk(Recipe::IMAGE_DISK)->assertMissing([$oldPath, Recipe::thumbPath($oldPath)]);
+        Storage::disk(Recipe::IMAGE_DISK)->assertExists($tikka->image_path);
+        // Nothing added or removed, and a photo that can't be had leaves the recipe as it was
+        $this->assertSame(2, Recipe::count());
+        $this->assertNull(Recipe::where('title', 'Naamloos recept')->sole()->image_path);
+    }
+
+    public function test_a_photo_only_in_the_small_size_is_still_fetched(): void
+    {
+        $data = json_decode(file_get_contents($this->file), true);
+        $data[0]['images'] = ['https://photos.example.com/only-small/400x300/image.jpg'];
+        file_put_contents($this->file, json_encode($data));
+        $user = User::factory()->create();
+        $cookbook = Cookbook::create(['name' => 'Mijn recepten', 'created_by' => $user->id]);
+
+        Artisan::call('recipes:import', ['file' => $this->file, '--user' => $user->email, '--cookbook' => $cookbook->id]);
+
+        $this->assertNotNull(Recipe::where('title', 'Kip tikka masala')->sole()->image_path);
     }
 }

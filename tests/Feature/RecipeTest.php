@@ -330,4 +330,17 @@ class RecipeTest extends TestCase
         $this->assertSame(0, Cookbook::count());
         Storage::disk(Recipe::IMAGE_DISK)->assertMissing($path);
     }
+
+    public function test_photo_addresses_use_the_public_https_address(): void
+    {
+        config(['app.url' => 'https://api.example.com']);
+        $user = User::factory()->create();
+        $id = $this->createRecipe($user);
+
+        // The request comes in as plain http (like behind a proxy); the address the app gets is still https
+        $url = $this->actingAs($user, 'sanctum')->postJson("http://localhost/api/recipes/{$id}/image", ['image' => $this->photoDataUrl()])
+            ->assertOk()->json('data.image_url');
+
+        $this->assertStringStartsWith("https://api.example.com/api/recipes/{$id}/image?v=", $url);
+    }
 }

@@ -204,14 +204,19 @@ class RecipeController extends Controller
     }
 
     // Where the app loads the photo (or its small copy); the version changes with every new photo, so a cached old
-    // one isn't shown
+    // one isn't shown. On the public address (APP_URL) when that's https: behind a proxy the request itself can look
+    // like plain http or localhost, and iOS doesn't load photos from such an address.
     private function imageUrl(Recipe $recipe, bool $thumb = false): ?string
     {
         if (!$recipe->image_path) {
             return null;
         }
 
-        return url("/api/recipes/{$recipe->id}/image") . '?v=' . substr(md5($recipe->image_path), 0, 8) . ($thumb ? '&size=thumb' : '');
+        $path = "/api/recipes/{$recipe->id}/image";
+        $appUrl = rtrim((string) config('app.url'), '/');
+        $base = str_starts_with($appUrl, 'https://') ? $appUrl . $path : url($path);
+
+        return $base . '?v=' . substr(md5($recipe->image_path), 0, 8) . ($thumb ? '&size=thumb' : '');
     }
 
     private function presentSummary(Request $request, Recipe $recipe): array
