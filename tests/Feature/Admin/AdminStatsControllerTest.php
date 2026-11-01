@@ -156,6 +156,11 @@ class AdminStatsControllerTest extends TestCase
             ->assertJsonPath('recipes.cookbooks_shared_with_user', 1)
             ->assertJsonPath('recipes.recipes_added', 2)
             ->assertJsonPath('recipes.recipes_access', 3)
-            ->assertJsonPath('recipes.current_month.added', 2);
+            ->assertJsonPath('recipes.current_month.added', 2)
+            ->assertJsonPath('recipes.current_month.cookbooks_created', 1)
+            ->assertJsonPath('recipes.previous_month.added', 0);
+        // Another month shows that month's numbers
+        $this->actingAs($this->admin, 'sanctum')->getJson("/api/admin/users/{$this->user->id}?month=" . now()->subMonthsNoOverflow(2)->format('Y-m'))
+            ->assertOk()->assertJsonPath('recipes.current_month.added', 0)->assertJsonPath('recipes.recipes_added', 2);
     }
 }

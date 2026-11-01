@@ -487,13 +487,15 @@ class AdminStatsController extends Controller
         ];
     }
 
-    // A user's cookbooks (own and shared with them) and the recipes they added, in all and in the two months
+    // A user's cookbooks (own and shared with them) and the recipes they added in all; in the chosen month and the one
+    // before: the recipes added and cookbooks made
     private function getUserRecipes(User $user, Carbon $currentMonth, Carbon $previousMonth): array
     {
-        $added = fn (Carbon $month) => Recipe::where('created_by', $user->id)
-            ->whereYear('created_at', $month->year)
-            ->whereMonth('created_at', $month->month)
-            ->count();
+        $inMonth = fn ($query, Carbon $month) => $query->whereYear('created_at', $month->year)->whereMonth('created_at', $month->month);
+        $month = fn (Carbon $month) => [
+            'added' => $inMonth(Recipe::where('created_by', $user->id), $month)->count(),
+            'cookbooks_created' => $inMonth(Cookbook::where('created_by', $user->id), $month)->count(),
+        ];
 
         return [
             'cookbooks_owned' => Cookbook::where('created_by', $user->id)->count(),
@@ -502,8 +504,8 @@ class AdminStatsController extends Controller
                 ->count(),
             'recipes_added' => Recipe::where('created_by', $user->id)->count(),
             'recipes_access' => Recipe::visibleTo($user)->count(),
-            'current_month' => ['added' => $added($currentMonth)],
-            'previous_month' => ['added' => $added($previousMonth)],
+            'current_month' => $month($currentMonth),
+            'previous_month' => $month($previousMonth),
         ];
     }
 
