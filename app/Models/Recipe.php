@@ -80,10 +80,29 @@ class Recipe extends Model
         return $this->belongsToMany(User::class, 'recipe_favorites')->withTimestamps();
     }
 
+    // The other cookbooks it's shown in (read-only there), besides its own (cookbook_id), with who showed it there
+    public function shownIn(): BelongsToMany
+    {
+        return $this->belongsToMany(Cookbook::class, 'cookbook_recipe')->withPivot('shown_by')->withTimestamps();
+    }
+
     /**
-     * Recipes in the cookbooks the user may see (Cookbook::scopeVisibleTo)
+     * Recipes the user may see: in a cookbook of theirs (Cookbook::scopeVisibleTo), or shown in one
      */
     public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        $cookbooks = Cookbook::visibleTo($user)->select('id');
+
+        return $query->where(fn (Builder $query) => $query
+            ->whereIn('cookbook_id', $cookbooks)
+            ->orWhereHas('shownIn', fn (Builder $shown) => $shown->whereIn('cookbooks.id', Cookbook::visibleTo($user)->select('id'))));
+    }
+
+    /**
+     * Recipes the user may change (and delete): the ones in their own cookbooks. Where a recipe is only shown, it's
+     * read-only.
+     */
+    public function scopeEditableBy(Builder $query, User $user): Builder
     {
         return $query->whereIn('cookbook_id', Cookbook::visibleTo($user)->select('id'));
     }

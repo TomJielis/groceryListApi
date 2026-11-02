@@ -20,8 +20,11 @@ use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Recipes in the cookbooks the signed-in user is a member of (their own, and ones shared with them).
- * A recipe of someone else answers 404, like one that doesn't exist.
+ * Recipes in the cookbooks the signed-in user is a member of (their own, and ones shared with them), and recipes of
+ * other cookbooks shown in those. A recipe lives in one cookbook (cookbook_id): the people in that one change it.
+ * Where it's only shown (cookbook_recipe) it's read-only: favorite and add-to-list still work, editing answers 403.
+ * Which of their other cookbooks it's shown in, the people in its own cookbook choose when saving it (shown_in).
+ * A recipe the user can't see answers 404, like one that doesn't exist.
  */
 class RecipeController extends Controller
 {
@@ -33,7 +36,7 @@ class RecipeController extends Controller
     public function index(Request $request): JsonResponse
     {
         $recipes = Recipe::visibleTo($request->user())
-            ->with(['ingredients:id,recipe_id,name,position', 'favoritedBy:id'])
+            ->with(['ingredients:id,recipe_id,name,position', 'favoritedBy:id', 'shownIn:id'])
             // A to Z (MySQL's collation ignores capitals and accents); the id breaks ties
             ->orderBy('title')
             ->orderBy('id')
@@ -53,7 +56,7 @@ class RecipeController extends Controller
     {
         $user = $request->user();
         $cookbook = Cookbook::visibleTo($user)->find($request->validated('cookbook_id'));
-        if (!$cookbook) {
+        if (!$cookbook || !$this->mayShowIn($request)) {
             return response()->json(['message' => __('recipes.no_cookbook_access', [], $this->language($request))], 403);
         }
 
@@ -64,6 +67,7 @@ class RecipeController extends Controller
                 'created_by' => $user->id,
             ]);
             $recipe->replaceParts($request->validated('ingredients'), $request->validated('steps'));
+            $this->syncShownIn($request, $recipe);
 
             return $recipe;
         });
@@ -73,16 +77,19 @@ class RecipeController extends Controller
 
     public function update(RecipeRequest $request, int $id): JsonResponse
     {
-        $recipe = $this->ownRecipe($request, $id);
+        $recipe = $this->editableRecipe($request, $id);
         // Moving it to another cookbook: only to one the user may see
         $cookbookId = $request->validated('cookbook_id');
-        if (!Cookbook::visibleTo($request->user())->whereKey($cookbookId)->exists()) {
+        if (!Cookbook::visibleTo($request->user())->whereKey($cookbookId)->exists() || !$this->mayShowIn($request, $recipe)) {
             return response()->json(['message' => __('recipes.no_cookbook_access', [], $this->language($request))], 403);
         }
 
         DB::transaction(function () use ($request, $recipe, $cookbookId) {
             $recipe->update([...$request->safe()->except(['ingredients', 'steps', 'cookbook_id']), 'cookbook_id' => $cookbookId]);
             $recipe->replaceParts($request->validated('ingredients'), $request->validated('steps'));
+            $this->syncShownIn($request, $recipe);
+            // Moved to a cookbook it was shown in: it lives there now
+            $recipe->shownIn()->detach($cookbookId);
         });
 
         return response()->json(['data' => $this->present($request, $recipe->fresh())]);
@@ -90,7 +97,7 @@ class RecipeController extends Controller
 
     public function delete(Request $request, int $id): JsonResponse
     {
-        $recipe = $this->ownRecipe($request, $id);
+        $recipe = $this->editableRecipe($request, $id);
         $recipe->deleteImage();
         $recipe->delete();
 
@@ -160,7 +167,7 @@ class RecipeController extends Controller
     // A new photo, as a data URL like the cards send ("data:image/jpeg;base64,...")
     public function storeImage(RecipeImageRequest $request, int $id): JsonResponse
     {
-        $recipe = $this->ownRecipe($request, $id);
+        $recipe = $this->editableRecipe($request, $id);
 
         // RecipeImageRequest made sure it's a picture
         $path = $this->images->store($this->images->decodeDataUrl($request->validated('image')));
@@ -172,7 +179,7 @@ class RecipeController extends Controller
 
     public function deleteImage(Request $request, int $id): JsonResponse
     {
-        $recipe = $this->ownRecipe($request, $id);
+        $recipe = $this->editableRecipe($request, $id);
         $recipe->deleteImage();
         $recipe->update(['image_path' => null]);
 
@@ -199,9 +206,76 @@ class RecipeController extends Controller
         ]);
     }
 
+    // Stops showing it in a cookbook: by the people in its own cookbook, or by the creator of the one it's shown in
+    public function hideFrom(Request $request, int $id, int $cookbookId): JsonResponse
+    {
+        $user = $request->user();
+        $recipe = $this->ownRecipe($request, $id);
+        $editable = Recipe::editableBy($user)->whereKey($recipe->id)->exists();
+        $createdThatCookbook = Cookbook::where('created_by', $user->id)->whereKey($cookbookId)->exists();
+        abort_unless($editable || $createdThatCookbook, 403, __('recipes.read_only', [], $this->language($request)));
+
+        $recipe->shownIn()->detach($cookbookId);
+
+        return response()->json(['message' => __('recipes.hidden_from', [], $this->language($request))]);
+    }
+
+    /**
+     * Where the recipe is shown besides its own cookbook, as the form sends it (shown_in): the user's other cookbooks
+     * they ticked. Cookbooks of others it's shown in stay unless the list leaves them out (taking it out there is
+     * fine, putting it in isn't). Without shown_in (older apps) nothing changes.
+     */
+    private function syncShownIn(RecipeRequest $request, Recipe $recipe): void
+    {
+        if (!$request->has('shown_in')) {
+            return;
+        }
+
+        $wanted = collect($request->validated('shown_in'))->map(fn ($id) => (int) $id)->reject(fn ($id) => $id === (int) $recipe->cookbook_id)->unique();
+        $current = $recipe->shownIn()->pluck('cookbooks.id')->map(fn ($id) => (int) $id);
+
+        $recipe->shownIn()->detach($current->diff($wanted)->all());
+        $recipe->shownIn()->attach(
+            $wanted->diff($current)->mapWithKeys(fn ($id) => [$id => ['shown_by' => $request->user()->id]])->all()
+        );
+    }
+
+    // Only cookbooks of the user's are added to shown_in (the ones it's in already may stay)
+    private function mayShowIn(RecipeRequest $request, ?Recipe $recipe = null): bool
+    {
+        $current = $recipe ? $recipe->shownIn()->pluck('cookbooks.id')->map(fn ($id) => (int) $id)->all() : [];
+        $allowed = [...$this->userCookbookIds($request), ...$current];
+
+        return collect($request->validated('shown_in') ?? [])->every(fn ($id) => in_array((int) $id, $allowed, true));
+    }
+
     private function ownRecipe(Request $request, int $id): Recipe
     {
         return Recipe::visibleTo($request->user())->findOrFail($id);
+    }
+
+    // One the user may change: in a cookbook of theirs. Only shown to them: 403 with the reason
+    private function editableRecipe(Request $request, int $id): Recipe
+    {
+        $recipe = $this->ownRecipe($request, $id);
+        abort_unless($this->isEditable($request, $recipe), 403, __('recipes.read_only', [], $this->language($request)));
+
+        return $recipe;
+    }
+
+    // The cookbooks of the user, looked up once per request (the overview asks for every recipe)
+    private function userCookbookIds(Request $request): array
+    {
+        if (!$request->attributes->has('cookbook_ids')) {
+            $request->attributes->set('cookbook_ids', Cookbook::visibleTo($request->user())->pluck('id')->map(fn ($id) => (int) $id)->all());
+        }
+
+        return $request->attributes->get('cookbook_ids');
+    }
+
+    private function isEditable(Request $request, Recipe $recipe): bool
+    {
+        return in_array((int) $recipe->cookbook_id, $this->userCookbookIds($request), true);
     }
 
     // Where the app loads the photo (or its small copy); the version changes with every new photo, so a cached old
@@ -240,6 +314,14 @@ class RecipeController extends Controller
             // The small copy, for the tiles in the overview
             'thumb_url' => $this->imageUrl($recipe, true),
             'favorite' => $recipe->favoritedBy->contains('id', $userId),
+            // In a cookbook of the user's: they may change it; otherwise it's only shown to them
+            'editable' => $this->isEditable($request, $recipe),
+            // The user's other cookbooks it's shown in
+            'shown_in' => $recipe->shownIn
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->intersect($this->userCookbookIds($request))
+                ->values(),
             'ingredient_names' => $recipe->ingredients->pluck('name')->values(),
             'created_at' => $recipe->created_at,
         ];
@@ -248,7 +330,8 @@ class RecipeController extends Controller
     // The whole recipe, as the recipe screen shows it
     private function present(Request $request, Recipe $recipe): array
     {
-        $recipe->loadMissing(['ingredients', 'steps', 'createdBy:id,name', 'favoritedBy:id']);
+        $recipe->loadMissing(['ingredients', 'steps', 'createdBy:id,name', 'favoritedBy:id', 'shownIn:id,name', 'cookbook:id,name']);
+        $editable = $this->isEditable($request, $recipe);
 
         return [
             ...$this->presentSummary($request, $recipe),
@@ -258,6 +341,16 @@ class RecipeController extends Controller
             'fat' => $recipe->fat,
             'source_url' => $recipe->source_url,
             'created_by' => $recipe->createdBy,
+            // The cookbook it lives in (shown with a recipe that's read-only for the user: "from 'Samen koken'")
+            'cookbook_name' => $recipe->cookbook?->name,
+            // For the people who change it: the cookbooks of others it's shown in (someone in its cookbook put it
+            // there), so they see where it is and can take it out again
+            'shown_elsewhere' => $editable
+                ? $recipe->shownIn
+                    ->reject(fn (Cookbook $cookbook) => in_array((int) $cookbook->id, $this->userCookbookIds($request), true))
+                    ->map(fn (Cookbook $cookbook) => ['id' => $cookbook->id, 'name' => $cookbook->name])
+                    ->values()
+                : [],
             'ingredients' => $recipe->ingredients->map(fn (RecipeIngredient $ingredient) => [
                 'name' => $ingredient->name,
                 'amount' => $ingredient->amount === null ? null : (float) $ingredient->amount,

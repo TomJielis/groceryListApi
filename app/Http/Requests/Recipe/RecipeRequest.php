@@ -52,6 +52,9 @@ class RecipeRequest extends FormRequest
             'ingredients.*.unit'   => 'nullable|string|max:30',
             'steps'                => 'present|array|max:100',
             'steps.*'              => 'required|string|max:5000',
+            // The user's other cookbooks it's also shown in, read-only there (left out: unchanged)
+            'shown_in'             => 'sometimes|array|max:100',
+            'shown_in.*'           => 'integer',
         ];
     }
 

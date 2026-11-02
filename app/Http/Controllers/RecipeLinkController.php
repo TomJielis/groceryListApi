@@ -17,11 +17,13 @@ use Symfony\Component\HttpFoundation\Response;
 /**
  * Recipe links: a recipe shared with a link (WhatsApp and the like). Whoever opens it reads the recipe, also without
  * an account (the website shows it), and can save their own copy in a cookbook of theirs: a separate recipe with its
- * own photo, which they change without touching the original. Anyone who can see a recipe may share it.
+ * own photo, which they change without touching the original. The people in a recipe's own cookbook may share it
+ * (where it's only shown it's not theirs to hand out), and a link stops working once its maker no longer is.
  *
  * Whether someone has the recipe already goes by where it came from, not its name (two "Pannenkoeken" can differ):
  * a copy remembers the recipe it was saved from (copied_from_recipe_id), and the original may be in one of their
- * cookbooks itself. Saving again stays possible on purpose (a second version to try things with).
+ * cookbooks itself. Then saving is refused: no duplicates. Only one they can change counts: a recipe that's only
+ * shown to them (read-only) they may still save as their own copy.
  */
 class RecipeLinkController extends Controller
 {
@@ -32,6 +34,11 @@ class RecipeLinkController extends Controller
     public function store(Request $request, int $id): JsonResponse
     {
         $recipe = Recipe::visibleTo($request->user())->findOrFail($id);
+        abort_unless(
+            Recipe::editableBy($request->user())->whereKey($recipe->id)->exists(),
+            403,
+            __('recipe-links.read_only', [], $this->language($request)),
+        );
         $link = RecipeLink::forRecipe($recipe, $request->user());
 
         return response()->json(['data' => ['url' => $link->url(), 'expires_at' => $link->expires_at]]);
@@ -132,6 +139,11 @@ class RecipeLinkController extends Controller
         }
 
         $original = $link->recipe;
+        // They have it already (a copy, or the recipe itself in a cookbook of theirs): no second copy
+        if ($already = $this->already($original, $user)) {
+            return response()->json(['message' => __('recipe-links.already_saved', [], $language), 'data' => $already], 409);
+        }
+
         $disk = Storage::disk(Recipe::IMAGE_DISK);
         $imagePath = $original->image_path && $disk->exists($original->image_path)
             ? $this->images->store($disk->get($original->image_path))
@@ -168,7 +180,7 @@ class RecipeLinkController extends Controller
      */
     private function already(Recipe $recipe, $user): ?array
     {
-        $own = Recipe::visibleTo($user)
+        $own = Recipe::editableBy($user)
             ->where(fn ($query) => $query->whereKey($recipe->id)->orWhere('copied_from_recipe_id', $recipe->id))
             // The original itself first
             ->orderByRaw('id = ? desc', [$recipe->id])

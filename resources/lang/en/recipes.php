@@ -35,6 +35,7 @@ return [
             ],
         ],
         'attributes' => [
+            'shown_in' => 'the also show in',
             'cookbook_id' => 'the cookbook',
             'title' => 'the title',
             'description' => 'the description',
@@ -68,6 +69,8 @@ return [
         ],
     ],
     'no_list_access' => 'You don\'t have access to this list.',
+    'read_only' => "This recipe belongs to another cookbook; only the people in it can change it.",
+    'hidden_from' => "The recipe is no longer shown in this cookbook.",
     'deleted' => 'Recipe deleted.',
     'image_deleted' => 'Photo deleted.',
     'image_invalid' => 'This isn\'t a valid photo.',

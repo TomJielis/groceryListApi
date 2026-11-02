@@ -14,6 +14,7 @@ use App\Models\GroceryListInvitesStatus;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Cookbooks, like grocery lists: a user makes one or more (there's none until they do), and each can be shared by email. Everyone in it sees and
@@ -27,12 +28,14 @@ class CookbookController extends Controller
     {
         $cookbooks = Cookbook::visibleTo($request->user())
             ->with($this->relations())
-            ->withCount('recipes')
+            ->withCount(['recipes', 'shownRecipes'])
             ->orderBy('id')
             ->get();
 
+        $shownElsewhere = $this->shownElsewhere($cookbooks->pluck('id')->all());
+
         return response()->json([
-            'data' => $cookbooks->map(fn (Cookbook $cookbook) => $this->present($request, $cookbook))->values(),
+            'data' => $cookbooks->map(fn (Cookbook $cookbook) => $this->present($request, $cookbook, $shownElsewhere))->values(),
         ]);
     }
 
@@ -63,6 +66,7 @@ class CookbookController extends Controller
         if (!$cookbook->isCreatedBy($user)) {
             $cookbook->acceptedInvites()->where('user_id', $user->id)->delete();
             $this->forgetFavorite($cookbook, $user->id);
+            $cookbook->withdrawShownBy($user->id);
 
             return response()->json(['message' => __('recipes.left', [], $this->language($request))]);
         }
@@ -149,6 +153,9 @@ class CookbookController extends Controller
         $wasMember = (clone $invites)->where('status', GroceryListInvitesStatus::ACCEPTED)->exists();
         $invites->delete();
         $this->forgetFavorite($cookbook, $userId);
+        if ($userId !== (int) $cookbook->created_by) {
+            $cookbook->withdrawShownBy($userId);
+        }
 
         if ($wasMember && $userId !== $user->id) {
             SendPushNotification::dispatch(
@@ -257,11 +264,38 @@ class CookbookController extends Controller
 
     private function fresh(Cookbook $cookbook): Cookbook
     {
-        return $cookbook->fresh()->load($this->relations())->loadCount('recipes');
+        return $cookbook->fresh()->load($this->relations())->loadCount(['recipes', 'shownRecipes']);
     }
 
-    private function present(Request $request, Cookbook $cookbook): array
+    /**
+     * Per cookbook: how many of its own recipes are shown in other cookbooks, and the names of those, for the warning
+     * when its creator deletes it (the recipes go there too). In one query for all the cookbooks of the overview.
+     *
+     * @param list<int> $cookbookIds
+     * @return array<int, array{recipes: int, cookbooks: list<string>}>
+     */
+    private function shownElsewhere(array $cookbookIds): array
     {
+        return DB::table('cookbook_recipe')
+            ->join('recipes', 'recipes.id', '=', 'cookbook_recipe.recipe_id')
+            ->join('cookbooks', 'cookbooks.id', '=', 'cookbook_recipe.cookbook_id')
+            ->whereIn('recipes.cookbook_id', $cookbookIds)
+            ->orderBy('cookbooks.id')
+            ->get(['recipes.cookbook_id as home_id', 'cookbook_recipe.recipe_id', 'cookbooks.name'])
+            ->groupBy('home_id')
+            ->map(fn ($rows) => [
+                'recipes' => $rows->pluck('recipe_id')->unique()->count(),
+                'cookbooks' => $rows->pluck('name')->unique()->values()->all(),
+            ])
+            ->all();
+    }
+
+    private function present(Request $request, Cookbook $cookbook, ?array $shownElsewhere = null): array
+    {
+        $isCreator = $cookbook->isCreatedBy($request->user());
+        if ($isCreator && $shownElsewhere === null) {
+            $shownElsewhere = $this->shownElsewhere([$cookbook->id]);
+        }
         $accepted = $cookbook->invites->where('status', GroceryListInvitesStatus::ACCEPTED)->filter(fn (CookbookInvite $invite) => $invite->user);
 
         return [
@@ -269,7 +303,12 @@ class CookbookController extends Controller
             'name' => $cookbook->name,
             'favorite' => (int) $request->user()->favorite_cookbook_id === (int) $cookbook->id,
             'created_by' => $cookbook->createdBy?->only(['id', 'name']),
-            'recipes_count' => $cookbook->recipes_count,
+            // Its own recipes and the ones of other cookbooks shown in it
+            'recipes_count' => $cookbook->recipes_count + ($cookbook->shown_recipes_count ?? 0),
+            // For the creator, who deletes it: its own recipes (they go with it), and how many of them other cookbooks
+            // show, and which (they disappear there too)
+            'own_recipes_count' => $isCreator ? (int) $cookbook->recipes_count : null,
+            'shown_elsewhere' => $isCreator ? ($shownElsewhere[$cookbook->id] ?? ['recipes' => 0, 'cookbooks' => []]) : null,
             // The creator first, then who joined
             'members' => collect([$cookbook->createdBy?->only(['id', 'name'])])
                 ->merge($accepted->map(fn (CookbookInvite $invite) => $invite->user->only(['id', 'name'])))

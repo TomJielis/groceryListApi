@@ -38,9 +38,14 @@ class RecipeLink extends Model
         return $this->belongsTo(User::class, 'created_by', 'id');
     }
 
+    // Not expired or withdrawn, and its maker is still in the recipe's cookbook (someone who left can't keep
+    // handing it out)
     public function isUsable(): bool
     {
-        return $this->revoked_at === null && $this->expires_at->isFuture();
+        return $this->revoked_at === null
+            && $this->expires_at->isFuture()
+            && $this->createdBy
+            && Recipe::editableBy($this->createdBy)->whereKey($this->recipe_id)->exists();
     }
 
     // On the website, which hands it to the app when that's installed (apple-app-site-association claims /auth/*)

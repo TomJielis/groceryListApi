@@ -139,9 +139,12 @@ class RecipeLinkTest extends TestCase
             ->assertJsonPath('data.already.recipe_id', $copyId)
             ->assertJsonPath('data.already.cookbook_name', 'Van de vriend');
 
-        // Saving again on purpose still works
-        $this->postJson("/api/recipe-links/{$token}/save", ['cookbook_id' => $own->id])->assertCreated();
-        $this->assertSame(2, Recipe::where('copied_from_recipe_id', $this->recipe->id)->count());
+        // Saving it again is refused: no duplicates
+        $this->postJson("/api/recipe-links/{$token}/save", ['cookbook_id' => $own->id])
+            ->assertStatus(409)
+            ->assertJsonPath('message', 'Dit recept staat al in je kookboek.')
+            ->assertJsonPath('data.recipe_id', $copyId);
+        $this->assertSame(1, Recipe::where('copied_from_recipe_id', $this->recipe->id)->count());
 
         // A deleted copy no longer counts
         Recipe::where('copied_from_recipe_id', $this->recipe->id)->get()->each->delete();
@@ -151,10 +154,12 @@ class RecipeLinkTest extends TestCase
     public function test_a_recipe_in_a_cookbook_you_are_in_is_yours_already(): void
     {
         $token = $this->shareLink();
-        // The owner, whose cookbook it is in
+        // The owner, whose cookbook it is in: nothing to save
         $this->actingAs($this->owner, 'sanctum')->getJson("/api/recipe-links/{$token}")
             ->assertJsonPath('data.already.type', 'member')
             ->assertJsonPath('data.already.recipe_id', $this->recipe->id)
             ->assertJsonPath('data.already.cookbook_name', 'Mijn recepten');
+        $this->postJson("/api/recipe-links/{$token}/save", ['cookbook_id' => $this->recipe->cookbook_id])->assertStatus(409);
+        $this->assertSame(1, Recipe::count());
     }
 }

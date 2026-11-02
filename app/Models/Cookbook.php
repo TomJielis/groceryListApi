@@ -5,12 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 // A collection of recipes, like a grocery list holds products: it belongs to whoever made it (nobody gets one without
-// making it), and sharing it lets others see and edit its recipes. Like a list, only the creator renames it or decides who is in it, and when they
+// making it), and sharing it lets others see and edit its recipes. Recipes of other cookbooks can also be shown in it
+// (shownRecipes), read-only. Like a list, only the creator renames it or decides who is in it, and when they
 // delete it (or their account) it's gone for everyone.
 class Cookbook extends Model
 {
@@ -27,6 +29,12 @@ class Cookbook extends Model
     public function recipes(): HasMany
     {
         return $this->hasMany(Recipe::class);
+    }
+
+    // Recipes of other cookbooks shown in this one (read-only here)
+    public function shownRecipes(): BelongsToMany
+    {
+        return $this->belongsToMany(Recipe::class, 'cookbook_recipe')->withPivot('shown_by')->withTimestamps();
     }
 
     public function invites(): HasMany
@@ -70,6 +78,21 @@ class Cookbook extends Model
         $invitedIds = $this->acceptedInvites()->whereNotNull('user_id')->pluck('user_id');
 
         return $invitedIds->push($this->created_by)->map(fn ($id) => (int) $id)->unique()->values()->all();
+    }
+
+    /**
+     * Someone leaving the cookbook (or removed from it) takes back what they showed: its recipes they showed in other
+     * cookbooks, and the recipes they showed in it. Otherwise they, and whoever is in their other cookbooks, would
+     * keep seeing recipes of a cookbook they're no longer in.
+     */
+    public function withdrawShownBy(int $userId): void
+    {
+        DB::table('cookbook_recipe')
+            ->where('shown_by', $userId)
+            ->where(fn ($query) => $query
+                ->where('cookbook_id', $this->id)
+                ->orWhereIn('recipe_id', Recipe::where('cookbook_id', $this->id)->select('id')))
+            ->delete();
     }
 
     // Everything in it: the recipes with their photos (ingredients, steps and favorites go with them through their
