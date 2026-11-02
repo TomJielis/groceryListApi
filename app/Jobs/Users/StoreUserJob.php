@@ -4,6 +4,7 @@ namespace App\Jobs\Users;
 
 use App\Mail\ResetPassword;
 use App\Mail\Welcome;
+use App\Models\Cookbook;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
@@ -51,6 +52,7 @@ class StoreUserJob implements ShouldQueue
         $user->accepted_terms_at = Carbon::now();
         $user->accepted_terms_version = $userData['acceptedTermsVersion'];
         $user->save();
+        Cookbook::createFirstFor($user);
 
 
         $verifyCode = Crypt::encryptString($user->id);

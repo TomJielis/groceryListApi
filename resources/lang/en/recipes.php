@@ -69,6 +69,8 @@ return [
         ],
     ],
     'no_list_access' => 'You don\'t have access to this list.',
+    // The cookbook everyone gets when they register (Cookbook::createFirstFor)
+    'first_cookbook' => 'My cookbook',
     'read_only' => "This recipe belongs to another cookbook; only the people in it can change it.",
     'hidden_from' => "The recipe is no longer shown in this cookbook.",
     'deleted' => 'Recipe deleted.',

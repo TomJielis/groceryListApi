@@ -57,7 +57,54 @@ class CookbookTest extends TestCase
         $this->postJson("/api/cookbooks/pending/{$inviteId}/update-status", ['status' => 'accepted'])->assertOk();
     }
 
-    public function test_nobody_has_a_cookbook_without_making_one(): void
+    public function test_registering_gives_a_first_cookbook_in_the_users_language_as_favourite(): void
+    {
+        foreach (['nl' => 'Mijn kookboek', 'en' => 'My cookbook'] as $language => $name) {
+            $this->postJson('/api/register', [
+                'name' => 'Sam', 'email' => "sam-{$language}@example.com", 'password' => 'long-enough', 'language' => $language,
+                'acceptedTerms' => true, 'acceptedTermsVersion' => '1.3',
+            ])->assertSuccessful();
+            $user = User::where('email', "sam-{$language}@example.com")->first();
+
+            $this->actingAs($user, 'sanctum')->getJson('/api/cookbooks/index')
+                ->assertJsonCount(1, 'data')
+                ->assertJsonPath('data.0.name', $name)
+                ->assertJsonPath('data.0.created_by.id', $user->id)
+                ->assertJsonPath('data.0.favorite', true);
+        }
+    }
+
+    public function test_own_cookbooks_come_first_then_the_shared_ones(): void
+    {
+        $owner = User::factory()->create();
+        $partner = User::factory()->create();
+        // Shared with the partner before they made their own
+        $shared = $this->newCookbook($owner, 'Samen koken');
+        $this->shareAndAccept($owner, $shared, $partner);
+        $own = $this->newCookbook($partner, 'Mijn kookboek');
+        $second = $this->newCookbook($partner, 'Taarten');
+
+        $ids = array_column($this->actingAs($partner, 'sanctum')->getJson('/api/cookbooks/index')->json('data'), 'id');
+        $this->assertSame([$own, $second, $shared], $ids);
+    }
+
+    public function test_users_from_before_get_a_first_cookbook_unless_they_have_one(): void
+    {
+        $without = User::factory()->create(['language' => 'en']);
+        $with = User::factory()->create();
+        $this->newCookbook($with, 'Mijn recepten');
+        $this->actingAs($with, 'sanctum')->postJson('/api/cookbooks/favorite', ['cookbook_id' => null])->assertOk();
+
+        (require database_path('migrations/2026_11_02_000004_create_first_cookbook_for_existing_users.php'))->up();
+
+        $this->assertSame(['My cookbook'], Cookbook::where('created_by', $without->id)->pluck('name')->all());
+        $this->assertNotNull($without->fresh()->favorite_cookbook_id);
+        $this->assertSame(['Mijn recepten'], Cookbook::where('created_by', $with->id)->pluck('name')->all());
+        $this->assertNull($with->fresh()->favorite_cookbook_id);
+    }
+
+    // Someone who deleted their cookbooks (or users made without registering)
+    public function test_without_a_cookbook_a_recipe_has_nowhere_to_go(): void
     {
         $user = User::factory()->create(['language' => 'en']);
 

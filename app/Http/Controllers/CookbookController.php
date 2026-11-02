@@ -17,18 +17,20 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Cookbooks, like grocery lists: a user makes one or more (there's none until they do), and each can be shared by email. Everyone in it sees and
+ * Cookbooks, like grocery lists: a user gets one when they register and can make more, and each can be shared by email. Everyone in it sees and
  * edits its recipes, but only the creator renames it, decides who is in it, and deletes it (for everyone). A cookbook
  * the user can't see answers 404, like one that doesn't exist.
  */
 class CookbookController extends Controller
 {
-    // The cookbooks the user may see (oldest first), with who is in them and how many recipes
+    // The cookbooks the user may see, with who is in them and how many recipes: their own first, then the ones shared
+    // with them, each oldest first
     public function index(Request $request): JsonResponse
     {
         $cookbooks = Cookbook::visibleTo($request->user())
             ->with($this->relations())
             ->withCount(['recipes', 'shownRecipes'])
+            ->orderByRaw('cookbooks.created_by = ? desc', [$request->user()->id])
             ->orderBy('id')
             ->get();
 

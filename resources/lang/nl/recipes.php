@@ -69,6 +69,8 @@ return [
         ],
     ],
     'no_list_access' => 'Je hebt geen toegang tot deze lijst.',
+    // The cookbook everyone gets when they register (Cookbook::createFirstFor)
+    'first_cookbook' => 'Mijn kookboek',
     'read_only' => "Dit recept is van een ander kookboek; alleen wie daarin zit kan het aanpassen.",
     'hidden_from' => "Het recept staat niet meer in dit kookboek.",
     'deleted' => 'Recept is verwijderd.',

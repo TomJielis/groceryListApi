@@ -10,8 +10,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
-// A collection of recipes, like a grocery list holds products: it belongs to whoever made it (nobody gets one without
-// making it), and sharing it lets others see and edit its recipes. Recipes of other cookbooks can also be shown in it
+// A collection of recipes, like a grocery list holds products: it belongs to whoever made it (everyone gets a first one
+// when they register, createFirstFor), and sharing it lets others see and edit its recipes. Recipes of other cookbooks can also be shown in it
 // (shownRecipes), read-only. Like a list, only the creator renames it or decides who is in it, and when they
 // delete it (or their account) it's gone for everyone.
 class Cookbook extends Model
@@ -61,6 +61,22 @@ class Cookbook extends Model
         return $query->where(fn (Builder $query) => $query
             ->where('cookbooks.created_by', $user->id)
             ->orWhereHas('acceptedInvites', fn ($invites) => $invites->where('user_id', $user->id)));
+    }
+
+    // "Mijn kookboek" / "My cookbook", in the user's language: so a new user's own cookbook is there, and first, before
+    // any shared with them. It's their favourite too (new recipes from "all recipes" go into it), unless they chose one.
+    public static function createFirstFor(User $user): self
+    {
+        $cookbook = self::create([
+            'name' => __('recipes.first_cookbook', [], $user->language === 'en' ? 'en' : 'nl'),
+            'created_by' => $user->id,
+        ]);
+        if ($user->favorite_cookbook_id === null) {
+            $user->favorite_cookbook_id = $cookbook->id;
+            $user->save();
+        }
+
+        return $cookbook;
     }
 
     public function isCreatedBy(User $user): bool
