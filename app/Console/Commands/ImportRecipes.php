@@ -17,6 +17,9 @@ use Illuminate\Support\Facades\Http;
  * or login token is needed. All recipes go into one cookbook the user may see (--cookbook, its id), whatever cookbook
  * they were in in the other app.
  *
+ * The file can be just a name: "elvin" is storage/app/imports/receptenmaker/elvin.json, where the exports are kept
+ * with the code. A path works too.
+ *
  * Running it again only adds what wasn't imported yet: the imported ids are kept next to the file. --refresh-photos
  * only fetches the photos again (in the larger size) for the recipes imported before, without adding or removing any.
  *
@@ -25,7 +28,7 @@ use Illuminate\Support\Facades\Http;
 class ImportRecipes extends Command
 {
     protected $signature = 'recipes:import
-        {file : JSON file with the recipes}
+        {file : JSON file with the recipes, or the name of one in storage/app/imports/receptenmaker}
         {--user= : Email address of the user they are for}
         {--cookbook= : Id of the cookbook they all go into}
         {--dry-run : Only show what would be imported}
@@ -83,13 +86,12 @@ class ImportRecipes extends Command
             return self::FAILURE;
         }
 
-        $cookbook = Cookbook::visibleTo($user)->find($this->option('cookbook'));
+        $cookbook = $this->cookbook($user, (string) $this->option('cookbook'));
         if (!$cookbook) {
-            $this->error('No cookbook with id ' . $this->option('cookbook') . " that {$user->email} can see.");
             return self::FAILURE;
         }
 
-        $file = $this->argument('file');
+        $file = $this->file($this->argument('file'));
         $recipes = is_file($file) ? json_decode(file_get_contents($file), true) : null;
         if (!is_array($recipes)) {
             $this->error("{$file} is not a JSON file with recipes.");
@@ -153,6 +155,29 @@ class ImportRecipes extends Command
 
         $this->info('Imported ' . count($todo) . ' recipes' . ($withoutPhoto ? ", {$withoutPhoto} without their photo (it couldn't be downloaded)" : '') . '.');
         return self::SUCCESS;
+    }
+
+    // The cookbook by its id, only one the user can see; by id only, so a name can't pick the wrong one
+    private function cookbook(User $user, string $id): ?Cookbook
+    {
+        $cookbook = ctype_digit($id) ? Cookbook::visibleTo($user)->find($id) : null;
+        if (!$cookbook) {
+            $this->error("No cookbook with id {$id} that {$user->email} can see.");
+            $this->line('Their cookbooks: ' . Cookbook::visibleTo($user)->orderBy('id')->get()->map(fn (Cookbook $c) => "{$c->id} \"{$c->name}\"")->implode(', '));
+        }
+
+        return $cookbook;
+    }
+
+    // A path as given, or a name (with or without .json) of an export kept in storage/app/imports/receptenmaker
+    private function file(string $file): string
+    {
+        if (is_file($file)) {
+            return $file;
+        }
+        $kept = storage_path('app/imports/receptenmaker/' . basename($file, '.json') . '.json');
+
+        return is_file($kept) ? $kept : $file;
     }
 
     private function title(array $recipe): string

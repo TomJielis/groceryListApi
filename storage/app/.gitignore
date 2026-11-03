@@ -8,4 +8,5 @@
 imports/*
 !imports/receptenmaker/
 imports/receptenmaker/*
-!imports/receptenmaker/recepten.json
+!imports/receptenmaker/*.json
+imports/receptenmaker/imported-user-*.json

@@ -114,6 +114,15 @@ class ImportRecipesTest extends TestCase
         $this->assertSame(0, Recipe::count());
     }
 
+    public function test_the_cookbook_is_given_by_its_id_never_its_name(): void
+    {
+        $user = User::factory()->create();
+        Cookbook::create(['name' => 'Recepten van Elvin', 'created_by' => $user->id]);
+
+        $this->assertSame(1, Artisan::call('recipes:import', ['file' => $this->file, '--user' => $user->email, '--cookbook' => 'Recepten van Elvin']));
+        $this->assertSame(0, Recipe::count());
+    }
+
     public function test_the_larger_photo_is_fetched_and_refresh_photos_replaces_only_the_photos(): void
     {
         $user = User::factory()->create();
