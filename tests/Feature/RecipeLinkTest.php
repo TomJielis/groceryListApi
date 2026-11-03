@@ -29,7 +29,7 @@ class RecipeLinkTest extends TestCase
 
         $cookbook = Cookbook::create(['name' => 'Mijn recepten', 'created_by' => $this->owner->id]);
         $this->recipe = Recipe::create([
-            'cookbook_id' => $cookbook->id, 'created_by' => $this->owner->id, 'title' => 'Pasta pesto', 'category' => 'main',
+            'cookbook_id' => $cookbook->id, 'created_by' => $this->owner->id, 'title' => 'Pasta pesto', 'categories' => ['main'],
             'servings' => 4, 'prep_minutes' => 10, 'difficulty' => 'easy', 'kcal' => 640,
         ]);
         $this->recipe->replaceParts([['name' => 'Penne', 'amount' => 400, 'unit' => 'g']], ['Kook de pasta.']);

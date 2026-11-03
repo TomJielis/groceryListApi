@@ -118,7 +118,7 @@ class AdminStatsControllerTest extends TestCase
 
     private function addRecipe(Cookbook $cookbook, User $by, string $title = 'Pasta'): Recipe
     {
-        return Recipe::create(['cookbook_id' => $cookbook->id, 'created_by' => $by->id, 'title' => $title, 'category' => 'main', 'servings' => 4, 'prep_minutes' => 0, 'difficulty' => 'easy']);
+        return Recipe::create(['cookbook_id' => $cookbook->id, 'created_by' => $by->id, 'title' => $title, 'categories' => ['main'], 'servings' => 4, 'prep_minutes' => 0, 'difficulty' => 'easy']);
     }
 
     public function test_recipes_and_cookbooks_this_month_and_in_total(): void

@@ -36,19 +36,27 @@ class ImportRecipes extends Command
 
     protected $description = 'Import recipes from another recipe app (JSON) into a user\'s cookbooks';
 
-    // The other app's categories, in ours (Recipe::CATEGORIES); anything else is a main course
+    // The other app's categories, in ours (App\Enums\RecipeCategory); one about something else ("Kip", "Vegetarisch")
+    // gives none
     private const CATEGORIES = [
+        'hoofdgerecht' => 'main',
+        'ovenschotel' => 'main',
+        'pasta' => 'main',
         'ontbijt' => 'breakfast',
         'brunch' => 'breakfast',
         'lunch' => 'lunch',
         'soep' => 'lunch',
+        'soepen' => 'lunch',
         'bijgerecht' => 'side',
         'salade' => 'side',
         'voorgerecht' => 'side',
         'amuse' => 'side',
         'tussengerecht' => 'side',
-        'snacks & drinks' => 'side',
+        'snacks & drinks' => 'snack',
+        'snacks' => 'snack',
+        'snack' => 'snack',
         'nagerecht' => 'dessert',
+        'dessert' => 'dessert',
         'ijs' => 'dessert',
         'cheesecake' => 'dessert',
         'patisserie' => 'dessert',
@@ -129,7 +137,7 @@ class ImportRecipes extends Command
                     'created_by' => $user->id,
                     'title' => $this->title($recipe),
                     'description' => $this->text($recipe['notes'] ?? '', 5000),
-                    'category' => $this->category($recipe['categories'] ?? []),
+                    'categories' => $this->categories($recipe['categories'] ?? []),
                     'servings' => $this->number($recipe['servings'] ?? null, 1, 100) ?? 4,
                     'prep_minutes' => $this->number($recipe['prep_minutes'] ?? null, 0, 1440) ?? 0,
                     'cook_minutes' => $this->number($recipe['cook_minutes'] ?? null, 0, 1440),
@@ -186,15 +194,14 @@ class ImportRecipes extends Command
         return $this->text($recipe['title'] ?? '', 255) ?: 'Naamloos recept';
     }
 
-    private function category(array $categories): string
+    private function categories(array $categories): array
     {
+        $ours = [];
         foreach ($categories as $category) {
-            if (isset(self::CATEGORIES[mb_strtolower(trim($category))])) {
-                return self::CATEGORIES[mb_strtolower(trim($category))];
-            }
+            $ours[] = self::CATEGORIES[mb_strtolower(trim($category))] ?? null;
         }
 
-        return 'main';
+        return array_values(array_unique(array_filter($ours)));
     }
 
     private function text(?string $value, int $max): ?string

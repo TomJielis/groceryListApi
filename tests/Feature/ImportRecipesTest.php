@@ -68,7 +68,8 @@ class ImportRecipesTest extends TestCase
         $this->assertSame(1, Cookbook::count());
 
         $tikka = Recipe::where('title', 'Kip tikka masala')->sole();
-        $this->assertSame('main', $tikka->category);
+        // "Kip" says nothing about the kind of meal
+        $this->assertSame([], $tikka->categories);
         $this->assertSame(4, $tikka->servings);
         $this->assertSame(30, $tikka->cook_minutes);
         $this->assertSame(650, $tikka->kcal);
@@ -84,7 +85,7 @@ class ImportRecipesTest extends TestCase
 
         // An incomplete one still comes in, with what's usable
         $untitled = Recipe::where('title', 'Naamloos recept')->sole();
-        $this->assertSame('dessert', $untitled->category);
+        $this->assertSame(['dessert'], $untitled->categories);
         $this->assertSame(4, $untitled->servings);
         $this->assertNull($untitled->oven_celsius);
         $this->assertNull($untitled->image_path);

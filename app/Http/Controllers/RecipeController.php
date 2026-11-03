@@ -38,7 +38,7 @@ class RecipeController extends Controller
     public function index(Request $request): JsonResponse
     {
         $recipes = Recipe::visibleTo($request->user())
-            ->with(['ingredients:id,recipe_id,name,position', 'favoritedBy:id', 'shownIn:id'])
+            ->with(['ingredients:id,recipe_id,name,position', 'favoritedBy:id', 'shownIn:id', 'categoryLinks:id,recipe_id,category'])
             // A to Z (MySQL's collation ignores capitals and accents); the id breaks ties
             ->orderBy('title')
             ->orderBy('id')
@@ -64,7 +64,7 @@ class RecipeController extends Controller
 
         $recipe = DB::transaction(function () use ($request, $user, $cookbook) {
             $recipe = Recipe::create([
-                ...$request->safe()->except(['ingredients', 'steps', 'cookbook_id']),
+                ...$this->fields($request),
                 'cookbook_id' => $cookbook->id,
                 'created_by' => $user->id,
             ]);
@@ -87,7 +87,7 @@ class RecipeController extends Controller
         }
 
         DB::transaction(function () use ($request, $recipe, $cookbookId) {
-            $recipe->update([...$request->safe()->except(['ingredients', 'steps', 'cookbook_id']), 'cookbook_id' => $cookbookId]);
+            $recipe->update([...$this->fields($request, $recipe), 'cookbook_id' => $cookbookId]);
             $recipe->replaceParts($request->validated('ingredients'), $request->validated('steps'));
             $this->syncShownIn($request, $recipe);
             // Moved to a cookbook it was shown in: it lives there now
@@ -250,6 +250,26 @@ class RecipeController extends Controller
         ]);
     }
 
+    /**
+     * The recipe's own fields as the form sent them. An app version from before categories sends one category: a new
+     * recipe gets just that one; an edit keeps its categories when the category is the one that version was shown
+     * (Recipe::category), so editing it there doesn't lose a snack or a second kind of meal.
+     */
+    private function fields(RecipeRequest $request, ?Recipe $recipe = null): array
+    {
+        $fields = $request->safe()->except(['ingredients', 'steps', 'cookbook_id', 'category', 'categories']);
+        if ($request->has('categories')) {
+            return [...$fields, 'categories' => array_values($request->validated('categories'))];
+        }
+        // LEGACY(category): for app builds before 60 (one category). Remove once nobody uses them.
+        $category = $request->validated('category');
+        if ($recipe && $category === $recipe->category) {
+            return $fields;
+        }
+
+        return [...$fields, 'categories' => [$category]];
+    }
+
     // Stops showing it in a cookbook: by the people in its own cookbook, or by the creator of the one it's shown in
     public function hideFrom(Request $request, int $id, int $cookbookId): JsonResponse
     {
@@ -346,6 +366,8 @@ class RecipeController extends Controller
             'id' => $recipe->id,
             'cookbook_id' => $recipe->cookbook_id,
             'title' => $recipe->title,
+            'categories' => $recipe->categories ?? [],
+            // LEGACY(category): for app builds before 60 (one category). Remove once nobody uses them.
             'category' => $recipe->category,
             'servings' => $recipe->servings,
             'prep_minutes' => $recipe->prep_minutes,
@@ -374,7 +396,7 @@ class RecipeController extends Controller
     // The whole recipe, as the recipe screen shows it
     private function present(Request $request, Recipe $recipe): array
     {
-        $recipe->loadMissing(['ingredients', 'steps', 'createdBy:id,name', 'favoritedBy:id', 'shownIn:id,name', 'cookbook:id,name']);
+        $recipe->loadMissing(['ingredients', 'steps', 'createdBy:id,name', 'favoritedBy:id', 'shownIn:id,name', 'cookbook:id,name', 'categoryLinks']);
         $editable = $this->isEditable($request, $recipe);
 
         return [

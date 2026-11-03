@@ -78,6 +78,8 @@ class RecipeLinkController extends Controller
             'recipe' => [
                 'title' => $recipe->title,
                 'description' => $recipe->description,
+                'categories' => $recipe->categories ?? [],
+                // LEGACY(category): for app builds before 60 (one category). Remove once nobody uses them.
                 'category' => $recipe->category,
                 'servings' => $recipe->servings,
                 'prep_minutes' => $recipe->prep_minutes,
@@ -152,7 +154,7 @@ class RecipeLinkController extends Controller
         $copy = DB::transaction(function () use ($original, $user, $cookbook, $imagePath) {
             $copy = Recipe::create([
                 ...$original->only([
-                    'title', 'description', 'category', 'servings', 'prep_minutes', 'cook_minutes', 'oven_minutes',
+                    'title', 'description', 'categories', 'servings', 'prep_minutes', 'cook_minutes', 'oven_minutes',
                     'oven_celsius', 'difficulty', 'kcal', 'protein', 'carbs', 'fat', 'source_url',
                 ]),
                 'cookbook_id' => $cookbook->id,

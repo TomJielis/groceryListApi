@@ -34,7 +34,7 @@ class RecipeAddToListTest extends TestCase
         $this->recipeId = $this->actingAs($this->user, 'sanctum')->postJson('/api/recipes/store', [
             'cookbook_id' => $cookbook->id,
             'title' => 'Pasta',
-            'category' => 'main',
+            'categories' => ['main'],
             'servings' => 4,
             'difficulty' => 'easy',
             'ingredients' => [['name' => 'Penne', 'amount' => 400, 'unit' => 'g']],

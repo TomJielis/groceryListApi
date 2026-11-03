@@ -40,7 +40,7 @@ class RecipeShownInTest extends TestCase
 
         $this->recipe = Recipe::create([
             'cookbook_id' => $this->together->id, 'created_by' => $this->tom->id, 'title' => 'Pasta pesto',
-            'category' => 'main', 'servings' => 4, 'prep_minutes' => 10, 'difficulty' => 'easy',
+            'categories' => ['main'], 'servings' => 4, 'prep_minutes' => 10, 'difficulty' => 'easy',
         ]);
     }
 
@@ -51,7 +51,7 @@ class RecipeShownInTest extends TestCase
 
     private function payload(array $overrides = []): array
     {
-        return ['cookbook_id' => $this->together->id, 'title' => 'Pasta pesto', 'category' => 'main', 'servings' => 4, 'difficulty' => 'easy', 'ingredients' => [], 'steps' => [], ...$overrides];
+        return ['cookbook_id' => $this->together->id, 'title' => 'Pasta pesto', 'categories' => ['main'], 'servings' => 4, 'difficulty' => 'easy', 'ingredients' => [], 'steps' => [], ...$overrides];
     }
 
     // Shows the recipe in the given cookbooks the way the form does: saved with the recipe
@@ -155,7 +155,7 @@ class RecipeShownInTest extends TestCase
         $this->actingAs($friend, 'sanctum')->getJson("/api/recipes/{$this->recipe->id}")->assertOk();
 
         // Tom shows another recipe of Samen koken in Familie himself
-        $second = Recipe::create(['cookbook_id' => $this->together->id, 'created_by' => $this->tom->id, 'title' => 'Soep', 'category' => 'main', 'servings' => 2, 'prep_minutes' => 5, 'difficulty' => 'easy']);
+        $second = Recipe::create(['cookbook_id' => $this->together->id, 'created_by' => $this->tom->id, 'title' => 'Soep', 'categories' => ['main'], 'servings' => 2, 'prep_minutes' => 5, 'difficulty' => 'easy']);
         $second->shownIn()->attach($this->family->id, ['shown_by' => $this->tom->id]);
 
         // Tom removes the partner from Samen koken: what they showed of it is gone, what Tom showed stays
@@ -200,7 +200,7 @@ class RecipeShownInTest extends TestCase
     public function test_the_creator_is_told_what_deleting_a_cookbook_takes_along(): void
     {
         $this->showIn($this->tom, [$this->family->id]);
-        Recipe::create(['cookbook_id' => $this->together->id, 'created_by' => $this->tom->id, 'title' => 'Soep', 'category' => 'main', 'servings' => 2, 'prep_minutes' => 5, 'difficulty' => 'easy']);
+        Recipe::create(['cookbook_id' => $this->together->id, 'created_by' => $this->tom->id, 'title' => 'Soep', 'categories' => ['main'], 'servings' => 2, 'prep_minutes' => 5, 'difficulty' => 'easy']);
 
         $together = collect($this->getJson('/api/cookbooks/index')->json('data'))->firstWhere('name', 'Samen koken');
         $this->assertSame(2, $together['own_recipes_count']);
@@ -255,17 +255,17 @@ class RecipeShownInTest extends TestCase
     {
         $second = Recipe::create([
             'cookbook_id' => $this->together->id, 'created_by' => $this->tom->id, 'title' => 'Lasagne',
-            'category' => 'main', 'servings' => 4, 'prep_minutes' => 10, 'difficulty' => 'easy',
+            'categories' => ['main'], 'servings' => 4, 'prep_minutes' => 10, 'difficulty' => 'easy',
         ]);
         // Already in the family cookbook (its own), and one the partner may not change (only shown to them)
         $alreadyThere = Recipe::create([
             'cookbook_id' => $this->family->id, 'created_by' => $this->tom->id, 'title' => 'Stamppot',
-            'category' => 'main', 'servings' => 4, 'prep_minutes' => 10, 'difficulty' => 'easy',
+            'categories' => ['main'], 'servings' => 4, 'prep_minutes' => 10, 'difficulty' => 'easy',
         ]);
         $strangers = Cookbook::create(['name' => 'Van iemand anders', 'created_by' => User::factory()->create()->id]);
         $notTheirs = Recipe::create([
             'cookbook_id' => $strangers->id, 'created_by' => $strangers->created_by, 'title' => 'Geheim',
-            'category' => 'main', 'servings' => 4, 'prep_minutes' => 10, 'difficulty' => 'easy',
+            'categories' => ['main'], 'servings' => 4, 'prep_minutes' => 10, 'difficulty' => 'easy',
         ]);
         $ids = [$this->recipe->id, $second->id, $alreadyThere->id, $notTheirs->id];
 
@@ -291,7 +291,7 @@ class RecipeShownInTest extends TestCase
     {
         $second = Recipe::create([
             'cookbook_id' => $this->together->id, 'created_by' => $this->tom->id, 'title' => 'Lasagne',
-            'category' => 'main', 'servings' => 4, 'prep_minutes' => 10, 'difficulty' => 'easy',
+            'categories' => ['main'], 'servings' => 4, 'prep_minutes' => 10, 'difficulty' => 'easy',
         ]);
         $this->showIn($this->tom, [$this->family->id])->assertOk();
         // Only shown to the father: he can't delete it

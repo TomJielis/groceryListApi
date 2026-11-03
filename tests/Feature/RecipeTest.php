@@ -28,7 +28,7 @@ class RecipeTest extends TestCase
         return [
             'title' => 'Pasta pesto',
             'description' => 'Snel en makkelijk',
-            'category' => 'main',
+            'categories' => ['main'],
             'servings' => 4,
             'prep_minutes' => 10,
             'cook_minutes' => 15,
@@ -45,6 +45,16 @@ class RecipeTest extends TestCase
             'steps' => ['Kook de pasta.', 'Meng met de pesto.'],
             ...$overrides,
         ];
+    }
+
+    // What app versions from before categories send: one category.
+    // LEGACY(category): for app builds before 60 (one category). Remove once nobody uses them.
+    private function oldApp(array $overrides = []): array
+    {
+        $payload = $this->payload($overrides);
+        unset($payload['categories']);
+
+        return $payload;
     }
 
     // The user's own cookbook, made the first time it's needed (in the app the user makes it)
@@ -154,7 +164,9 @@ class RecipeTest extends TestCase
         $this->actingAs($user, 'sanctum');
 
         $this->postJson('/api/recipes/store', $this->payload(['title' => '']))->assertUnprocessable()->assertJsonValidationErrors('title');
-        $this->postJson('/api/recipes/store', $this->payload(['category' => 'snack']))->assertUnprocessable()->assertJsonValidationErrors('category');
+        $this->postJson('/api/recipes/store', $this->oldApp(['category' => 'brunch']))->assertUnprocessable()->assertJsonValidationErrors('category');
+        $this->postJson('/api/recipes/store', $this->payload(['categories' => ['lunch', 'brunch']]))->assertUnprocessable()->assertJsonValidationErrors('categories.1');
+        $this->postJson('/api/recipes/store', $this->payload(['categories' => ['lunch', 'lunch']]))->assertUnprocessable()->assertJsonValidationErrors('categories.0');
         $this->postJson('/api/recipes/store', $this->payload(['servings' => 0]))->assertUnprocessable()->assertJsonValidationErrors('servings');
         $this->postJson('/api/recipes/store', $this->payload(['source_url' => 'javascript:alert(1)']))->assertUnprocessable()->assertJsonValidationErrors('source_url');
         $this->postJson('/api/recipes/store', $this->payload(['ingredients' => [['amount' => 1]]]))->assertUnprocessable()->assertJsonValidationErrors('ingredients.0.name');
@@ -345,5 +357,47 @@ class RecipeTest extends TestCase
             ->assertOk()->json('data.image_url');
 
         $this->assertStringStartsWith("https://api.example.com/api/recipes/{$id}/image?v=", $url);
+    }
+
+    public function test_a_recipe_is_none_one_or_more_kinds_of_meal_and_a_snack_is_one(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user, 'sanctum');
+        $payload = $this->payload(['cookbook_id' => $this->cookbookOf($user)->id]);
+
+        $both = $this->postJson('/api/recipes/store', [...$payload, 'categories' => ['breakfast', 'lunch']])->assertCreated();
+        $both->assertJsonPath('data.categories', ['breakfast', 'lunch']);
+        // An older app version sees the first one it knows
+        $both->assertJsonPath('data.category', 'breakfast');
+
+        $this->postJson('/api/recipes/store', [...$payload, 'categories' => ['snack']])->assertCreated()
+            ->assertJsonPath('data.categories', ['snack'])
+            ->assertJsonPath('data.category', 'main');
+        $this->postJson('/api/recipes/store', [...$payload, 'categories' => []])->assertCreated()
+            ->assertJsonPath('data.categories', []);
+    }
+
+    public function test_an_older_app_version_with_one_category_keeps_working_without_losing_the_others(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user, 'sanctum');
+
+        $cookbook = $this->cookbookOf($user)->id;
+        // The old app makes a recipe with one category
+        $id = $this->postJson('/api/recipes/store', $this->oldApp(['cookbook_id' => $cookbook, 'category' => 'lunch']))->assertCreated()
+            ->assertJsonPath('data.categories', ['lunch'])->json('data.id');
+
+        // The new app makes it breakfast, lunch and a snack
+        $new = $this->payload(['cookbook_id' => $cookbook, 'categories' => ['breakfast', 'lunch', 'snack']]);
+        $this->postJson("/api/recipes/{$id}/update", $new)->assertOk()->assertJsonPath('data.category', 'breakfast');
+
+        // The old app saves it again with the category it was shown: the three stay
+        $this->postJson("/api/recipes/{$id}/update", $this->oldApp(['cookbook_id' => $cookbook, 'category' => 'breakfast', 'title' => 'Andere titel']))->assertOk()
+            ->assertJsonPath('data.categories', ['breakfast', 'lunch', 'snack'])
+            ->assertJsonPath('data.title', 'Andere titel');
+
+        // The old app picks another category: that's what it is then
+        $this->postJson("/api/recipes/{$id}/update", $this->oldApp(['cookbook_id' => $cookbook, 'category' => 'dessert']))->assertOk()
+            ->assertJsonPath('data.categories', ['dessert']);
     }
 }

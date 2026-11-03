@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\RecipeCategory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,8 +12,6 @@ use Illuminate\Support\Facades\Storage;
 
 class Recipe extends Model
 {
-    public const CATEGORIES = ['breakfast', 'lunch', 'main', 'side', 'dessert'];
-
     public const DIFFICULTIES = ['easy', 'medium', 'hard'];
 
     // Photos are on the private disk: the app gets them through RecipeController::image, for members only
@@ -25,7 +24,8 @@ class Recipe extends Model
         'copied_from_recipe_id',
         'title',
         'description',
-        'category',
+        // Not a column: kept in recipe_categories (setCategoriesAttribute)
+        'categories',
         'servings',
         'prep_minutes',
         'cook_minutes',
@@ -53,6 +53,58 @@ class Recipe extends Model
             'carbs' => 'integer',
             'fat' => 'integer',
         ];
+    }
+
+    // The kinds of meal set on it, saved with it (booted)
+    private ?array $pendingCategories = null;
+
+    protected static function booted(): void
+    {
+        static::saved(function (Recipe $recipe) {
+            if ($recipe->pendingCategories === null) {
+                return;
+            }
+            $wanted = $recipe->pendingCategories;
+            $recipe->pendingCategories = null;
+            $recipe->categoryLinks()->whereNotIn('category', $wanted)->delete();
+            $have = $recipe->categoryLinks()->pluck('category')->map(fn (RecipeCategory $category) => $category->value)->all();
+            foreach (array_diff($wanted, $have) as $category) {
+                $recipe->categoryLinks()->create(['category' => $category]);
+            }
+            $recipe->unsetRelation('categoryLinks');
+        });
+    }
+
+    public function categoryLinks(): HasMany
+    {
+        return $this->hasMany(RecipeCategoryLink::class);
+    }
+
+    /** @return list<string> Its kinds of meal (RecipeCategory values), in the enum's order */
+    public function getCategoriesAttribute(): array
+    {
+        $set = $this->pendingCategories
+            ?? ($this->exists ? $this->categoryLinks->map(fn (RecipeCategoryLink $link) => $link->category->value)->all() : []);
+
+        return array_values(array_filter(RecipeCategory::values(), fn ($category) => in_array($category, $set, true)));
+    }
+
+    public function setCategoriesAttribute(?array $categories): void
+    {
+        $this->pendingCategories = array_values(array_unique(array_intersect($categories ?? [], RecipeCategory::values())));
+    }
+
+    // The one an older app version shows and sends: the first of its kinds of meal it knows, otherwise a main course.
+    // LEGACY(category): for app builds before 60 (one category). Remove once nobody uses them.
+    public function getCategoryAttribute(): string
+    {
+        foreach ($this->categories as $category) {
+            if (in_array(RecipeCategory::from($category), RecipeCategory::LEGACY, true)) {
+                return $category;
+            }
+        }
+
+        return RecipeCategory::Main->value;
     }
 
     public function cookbook(): BelongsTo

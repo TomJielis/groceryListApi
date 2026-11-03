@@ -37,7 +37,7 @@ class CookbookTest extends TestCase
         return $this->actingAs($user, 'sanctum')->postJson('/api/recipes/store', array_filter([
             'cookbook_id' => $cookbookId ?? Cookbook::visibleTo($user)->orderBy('id')->value('id'),
             'title' => $title,
-            'category' => 'main',
+            'categories' => ['main'],
             'servings' => 4,
             'difficulty' => 'easy',
             'ingredients' => [],
@@ -112,7 +112,7 @@ class CookbookTest extends TestCase
         $this->assertSame(0, Cookbook::count());
         // A recipe needs one to go into
         $this->postJson('/api/recipes/store', [
-            'title' => 'Pasta', 'category' => 'main', 'servings' => 4, 'difficulty' => 'easy', 'ingredients' => [], 'steps' => [],
+            'title' => 'Pasta', 'categories' => ['main'], 'servings' => 4, 'difficulty' => 'easy', 'ingredients' => [], 'steps' => [],
         ])->assertUnprocessable()->assertJsonPath('errors.cookbook_id.0', 'Please choose a cookbook.');
         $this->assertSame(0, Recipe::count());
     }
@@ -143,7 +143,7 @@ class CookbookTest extends TestCase
         $strangers = $this->newCookbook($stranger);
         $id = $this->createRecipe($user);
         $update = fn (int $cookbookId) => $this->actingAs($user, 'sanctum')->postJson("/api/recipes/{$id}/update", [
-            'cookbook_id' => $cookbookId, 'title' => 'Pasta', 'category' => 'main', 'servings' => 4, 'difficulty' => 'easy', 'ingredients' => [], 'steps' => [],
+            'cookbook_id' => $cookbookId, 'title' => 'Pasta', 'categories' => ['main'], 'servings' => 4, 'difficulty' => 'easy', 'ingredients' => [], 'steps' => [],
         ]);
 
         $update($other)->assertOk()->assertJsonPath('data.cookbook_id', $other);
@@ -151,7 +151,7 @@ class CookbookTest extends TestCase
         $this->assertSame($other, Recipe::find($id)->cookbook_id);
         // Saving straight into someone else's cookbook isn't possible either
         $this->actingAs($user, 'sanctum')->postJson('/api/recipes/store', [
-            'cookbook_id' => $strangers, 'title' => 'X', 'category' => 'main', 'servings' => 1, 'difficulty' => 'easy', 'ingredients' => [], 'steps' => [],
+            'cookbook_id' => $strangers, 'title' => 'X', 'categories' => ['main'], 'servings' => 1, 'difficulty' => 'easy', 'ingredients' => [], 'steps' => [],
         ])->assertForbidden();
     }
 
@@ -428,7 +428,7 @@ class CookbookTest extends TestCase
         $cookbook = $this->newCookbook($dutch);
 
         $errors = $this->postJson('/api/recipes/store', [
-            'cookbook_id' => $cookbook, 'title' => 'Pasta', 'category' => 'main', 'servings' => 150, 'difficulty' => 'easy',
+            'cookbook_id' => $cookbook, 'title' => 'Pasta', 'categories' => ['main'], 'servings' => 150, 'difficulty' => 'easy',
             'ingredients' => [['name' => 'Kaas', 'unit' => str_repeat('x', 31)]], 'steps' => [],
         ])->assertUnprocessable()->json('errors');
         $this->assertSame('Het aantal personen mag hoogstens 100 zijn.', $errors['servings'][0]);
