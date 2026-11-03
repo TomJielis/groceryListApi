@@ -42,7 +42,7 @@ class ImportRecipesTest extends TestCase
         file_put_contents($this->file, json_encode([
             [
                 'id' => '11', 'title' => 'Kip tikka masala',
-                'ingredients' => "Voor de kip:\n• 500 gr kipfilet\n- 1,5 el garam masala\n*½ ui\n\nverse koriander\n",
+                'ingredients' => "Voor de kip:\n• 500 gr kipfilet\n- 1,5 el garam masala\n*½ ui\n\nverse koriander\n70 gr/1 blikje tomatenpuree\n4 eetlepels (30 g) bloem\n",
                 'method' => "Bereiding:\n1. Snijd de kip.\n⸻\nStap 2\nBak de kip.<br />", 'notes' => 'Lekker met naan', 'servings' => '4', 'prep_minutes' => '',
                 'cook_minutes' => '30', 'oven_minutes' => '', 'oven_celsius' => '', 'kcal' => '650', 'protein' => '', 'carbs' => '', 'fat' => '',
                 'source_url' => 'https://www.google.com/search?q=https%3A%2F%2Fexample.com%2Ftikka%2F&sca_esv=1',
@@ -76,7 +76,7 @@ class ImportRecipesTest extends TestCase
         $this->assertSame('https://example.com/tikka/', $tikka->source_url);
         $this->assertSame($user->id, $tikka->created_by);
         $this->assertSame(
-            [['Kipfilet', 500.0, 'g'], ['Garam masala', 1.5, 'el'], ['Ui', 0.5, ''], ['Verse koriander', null, '']],
+            [['Kipfilet', 500.0, 'g'], ['Garam masala', 1.5, 'el'], ['Ui', 0.5, ''], ['Verse koriander', null, ''], ['Tomatenpuree', 70.0, 'g'], ['Bloem (30 g)', 4.0, 'el']],
             $tikka->ingredients->map(fn ($i) => [$i->name, $i->amount === null ? null : (float) $i->amount, $i->unit])->all()
         );
         $this->assertSame(['Snijd de kip.', 'Bak de kip.'], $tikka->steps->pluck('body')->all());

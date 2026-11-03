@@ -58,6 +58,7 @@ class ImportRecipes extends Command
     private const UNITS = [
         'g' => 'g', 'gr' => 'g', 'gr.' => 'g', 'gram' => 'g', 'grams' => 'g',
         'kg' => 'kg', 'kilo' => 'kg', 'kilogram' => 'kg', 'mg' => 'mg',
+        'oz' => 'oz', 'ounce' => 'oz', 'ounces' => 'oz', 'lb' => 'lb', 'lbs' => 'lb', 'pound' => 'lb', 'pounds' => 'lb',
         'ml' => 'ml', 'milliliter' => 'ml', 'cl' => 'cl', 'dl' => 'dl', 'l' => 'l', 'liter' => 'l',
         'el' => 'el', 'eetlepel' => 'el', 'eetlepels' => 'el', 'tl' => 'tl', 'theelepel' => 'tl', 'theelepels' => 'tl',
         'stuk' => 'stuk', 'stuks' => 'stuks', 'st' => 'stuk', 'st.' => 'stuk',
@@ -273,9 +274,20 @@ class ImportRecipes extends Command
         }
 
         $unit = '';
-        if ($amount !== null && preg_match('/^(\S+)\s*(.*)$/u', $rest, $word) && isset(self::UNITS[mb_strtolower($word[1])])) {
+        // The unit ends at a space, a slash or a bracket: "70 gr/1 blikje" is 70 gr
+        if ($amount !== null && preg_match('#^([^\s/(]+)\s*(.*)$#u', $rest, $word) && isset(self::UNITS[mb_strtolower($word[1])])) {
             $unit = self::UNITS[mb_strtolower($word[1])];
             $rest = trim($word[2]);
+        }
+        if ($amount !== null) {
+            // The same amount said another way: "70 gr/1 blikje tomatenpuree" is 70 gr tomatenpuree. A bracketed one
+            // goes after the name: "4 eetlepels (30 g) bloem" is 4 el bloem (30 g). Like parseIngredient in the app.
+            if (preg_match('#^/\s*\d+(?:[.,]\d+)?\s*([^\s,]+)\s+(.+)$#u', $rest, $alternative) && isset(self::UNITS[mb_strtolower($alternative[1])])) {
+                $rest = trim($alternative[2]);
+            }
+            if (preg_match('/^\(([^)]*)\)\s*(.+)$/u', $rest, $bracketed)) {
+                $rest = trim($bracketed[2]) . ' (' . trim($bracketed[1]) . ')';
+            }
         }
 
         // A name that would be empty ("2 stuks") keeps the whole line, so nothing gets lost
