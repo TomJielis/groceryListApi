@@ -250,4 +250,60 @@ class RecipeShownInTest extends TestCase
         $copyId = $this->postJson("/api/recipe-links/{$token}/save", ['cookbook_id' => $own->id])->assertCreated()->json('data.id');
         $this->getJson("/api/recipe-links/{$token}")->assertJsonPath('data.already.type', 'copy')->assertJsonPath('data.already.recipe_id', $copyId);
     }
+
+    public function test_several_recipes_are_shown_in_a_cookbook_at_once_and_only_the_users_own(): void
+    {
+        $second = Recipe::create([
+            'cookbook_id' => $this->together->id, 'created_by' => $this->tom->id, 'title' => 'Lasagne',
+            'category' => 'main', 'servings' => 4, 'prep_minutes' => 10, 'difficulty' => 'easy',
+        ]);
+        // Already in the family cookbook (its own), and one the partner may not change (only shown to them)
+        $alreadyThere = Recipe::create([
+            'cookbook_id' => $this->family->id, 'created_by' => $this->tom->id, 'title' => 'Stamppot',
+            'category' => 'main', 'servings' => 4, 'prep_minutes' => 10, 'difficulty' => 'easy',
+        ]);
+        $strangers = Cookbook::create(['name' => 'Van iemand anders', 'created_by' => User::factory()->create()->id]);
+        $notTheirs = Recipe::create([
+            'cookbook_id' => $strangers->id, 'created_by' => $strangers->created_by, 'title' => 'Geheim',
+            'category' => 'main', 'servings' => 4, 'prep_minutes' => 10, 'difficulty' => 'easy',
+        ]);
+        $ids = [$this->recipe->id, $second->id, $alreadyThere->id, $notTheirs->id];
+
+        $this->actingAs($this->partner, 'sanctum')->postJson('/api/recipes/show-in', ['recipe_ids' => $ids, 'cookbook_id' => $this->family->id])
+            ->assertOk()
+            ->assertJsonPath('shown', 2)
+            ->assertJsonPath('message', '2 recepten staan nu ook in "Familie".');
+        $this->assertEqualsCanonicalizing([$this->recipe->id, $second->id], $this->family->shownRecipes()->pluck('recipes.id')->all());
+        $this->assertSame($this->partner->id, (int) $this->family->shownRecipes()->first()->pivot->shown_by);
+        $this->assertSame(0, $notTheirs->shownIn()->count());
+
+        // Again: nothing twice
+        $this->postJson('/api/recipes/show-in', ['recipe_ids' => $ids, 'cookbook_id' => $this->family->id])
+            ->assertOk()->assertJsonPath('shown', 0);
+        $this->assertSame(2, $this->family->shownRecipes()->count());
+
+        // Only into a cookbook of theirs
+        $this->postJson('/api/recipes/show-in', ['recipe_ids' => $ids, 'cookbook_id' => $strangers->id])->assertForbidden();
+        $this->postJson('/api/recipes/show-in', ['recipe_ids' => [], 'cookbook_id' => $this->family->id])->assertUnprocessable();
+    }
+
+    public function test_several_recipes_are_deleted_at_once_but_only_the_users_own(): void
+    {
+        $second = Recipe::create([
+            'cookbook_id' => $this->together->id, 'created_by' => $this->tom->id, 'title' => 'Lasagne',
+            'category' => 'main', 'servings' => 4, 'prep_minutes' => 10, 'difficulty' => 'easy',
+        ]);
+        $this->showIn($this->tom, [$this->family->id])->assertOk();
+        // Only shown to the father: he can't delete it
+        $this->actingAs($this->father, 'sanctum')->postJson('/api/recipes/delete-many', ['recipe_ids' => [$this->recipe->id]])
+            ->assertOk()->assertJsonPath('deleted', 0);
+        $this->assertModelExists($this->recipe);
+
+        $this->actingAs($this->partner, 'sanctum')->postJson('/api/recipes/delete-many', ['recipe_ids' => [$this->recipe->id, $second->id]])
+            ->assertOk()
+            ->assertJsonPath('deleted', 2)
+            ->assertJsonPath('message', '2 recepten zijn verwijderd.');
+        $this->assertSame(0, Recipe::count());
+        $this->assertSame(0, $this->family->shownRecipes()->count());
+    }
 }

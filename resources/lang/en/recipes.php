@@ -35,6 +35,7 @@ return [
             ],
         ],
         'attributes' => [
+            'recipe_ids' => 'the recipes',
             'shown_in' => 'the also show in',
             'cookbook_id' => 'the cookbook',
             'title' => 'the title',
@@ -72,6 +73,8 @@ return [
     // The cookbook everyone gets when they register (Cookbook::createFirstFor)
     'first_cookbook' => 'My cookbook',
     'read_only' => "This recipe belongs to another cookbook; only the people in it can change it.",
+    'shown_many_in' => '{0} These recipes were already in ":cookbook".|{1} 1 recipe is now also in ":cookbook".|[2,*] :count recipes are now also in ":cookbook".',
+    'deleted_many' => '{0} No recipe was deleted.|{1} 1 recipe was deleted.|[2,*] :count recipes were deleted.',
     'hidden_from' => "The recipe is no longer shown in this cookbook.",
     'deleted' => 'Recipe deleted.',
     'image_deleted' => 'Photo deleted.',

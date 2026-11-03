@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\Recipe\RecipeAddToListRequest;
+use App\Http\Requests\Recipe\RecipeDeleteManyRequest;
 use App\Http\Requests\Recipe\RecipeFavoriteRequest;
 use App\Http\Requests\Recipe\RecipeImageRequest;
 use App\Http\Requests\Recipe\RecipeRequest;
+use App\Http\Requests\Recipe\RecipeShowManyInRequest;
 use App\Jobs\SendListActivityPush;
 use App\Models\Cookbook;
 use App\Models\GroceryList;
@@ -105,6 +107,20 @@ class RecipeController extends Controller
     }
 
     // Favorites are personal: a star in a shared cookbook doesn't change it for the others
+    // Deletes several recipes at once, like one by one: only the ones the user may change, the others are left
+    public function deleteMany(RecipeDeleteManyRequest $request): JsonResponse
+    {
+        $recipes = Recipe::editableBy($request->user())->whereIn('recipes.id', $request->validated('recipe_ids'))->get();
+        DB::transaction(fn () => $recipes->each->delete());
+        // The photos only once the recipes are gone, so a failed delete doesn't leave recipes without their photo
+        $recipes->each->deleteImage();
+
+        return response()->json([
+            'message' => trans_choice('recipes.deleted_many', $recipes->count(), ['count' => $recipes->count()], $this->language($request)),
+            'deleted' => $recipes->count(),
+        ]);
+    }
+
     public function favorite(RecipeFavoriteRequest $request, int $id): JsonResponse
     {
         $recipe = $this->ownRecipe($request, $id);
@@ -203,6 +219,34 @@ class RecipeController extends Controller
         return $disk->response($path, null, [
             'Content-Type' => 'image/jpeg',
             'Cache-Control' => 'private, max-age=604800',
+        ]);
+    }
+
+    /**
+     * Shows several recipes at once in one more cookbook of the user's, like ticking it under "Ook tonen in" in each
+     * recipe's form. Only recipes the user may change; the ones already in that cookbook (its own, or shown there
+     * before) are left as they are.
+     */
+    public function showManyIn(RecipeShowManyInRequest $request): JsonResponse
+    {
+        $user = $request->user();
+        $language = $this->language($request);
+        $cookbook = Cookbook::visibleTo($user)->find($request->validated('cookbook_id'));
+        if (!$cookbook) {
+            return response()->json(['message' => __('recipes.no_cookbook_access', [], $language)], 403);
+        }
+
+        $recipes = Recipe::editableBy($user)
+            ->whereIn('recipes.id', $request->validated('recipe_ids'))
+            ->where('recipes.cookbook_id', '!=', $cookbook->id)
+            ->whereDoesntHave('shownIn', fn ($query) => $query->whereKey($cookbook->id))
+            ->pluck('recipes.id');
+
+        $cookbook->shownRecipes()->attach($recipes->mapWithKeys(fn ($id) => [$id => ['shown_by' => $user->id]])->all());
+
+        return response()->json([
+            'message' => trans_choice('recipes.shown_many_in', $recipes->count(), ['count' => $recipes->count(), 'cookbook' => $cookbook->name], $language),
+            'shown' => $recipes->count(),
         ]);
     }
 

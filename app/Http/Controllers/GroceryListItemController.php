@@ -7,6 +7,8 @@ use App\Jobs\SendPushNotification;
 use App\Models\GroceryList;
 use App\Models\GroceryListItem;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class GroceryListItemController extends Controller
 {
@@ -189,6 +191,77 @@ class GroceryListItemController extends Controller
         return response()->json([
             'message' => 'Lijstitem succesvol verwijderd',
         ]);
+    }
+
+    /**
+     * Moves several products to another list of the user's, e.g. to the list of a shop where they're cheaper. Each
+     * goes there like adding it (an open product of that name gets the quantity added, otherwise it's a new row with
+     * its price) and leaves its own list like deleting it. Only products on lists the user may see.
+     */
+    public function move(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $data = $request->validate([
+            'ids' => 'required|array|min:1|max:500',
+            'ids.*' => 'integer',
+            'list_id' => 'required|integer',
+        ]);
+        $this->ensureListAccess($data['list_id']);
+        $targetId = (int) $data['list_id'];
+
+        $items = $this->accessibleItems($data['ids'])->reject(fn (GroceryListItem $item) => (int) $item->list_id === $targetId);
+        DB::transaction(function () use ($items, $targetId) {
+            foreach ($items as $item) {
+                $latestItem = GroceryListItem::where('list_id', $targetId)
+                    ->where('name', $item->name)
+                    ->orderByDesc('id')
+                    ->first();
+
+                if ($latestItem && !$latestItem->checked) {
+                    $latestItem->increment('quantity', $item->quantity);
+                } else {
+                    GroceryListItem::create([
+                        'name' => $item->name,
+                        'quantity' => $item->quantity,
+                        'list_id' => $targetId,
+                        'unit_price' => $item->unit_price ?? $latestItem?->unit_price,
+                    ]);
+                }
+                $item->delete();
+            }
+        });
+
+        if ($items->isNotEmpty()) {
+            SendListActivityPush::record($targetId, auth()->id(), 'items_added');
+        }
+
+        return response()->json([
+            'moved' => $items->count(),
+        ]);
+    }
+
+    // Deletes several products at once, like one by one; only on lists the user may see
+    public function deleteMany(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $data = $request->validate([
+            'ids' => 'required|array|min:1|max:500',
+            'ids.*' => 'integer',
+        ]);
+
+        $items = $this->accessibleItems($data['ids']);
+        GroceryListItem::whereKey($items->modelKeys())->delete();
+
+        return response()->json([
+            'deleted' => $items->count(),
+        ]);
+    }
+
+    // The products among the ids that are on a list the user may see (GroceryList's global scope)
+    private function accessibleItems(array $ids): Collection
+    {
+        return GroceryListItem::whereKey($ids)
+            ->whereIn('list_id', GroceryList::query()->select('id'))
+            ->orderBy('id')
+            ->get();
     }
 
     // Items can only be touched on lists the user may see: their own or one they accepted an invite for.

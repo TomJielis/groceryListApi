@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\Route;
 Route::group(['prefix' => 'recipes', 'as' => 'recipes.'], function () {
     Route::get('index', [RecipeController::class, 'index']);
     Route::post('store', [RecipeController::class, 'store']);
+    Route::post('show-in', [RecipeController::class, 'showManyIn']);
+    Route::post('delete-many', [RecipeController::class, 'deleteMany']);
     Route::get('{id}', [RecipeController::class, 'show'])->whereNumber('id');
     Route::post('{id}/update', [RecipeController::class, 'update'])->whereNumber('id');
     Route::delete('{id}/delete', [RecipeController::class, 'delete'])->whereNumber('id');

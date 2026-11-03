@@ -35,6 +35,7 @@ return [
             ],
         ],
         'attributes' => [
+            'recipe_ids' => 'de recepten',
             'shown_in' => 'het ook tonen in',
             'cookbook_id' => 'het kookboek',
             'title' => 'de titel',
@@ -72,6 +73,8 @@ return [
     // The cookbook everyone gets when they register (Cookbook::createFirstFor)
     'first_cookbook' => 'Mijn kookboek',
     'read_only' => "Dit recept is van een ander kookboek; alleen wie daarin zit kan het aanpassen.",
+    'shown_many_in' => '{0} Deze recepten stonden al in ":cookbook".|{1} 1 recept staat nu ook in ":cookbook".|[2,*] :count recepten staan nu ook in ":cookbook".',
+    'deleted_many' => '{0} Er is geen recept verwijderd.|{1} 1 recept is verwijderd.|[2,*] :count recepten zijn verwijderd.',
     'hidden_from' => "Het recept staat niet meer in dit kookboek.",
     'deleted' => 'Recept is verwijderd.',
     'image_deleted' => 'Foto is verwijderd.',
