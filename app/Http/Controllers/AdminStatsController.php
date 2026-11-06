@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Cookbook;
-use App\Models\CookbookInvite;
 use App\Models\GroceryList;
 use App\Models\GroceryListInvites;
 use App\Models\GroceryListInvitesStatus;
@@ -11,6 +10,7 @@ use App\Models\GroceryListItem;
 use App\Models\InvalidLoginAttempt;
 use App\Models\Recipe;
 use App\Models\User;
+use App\Services\RecipeStats;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -264,7 +264,7 @@ class AdminStatsController extends Controller
         ]);
     }
 
-    public function userDetail(Request $request, int $id): JsonResponse
+    public function userDetail(Request $request, int $id, RecipeStats $recipeStats): JsonResponse
     {
         $user = User::find($id);
 
@@ -354,7 +354,7 @@ class AdminStatsController extends Controller
                 'shared_with_user' => $sharedListIds->count(),
                 'total_access' => $allAccessibleListIds->count(),
             ],
-            'recipes' => $this->getUserRecipes($user, $currentMonth, $previousMonth),
+            'recipes' => $recipeStats->forUser($user, $currentMonth, $previousMonth),
             'items' => [
                 'current_month' => [
                     'period' => $currentMonth->format('Y-m'),
@@ -484,28 +484,6 @@ class AdminStatsController extends Controller
             'checked' => $checked,
             'avg_per_user' => $avgPerUser,
             'avg_per_list' => $avgPerList,
-        ];
-    }
-
-    // A user's cookbooks (own and shared with them) and the recipes they added in all; in the chosen month and the one
-    // before: the recipes added and cookbooks made
-    private function getUserRecipes(User $user, Carbon $currentMonth, Carbon $previousMonth): array
-    {
-        $inMonth = fn ($query, Carbon $month) => $query->whereYear('created_at', $month->year)->whereMonth('created_at', $month->month);
-        $month = fn (Carbon $month) => [
-            'added' => $inMonth(Recipe::where('created_by', $user->id), $month)->count(),
-            'cookbooks_created' => $inMonth(Cookbook::where('created_by', $user->id), $month)->count(),
-        ];
-
-        return [
-            'cookbooks_owned' => Cookbook::where('created_by', $user->id)->count(),
-            'cookbooks_shared_with_user' => CookbookInvite::where('user_id', $user->id)
-                ->where('status', GroceryListInvitesStatus::ACCEPTED)
-                ->count(),
-            'recipes_added' => Recipe::where('created_by', $user->id)->count(),
-            'recipes_access' => Recipe::visibleTo($user)->count(),
-            'current_month' => $month($currentMonth),
-            'previous_month' => $month($previousMonth),
         ];
     }
 

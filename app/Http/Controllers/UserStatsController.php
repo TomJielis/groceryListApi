@@ -7,6 +7,7 @@ use App\Models\GroceryListInvites;
 use App\Models\GroceryListInvitesStatus;
 use App\Models\GroceryListItem;
 use App\Models\User;
+use App\Services\RecipeStats;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,7 +15,7 @@ use Illuminate\Support\Facades\DB;
 
 class UserStatsController extends Controller
 {
-    public function stats(Request $request): JsonResponse
+    public function stats(Request $request, RecipeStats $recipeStats): JsonResponse
     {
         $user = auth()->user();
         $month = $this->parseMonth($request->query('month'));
@@ -76,6 +77,8 @@ class UserStatsController extends Controller
                     'most_checked' => $this->getMostCheckedItems($user->id, $allAccessibleListIds, $month),
                 ],
             ],
+            // Their recipes and cookbooks: added in the month (and the one before), and how many in all
+            'recipes' => $recipeStats->forUser($user, $month, $previousMonth),
             'available_months' => $this->getAvailableMonths($user->id, $allAccessibleListIds),
             'invalid_login_attempts' => [
                 'current_month' => $currentInvalidLoginAttempts,
