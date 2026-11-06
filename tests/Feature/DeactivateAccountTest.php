@@ -36,11 +36,11 @@ class DeactivateAccountTest extends TestCase
         // A list of their own, shared with the friend
         $this->ownList = GroceryList::create(['name' => 'Eigen', 'created_by' => $this->user->id]);
         GroceryListItem::create(['name' => 'Melk', 'quantity' => 1, 'list_id' => $this->ownList->id, 'created_by' => $this->user->id]);
-        GroceryListInvites::create(['grocery_list_id' => $this->ownList->id, 'user_id' => $this->friend->id, 'email' => $this->friend->email, 'status' => GroceryListInvitesStatus::ACCEPTED]);
+        GroceryListInvites::create(['grocery_list_id' => $this->ownList->id, 'user_id' => $this->friend->id, 'status' => GroceryListInvitesStatus::ACCEPTED]);
 
         // The friend's list they are a member of, with a product they added
         $this->friendsList = GroceryList::create(['name' => 'Van vriend', 'created_by' => $this->friend->id]);
-        GroceryListInvites::create(['grocery_list_id' => $this->friendsList->id, 'user_id' => $this->user->id, 'email' => $this->user->email, 'status' => GroceryListInvitesStatus::ACCEPTED]);
+        GroceryListInvites::create(['grocery_list_id' => $this->friendsList->id, 'user_id' => $this->user->id, 'status' => GroceryListInvitesStatus::ACCEPTED]);
         GroceryListItem::create(['name' => 'Brood', 'quantity' => 1, 'list_id' => $this->friendsList->id, 'created_by' => $this->user->id]);
 
         Card::create(['user_id' => $this->user->id, 'title' => 'Bonuskaart', 'attachment' => 'data:']);

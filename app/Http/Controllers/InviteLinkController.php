@@ -13,10 +13,10 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * Invite links: instead of an email, a link that's shared over WhatsApp and the like. Whoever opens it sees what it
- * invites to and accepts it with one tap, after which they're in like after an accepted email invite. Who may share
- * by email may make a link (lists: anyone in it, cookbooks: their creator). A link works for several people until it
- * expires (after InviteLink::DAYS_VALID days) or its maker withdraws it.
+ * Invite links, the only way to share a list or cookbook: a link that's shared over WhatsApp and the like. Whoever
+ * opens it sees what it invites to and accepts it with one tap, after which they're a member (an accepted row in
+ * grocery_list_invites / cookbook_invites). Lists: anyone in it may make a link, cookbooks: their creator. A link works
+ * for several people until it expires (after InviteLink::DAYS_VALID days) or its maker withdraws it.
  */
 class InviteLinkController extends Controller
 {
@@ -75,7 +75,7 @@ class InviteLinkController extends Controller
         ]]);
     }
 
-    // Joins the list or cookbook the link invites to, like accepting an email invite
+    // Joins the list or cookbook the link invites to
     public function accept(Request $request, string $token): JsonResponse
     {
         $user = $request->user();
@@ -90,28 +90,27 @@ class InviteLinkController extends Controller
 
         $type = $link->cookbook_id ? 'cookbook' : 'list';
         $id = $link->cookbook_id ?? $link->grocery_list_id;
+        // The name for "you're in X now", so the app needs no other request first
+        $name = $link->cookbook?->name ?? $link->groceryList->name;
         if ($this->isMember($link, $user->id)) {
-            return response()->json(['message' => __('invite-links.already_member', [], $language), 'data' => ['type' => $type, 'id' => $id]]);
+            return response()->json(['message' => __('invite-links.already_member', [], $language), 'data' => ['type' => $type, 'id' => $id, 'name' => $name, 'already_member' => true]]);
         }
 
         if ($link->cookbook) {
-            // An earlier email invite to this person becomes the accepted one, so there's never a second pending
             CookbookInvite::updateOrCreate(
                 ['cookbook_id' => $link->cookbook_id, 'user_id' => $user->id],
-                ['email' => $user->email, 'status' => GroceryListInvitesStatus::ACCEPTED],
+                ['status' => GroceryListInvitesStatus::ACCEPTED],
             );
-            CookbookInvite::where('cookbook_id', $link->cookbook_id)->whereNull('user_id')->where('email', $user->email)->delete();
             $this->notifyMaker($link, $user, (int) $link->cookbook->created_by, 'cookbook_invite_accepted', ['cookbook' => $link->cookbook->name], '/recipes');
         } else {
             GroceryListInvites::updateOrCreate(
                 ['grocery_list_id' => $link->grocery_list_id, 'user_id' => $user->id],
-                ['email' => $user->email, 'status' => GroceryListInvitesStatus::ACCEPTED],
+                ['status' => GroceryListInvitesStatus::ACCEPTED],
             );
-            GroceryListInvites::where('grocery_list_id', $link->grocery_list_id)->whereNull('user_id')->where('email', $user->email)->delete();
             $this->notifyMaker($link, $user, (int) $link->groceryList->created_by, 'invite_accepted', ['list' => $link->groceryList->name], '/list/' . $link->grocery_list_id);
         }
 
-        return response()->json(['message' => __('invite-links.accepted', [], $language), 'data' => ['type' => $type, 'id' => $id]]);
+        return response()->json(['message' => __('invite-links.accepted', [], $language), 'data' => ['type' => $type, 'id' => $id, 'name' => $name, 'already_member' => false]]);
     }
 
     private function isMember(InviteLink $link, int $userId): bool
@@ -123,7 +122,7 @@ class InviteLinkController extends Controller
         return $link->groceryList && in_array($userId, $link->groceryList->memberIds(), true);
     }
 
-    // The owner hears someone joined, like when an email invite is accepted
+    // The owner hears someone joined
     private function notifyMaker(InviteLink $link, $user, int $ownerId, string $type, array $replace, string $url): void
     {
         if ($ownerId !== $user->id) {

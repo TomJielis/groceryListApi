@@ -4,19 +4,13 @@ namespace App\Jobs;
 
 use App\Models\PushToken;
 use App\Models\User;
-use App\Services\MailService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Mail\Mailable;
 use Illuminate\Support\Facades\Http;
 
 /**
  * Sends a push notification to every device of a user through Expo's push service.
  * The text is translated in the user's own language: resources/lang/{nl,en}/push.php
- *
- * With a fallback mail (invites), the mail goes instead when the push reaches no device: the user has none (website
- * only, notifications never allowed), switched this kind off, Expo refuses it for every device, or sending keeps
- * failing. Whether someone saw a push can't be known; Expo only says whether it took it for a device.
  */
 class SendPushNotification implements ShouldQueue
 {
@@ -24,22 +18,19 @@ class SendPushNotification implements ShouldQueue
 
     private const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
-    // Tries before a failing push gives up (and the fallback mail goes)
+    // Tries before a failing push gives up
     public int $tries = 3;
 
     /**
-     * @param string $type    Key in push.php, e.g. 'list_shared'
+     * @param string $type    Key in push.php, e.g. 'list_removed'
      * @param array  $replace Placeholders for the text, e.g. ['user' => 'Tom', 'list' => 'Weekend']
      * @param array  $data    Sent along to the app, e.g. ['url' => '/list/12'] to open that screen on tap
-     * @param Mailable|null $fallbackMail  Sent to $fallbackEmail when the push reaches no device
      */
     public function __construct(
         public int $userId,
         public string $type,
         public array $replace = [],
         public array $data = [],
-        public ?Mailable $fallbackMail = null,
-        public ?string $fallbackEmail = null,
     ) {
     }
 
@@ -48,7 +39,6 @@ class SendPushNotification implements ShouldQueue
         $user = User::find($this->userId);
         // The user switched this kind of notification off in the app
         if (!$user || !$user->wantsPush($this->type)) {
-            $this->sendFallbackMail();
             return;
         }
 
@@ -60,7 +50,6 @@ class SendPushNotification implements ShouldQueue
 
         $tokens = $user->pushTokens()->pluck('token');
         if ($tokens->isEmpty()) {
-            $this->sendFallbackMail();
             return;
         }
 
@@ -72,27 +61,25 @@ class SendPushNotification implements ShouldQueue
         $title = $translate("push.{$this->type}.title");
         $body = $translate("push.{$this->type}.body");
 
-        // Every push sets the app icon badge to the open invites, so it is always current (0 clears it)
-        $badge = $user->pendingInviteCount();
-
         $messages = $tokens->map(fn (string $token) => [
             'to' => $token,
             'title' => $title,
             'body' => $body,
             'data' => (object) $this->data,
             'sound' => 'default',
-            'badge' => $badge,
+            // Nothing waits for the user any more (invites are links, accepted in one tap): 0 clears a badge left
+            // from the email invites
+            'badge' => 0,
         ])->values()->all();
 
         try {
             $response = Http::timeout(15)->acceptJson()->post(self::EXPO_PUSH_URL, $messages)->throw();
         } catch (\Throwable $e) {
-            // The queue tries again; on its last try (or run right away, without a queue) the mail goes instead
+            // The queue tries again; on its last try (or run right away, without a queue) it gives up
             if ($this->job !== null && $this->job->getConnectionName() !== 'sync' && $this->attempts() < $this->tries) {
                 throw $e;
             }
             report($e);
-            $this->sendFallbackMail();
             return;
         }
 
@@ -102,18 +89,6 @@ class SendPushNotification implements ShouldQueue
             if (($ticket['details']['error'] ?? null) === 'DeviceNotRegistered' && isset($messages[$index])) {
                 PushToken::where('token', $messages[$index]['to'])->delete();
             }
-        }
-
-        // Taken for at least one device ("ok"): that's the push; otherwise the mail
-        if (!collect($response->json('data', []))->contains(fn ($ticket) => ($ticket['status'] ?? null) === 'ok')) {
-            $this->sendFallbackMail();
-        }
-    }
-
-    private function sendFallbackMail(): void
-    {
-        if ($this->fallbackMail && $this->fallbackEmail) {
-            app(MailService::class)->send($this->fallbackMail, $this->fallbackEmail);
         }
     }
 }

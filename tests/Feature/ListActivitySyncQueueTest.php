@@ -31,7 +31,6 @@ class ListActivitySyncQueueTest extends TestCase
         GroceryListInvites::create([
             'grocery_list_id' => $list->id,
             'user_id' => $member->id,
-            'email' => $member->email,
             'status' => GroceryListInvitesStatus::ACCEPTED,
         ]);
         PushToken::create(['user_id' => $member->id, 'token' => 'ExponentPushToken[member]']);

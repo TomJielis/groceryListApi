@@ -5,14 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-// An invite to a cookbook, like GroceryListInvites: by email, so an address without an account can be invited too.
-// The status is one of GroceryListInvitesStatus.
+// Someone in a cookbook (besides its creator), like GroceryListInvites: a row is made when they accept an invite link
+// (InviteLinkController::accept). The status is GroceryListInvitesStatus::ACCEPTED.
 class CookbookInvite extends Model
 {
     protected $fillable = [
         'cookbook_id',
         'user_id',
-        'email',
         'status',
     ];
 

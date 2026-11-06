@@ -79,8 +79,6 @@ class RecipeLinkController extends Controller
                 'title' => $recipe->title,
                 'description' => $recipe->description,
                 'categories' => $recipe->categories ?? [],
-                // LEGACY(category): for app builds before 60 (one category). Remove once nobody uses them.
-                'category' => $recipe->category,
                 'servings' => $recipe->servings,
                 'prep_minutes' => $recipe->prep_minutes,
                 'cook_minutes' => $recipe->cook_minutes,

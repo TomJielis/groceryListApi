@@ -107,7 +107,7 @@ class RecipeAddToListTest extends TestCase
     {
         $friend = User::factory()->create();
         $friendsList = GroceryList::create(['name' => 'Samen', 'created_by' => $friend->id]);
-        GroceryListInvites::create(['grocery_list_id' => $friendsList->id, 'user_id' => $this->user->id, 'email' => $this->user->email, 'status' => GroceryListInvitesStatus::ACCEPTED]);
+        GroceryListInvites::create(['grocery_list_id' => $friendsList->id, 'user_id' => $this->user->id, 'status' => GroceryListInvitesStatus::ACCEPTED]);
 
         $this->add([['name' => 'Penne', 'quantity' => 1]], $friendsList->id)->assertOk();
 

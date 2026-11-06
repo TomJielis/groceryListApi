@@ -2,9 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\GroceryList;
-use App\Models\GroceryListInvites;
-use App\Models\GroceryListInvitesStatus;
 use App\Models\SentEmail;
 use App\Models\TemporaryPasswordCode;
 use App\Models\User;
@@ -90,65 +87,5 @@ class AccountSecurityTest extends TestCase
         $this->assertSame('sent', $logged->status);
         $this->assertNull($logged->body_html);
         $this->assertNull($logged->body_text);
-    }
-
-    public function test_sharing_with_someone_who_already_joined_sends_nothing(): void
-    {
-        $owner = User::factory()->create();
-        $member = User::factory()->create();
-        $list = GroceryList::create(['name' => 'Weekend', 'created_by' => $owner->id]);
-        GroceryListInvites::create(['grocery_list_id' => $list->id, 'user_id' => $member->id, 'email' => $member->email, 'status' => GroceryListInvitesStatus::ACCEPTED]);
-
-        $this->actingAs($owner, 'sanctum')
-            ->postJson('/api/grocery-list/share', ['groceryListId' => $list->id, 'email' => $member->email])
-            ->assertOk();
-
-        $this->assertDatabaseCount('grocery_list_invites', 1);
-        $this->assertDatabaseCount('sent_emails', 0);
-    }
-
-    public function test_sharing_with_your_own_address_in_other_letters_is_refused(): void
-    {
-        $owner = User::factory()->create(['email' => 'tom@example.com']);
-        $list = GroceryList::create(['name' => 'Weekend', 'created_by' => $owner->id]);
-
-        $this->actingAs($owner, 'sanctum')
-            ->postJson('/api/grocery-list/share', ['groceryListId' => $list->id, 'email' => 'Tom@Example.com'])
-            ->assertStatus(400);
-
-        $this->assertDatabaseCount('grocery_list_invites', 0);
-    }
-
-    public function test_invites_to_addresses_without_an_account_stay_separate(): void
-    {
-        // The invite email is written in the sender's language (every real account has one)
-        $owner = User::factory()->create(['language' => 'nl']);
-        $list = GroceryList::create(['name' => 'Weekend', 'created_by' => $owner->id]);
-
-        foreach (['a@example.com', 'b@example.com'] as $email) {
-            $this->actingAs($owner, 'sanctum')
-                ->postJson('/api/grocery-list/share', ['groceryListId' => $list->id, 'email' => $email])
-                ->assertOk();
-        }
-
-        $this->assertEqualsCanonicalizing(
-            ['a@example.com', 'b@example.com'],
-            GroceryListInvites::pluck('email')->all()
-        );
-    }
-
-    public function test_inviting_the_same_person_again_reuses_their_invite(): void
-    {
-        $owner = User::factory()->create();
-        $friend = User::factory()->create();
-        $list = GroceryList::create(['name' => 'Weekend', 'created_by' => $owner->id]);
-
-        foreach ([1, 2] as $attempt) {
-            $this->actingAs($owner, 'sanctum')
-                ->postJson('/api/grocery-list/share', ['groceryListId' => $list->id, 'email' => $friend->email])
-                ->assertOk();
-        }
-
-        $this->assertDatabaseCount('grocery_list_invites', 1);
     }
 }

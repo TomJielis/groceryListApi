@@ -28,8 +28,8 @@ class ItemIndexTest extends TestCase
         $shared = GroceryList::create(['name' => 'Shared', 'created_by' => $friend->id]);
         $pending = GroceryList::create(['name' => 'Pending', 'created_by' => $friend->id]);
         $foreign = GroceryList::create(['name' => 'Foreign', 'created_by' => $friend->id]);
-        GroceryListInvites::create(['grocery_list_id' => $shared->id, 'user_id' => $user->id, 'email' => $user->email, 'status' => GroceryListInvitesStatus::ACCEPTED]);
-        GroceryListInvites::create(['grocery_list_id' => $pending->id, 'user_id' => $user->id, 'email' => $user->email, 'status' => GroceryListInvitesStatus::PENDING]);
+        GroceryListInvites::create(['grocery_list_id' => $shared->id, 'user_id' => $user->id, 'status' => GroceryListInvitesStatus::ACCEPTED]);
+        GroceryListInvites::create(['grocery_list_id' => $pending->id, 'user_id' => $user->id, 'status' => 'pending']);
 
         $this->item($own, 'Melk', true);
         $newestMelk = $this->item($own, 'Melk');

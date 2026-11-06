@@ -55,7 +55,7 @@ class E2eUserCommandTest extends TestCase
         $web = User::where('email', 'e2e-web@e2e.test')->firstOrFail();
         $listId = DB::table('grocery_lists')->insertGetId(['name' => 'E2E', 'created_by' => $web->id]);
         DB::table('grocery_list_items')->insert(['name' => 'Milk', 'list_id' => $listId, 'created_by' => $web->id]);
-        DB::table('grocery_list_invites')->insert(['grocery_list_id' => $listId, 'email' => 'real@example.com', 'status' => 'pending']);
+        DB::table('grocery_list_invites')->insert(['grocery_list_id' => $listId, 'user_id' => $real->id, 'status' => 'accepted']);
 
         $this->assertSame(0, Artisan::call('e2e:user', ['action' => 'delete', 'email' => 'e2e-web*@e2e.test']));
 

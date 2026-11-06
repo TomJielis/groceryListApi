@@ -35,7 +35,7 @@ class AdminStatsControllerTest extends TestCase
         $this->user = User::factory()->create();
 
         $list = GroceryList::create(['name' => 'Weekend', 'created_by' => $this->user->id]);
-        GroceryListInvites::create(['grocery_list_id' => $list->id, 'user_id' => $this->admin->id, 'email' => $this->admin->email, 'status' => GroceryListInvitesStatus::ACCEPTED]);
+        GroceryListInvites::create(['grocery_list_id' => $list->id, 'user_id' => $this->admin->id, 'status' => GroceryListInvitesStatus::ACCEPTED]);
         GroceryListItem::create(['name' => 'Melk', 'quantity' => 3, 'list_id' => $list->id, 'created_by' => $this->user->id]);
         GroceryListItem::create(['name' => 'Brood', 'quantity' => 1, 'list_id' => $list->id, 'created_by' => $this->user->id, 'checked' => true]);
     }
@@ -125,7 +125,7 @@ class AdminStatsControllerTest extends TestCase
     {
         $own = Cookbook::create(['name' => 'Mijn recepten', 'created_by' => $this->user->id]);
         $shared = Cookbook::create(['name' => 'Samen', 'created_by' => $this->user->id]);
-        CookbookInvite::create(['cookbook_id' => $shared->id, 'user_id' => $this->admin->id, 'email' => $this->admin->email, 'status' => GroceryListInvitesStatus::ACCEPTED]);
+        CookbookInvite::create(['cookbook_id' => $shared->id, 'user_id' => $this->admin->id, 'status' => GroceryListInvitesStatus::ACCEPTED]);
         $this->addRecipe($own, $this->user);
         $this->addRecipe($shared, $this->admin);
         // Last month's recipe counts in the total, not in this month
@@ -146,7 +146,7 @@ class AdminStatsControllerTest extends TestCase
     {
         $own = Cookbook::create(['name' => 'Mijn recepten', 'created_by' => $this->user->id]);
         $theirs = Cookbook::create(['name' => 'Van de admin', 'created_by' => $this->admin->id]);
-        CookbookInvite::create(['cookbook_id' => $theirs->id, 'user_id' => $this->user->id, 'email' => $this->user->email, 'status' => GroceryListInvitesStatus::ACCEPTED]);
+        CookbookInvite::create(['cookbook_id' => $theirs->id, 'user_id' => $this->user->id, 'status' => GroceryListInvitesStatus::ACCEPTED]);
         $this->addRecipe($own, $this->user);
         $this->addRecipe($theirs, $this->user);
         $this->addRecipe($theirs, $this->admin);

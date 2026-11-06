@@ -35,12 +35,9 @@ class RecipeRequest extends FormRequest
             'cookbook_id'          => 'required|integer',
             'title'                => 'required|string|max:255',
             'description'          => 'nullable|string|max:5000',
-            // None, one or more kinds of meal; app versions from before that send one category instead
-            'categories'           => 'sometimes|array|max:' . count(RecipeCategory::cases()),
+            // None, one or more kinds of meal (an empty list: none)
+            'categories'           => 'present|array|max:' . count(RecipeCategory::cases()),
             'categories.*'         => ['distinct', Rule::enum(RecipeCategory::class)],
-            // LEGACY(category): for app builds before 60 (one category). Remove once nobody uses them.
-            // Only when categories isn't sent at all: an empty list (no kind of meal) is an answer too
-            'category'             => [Rule::requiredIf(fn () => !$this->has('categories')), Rule::enum(RecipeCategory::class)],
             'servings'             => 'required|integer|min:1|max:100',
             'prep_minutes'         => 'integer|min:0|max:1440',
             'cook_minutes'         => 'nullable|integer|min:0|max:1440',

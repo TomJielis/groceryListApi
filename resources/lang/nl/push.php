@@ -1,9 +1,5 @@
 <?php
 return [
-    'list_shared' => [
-        'title' => 'Nieuwe gedeelde lijst',
-        'body' => ':user wil de boodschappenlijst ":list" met je delen.',
-    ],
     'invite_accepted' => [
         'title' => 'Uitnodiging geaccepteerd',
         'body' => ':user doet nu mee met je boodschappenlijst ":list".',
@@ -15,10 +11,6 @@ return [
     'list_deleted' => [
         'title' => 'Lijst verwijderd',
         'body' => ':user heeft de boodschappenlijst ":list" verwijderd.',
-    ],
-    'cookbook_shared' => [
-        'title' => 'Nieuw gedeeld kookboek',
-        'body' => ':user wil het kookboek ":cookbook" met je delen.',
     ],
     'cookbook_invite_accepted' => [
         'title' => 'Uitnodiging geaccepteerd',

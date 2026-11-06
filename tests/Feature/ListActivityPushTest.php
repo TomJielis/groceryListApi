@@ -35,7 +35,6 @@ class ListActivityPushTest extends TestCase
         GroceryListInvites::create([
             'grocery_list_id' => $this->list->id,
             'user_id' => $this->member->id,
-            'email' => $this->member->email,
             'status' => GroceryListInvitesStatus::ACCEPTED,
         ]);
     }
@@ -139,23 +138,6 @@ class ListActivityPushTest extends TestCase
         Queue::assertPushed(SendPushNotification::class, fn ($job) => $job->userId === $this->member->id
             && $job->type === 'list_removed'
             && $job->replace === ['user' => 'Tom', 'list' => 'Weekend']);
-    }
-
-    public function test_withdrawing_a_pending_invite_sends_nothing(): void
-    {
-        $invited = User::factory()->create();
-        GroceryListInvites::create([
-            'grocery_list_id' => $this->list->id,
-            'user_id' => $invited->id,
-            'email' => $invited->email,
-            'status' => GroceryListInvitesStatus::PENDING,
-        ]);
-
-        $this->actingAs($this->owner, 'sanctum')
-            ->postJson('/api/grocery-list/unshare', ['groceryListId' => $this->list->id, 'userId' => $invited->id])
-            ->assertOk();
-
-        Queue::assertNotPushed(SendPushNotification::class);
     }
 
     public function test_deleting_a_list_tells_the_members(): void

@@ -10,7 +10,8 @@ use Illuminate\Support\Str;
 class InviteLink extends Model
 {
     // How long a link works
-    public const DAYS_VALID = 2;
+    // A week: links are the only way to invite, and some people only open a message after the weekend
+    public const DAYS_VALID = 7;
 
     protected $fillable = [
         'token',

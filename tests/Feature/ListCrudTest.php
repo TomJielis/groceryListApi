@@ -34,8 +34,8 @@ class ListCrudTest extends TestCase
         $this->invited = User::factory()->create();
         $this->stranger = User::factory()->create();
         $this->list = GroceryList::create(['name' => 'Weekend', 'created_by' => $this->owner->id]);
-        GroceryListInvites::create(['grocery_list_id' => $this->list->id, 'user_id' => $this->member->id, 'email' => $this->member->email, 'status' => GroceryListInvitesStatus::ACCEPTED]);
-        GroceryListInvites::create(['grocery_list_id' => $this->list->id, 'user_id' => $this->invited->id, 'email' => $this->invited->email, 'status' => GroceryListInvitesStatus::PENDING]);
+        GroceryListInvites::create(['grocery_list_id' => $this->list->id, 'user_id' => $this->member->id, 'status' => GroceryListInvitesStatus::ACCEPTED]);
+        GroceryListInvites::create(['grocery_list_id' => $this->list->id, 'user_id' => $this->invited->id, 'status' => 'pending']);
     }
 
     public function test_store_creates_a_list_owned_by_the_user(): void
@@ -47,6 +47,16 @@ class ListCrudTest extends TestCase
             ->assertJsonPath('data.created_by', $this->stranger->id);
 
         $this->assertDatabaseHas('grocery_lists', ['name' => 'Feestje', 'created_by' => $this->stranger->id]);
+    }
+
+    public function test_the_list_index_shows_only_who_joined(): void
+    {
+        // "Gedeeld met": the members, never a row that isn't accepted (like the old pending email invites)
+        $lists = $this->actingAs($this->owner, 'sanctum')->getJson('/api/grocery-list/index')->assertOk()->json('data');
+
+        $this->assertSame([$this->list->id], array_column($lists, 'id'));
+        $this->assertSame([$this->member->id], array_column($lists[0]['grocery_list_invites'], 'user_id'));
+        $this->assertSame($this->member->id, $lists[0]['grocery_list_invites'][0]['user']['id']);
     }
 
     public function test_the_list_endpoints_need_a_login(): void

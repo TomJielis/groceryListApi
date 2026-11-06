@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+// Someone on a list (besides its owner): a row is made when they accept an invite link (InviteLinkController::accept).
+// The status is GroceryListInvitesStatus::ACCEPTED.
 class GroceryListInvites extends Model
 {
     use HasFactory;
@@ -25,7 +27,6 @@ class GroceryListInvites extends Model
         'grocery_list_id',
         'user_id',
         'status',
-        'email'
     ];
 
     public function groceryList()

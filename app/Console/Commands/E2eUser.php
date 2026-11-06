@@ -103,9 +103,7 @@ class E2eUser extends Command
         $emails = DB::table('users')->where('email', 'like', $pattern)->pluck('email')->all();
 
         $count = $this->deleteUsers($emails);
-        // Invites and mails to test addresses without an account
-        DB::table('grocery_list_invites')->where('email', 'like', $pattern)->delete();
-        DB::table('cookbook_invites')->where('email', 'like', $pattern)->delete();
+        // Mails to test addresses without an account
         DB::table('sent_emails')->where('recipient_email', 'like', $pattern)->delete();
         DB::table('support_tickets')->where('email', 'like', $pattern)->delete();
 
@@ -129,11 +127,10 @@ class E2eUser extends Command
 
         DB::transaction(function () use ($userIds, $emails) {
             $this->deleteLists($userIds);
-            DB::table('grocery_list_invites')->whereIn('user_id', $userIds)->orWhereIn('email', $emails)->delete();
+            DB::table('grocery_list_invites')->whereIn('user_id', $userIds)->delete();
 
             DB::table('cards')->whereIn('user_id', $userIds)->delete();
             $this->leaveCookbooks($userIds);
-            DB::table('cookbook_invites')->whereIn('email', $emails)->delete();
             DB::table('push_tokens')->whereIn('user_id', $userIds)->delete();
             DB::table('successful_logins')->whereIn('user_id', $userIds)->delete();
             DB::table('temporary_password_codes')->whereIn('user_id', $userIds)->delete();

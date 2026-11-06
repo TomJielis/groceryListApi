@@ -13,7 +13,7 @@ use Tests\TestCase;
 
 /**
  * Lists and their items can only be changed by the owner and accepted members;
- * someone else (or someone whose invite is still pending) gets a 403/404 and nothing changes.
+ * someone else (or a row that isn't accepted, like the old pending email invites) gets a 403/404 and nothing changes.
  */
 class ListAccessTest extends TestCase
 {
@@ -36,8 +36,8 @@ class ListAccessTest extends TestCase
         $this->invited = User::factory()->create();
         $this->stranger = User::factory()->create();
         $this->list = GroceryList::create(['name' => 'Weekend', 'created_by' => $this->owner->id]);
-        GroceryListInvites::create(['grocery_list_id' => $this->list->id, 'user_id' => $this->member->id, 'email' => $this->member->email, 'status' => GroceryListInvitesStatus::ACCEPTED]);
-        GroceryListInvites::create(['grocery_list_id' => $this->list->id, 'user_id' => $this->invited->id, 'email' => $this->invited->email, 'status' => GroceryListInvitesStatus::PENDING]);
+        GroceryListInvites::create(['grocery_list_id' => $this->list->id, 'user_id' => $this->member->id, 'status' => GroceryListInvitesStatus::ACCEPTED]);
+        GroceryListInvites::create(['grocery_list_id' => $this->list->id, 'user_id' => $this->invited->id, 'status' => 'pending']);
         $this->item = GroceryListItem::create(['name' => 'Melk', 'quantity' => 2, 'list_id' => $this->list->id, 'checked' => false]);
     }
 

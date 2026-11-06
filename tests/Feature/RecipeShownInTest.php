@@ -46,7 +46,7 @@ class RecipeShownInTest extends TestCase
 
     private function join(Cookbook $cookbook, User $user): void
     {
-        CookbookInvite::create(['cookbook_id' => $cookbook->id, 'user_id' => $user->id, 'email' => $user->email, 'status' => GroceryListInvitesStatus::ACCEPTED]);
+        CookbookInvite::create(['cookbook_id' => $cookbook->id, 'user_id' => $user->id, 'status' => GroceryListInvitesStatus::ACCEPTED]);
     }
 
     private function payload(array $overrides = []): array

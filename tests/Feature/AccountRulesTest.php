@@ -162,12 +162,12 @@ class AccountRulesTest extends TestCase
 
         for ($i = 0; $i < 30; $i++) {
             $this->actingAs($owner, 'sanctum')
-                ->postJson('/api/grocery-list/share', ['groceryListId' => $list->id, 'email' => "friend{$i}@example.com"])
+                ->postJson("/api/grocery-list/{$list->id}/invite-link")
                 ->assertOk();
         }
 
         $this->actingAs($owner, 'sanctum')
-            ->postJson('/api/grocery-list/share', ['groceryListId' => $list->id, 'email' => 'friend30@example.com'])
+            ->postJson("/api/grocery-list/{$list->id}/invite-link")
             ->assertStatus(429);
     }
 
@@ -244,7 +244,7 @@ class AccountRulesTest extends TestCase
         PushToken::create(['user_id' => $user->id, 'access_token_id' => $login->accessToken->id, 'token' => 'ExponentPushToken[abc]']);
 
         $this->travel(15)->days();
-        (new SendPushNotification($user->id, 'list_shared', ['user' => 'Tom', 'list' => 'Weekend']))->handle();
+        (new SendPushNotification($user->id, 'invite_accepted', ['user' => 'Tom', 'list' => 'Weekend']))->handle();
 
         Http::assertNothingSent();
         $this->assertSame(0, PushToken::count());

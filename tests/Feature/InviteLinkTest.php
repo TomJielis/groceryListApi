@@ -57,12 +57,13 @@ class InviteLinkTest extends TestCase
             ->assertJsonPath('data.already_member', null);
 
         $this->actingAs($this->friend, 'sanctum')->postJson("/api/invite-links/{$token}/accept")
-            ->assertOk()->assertJsonPath('data.type', 'list')->assertJsonPath('data.id', $list->id);
+            ->assertOk()->assertJsonPath('data.type', 'list')->assertJsonPath('data.id', $list->id)
+            ->assertJsonPath('data.name', 'Weekend')->assertJsonPath('data.already_member', false);
         $this->assertContains($this->friend->id, $list->memberIds());
         Queue::assertPushed(SendPushNotification::class, fn ($job) => $job->userId === $this->owner->id && $job->type === 'invite_accepted');
 
         // Accepting again changes nothing
-        $this->postJson("/api/invite-links/{$token}/accept")->assertOk();
+        $this->postJson("/api/invite-links/{$token}/accept")->assertOk()->assertJsonPath('data.already_member', true);
         $this->assertSame(1, GroceryListInvites::where('user_id', $this->friend->id)->count());
         $this->assertTrue($this->getJson("/api/invite-links/{$token}")->json('data.already_member'));
     }
@@ -70,15 +71,11 @@ class InviteLinkTest extends TestCase
     public function test_a_cookbook_link_is_for_its_creator_and_joins_the_cookbook(): void
     {
         $cookbook = Cookbook::create(['name' => 'Samen koken', 'created_by' => $this->owner->id]);
-        CookbookInvite::create(['cookbook_id' => $cookbook->id, 'user_id' => null, 'email' => $this->friend->email, 'status' => GroceryListInvitesStatus::PENDING]);
-
         $token = $this->tokenOf($this->actingAs($this->owner, 'sanctum')->postJson("/api/cookbooks/{$cookbook->id}/invite-link")->assertOk()->json('data.url'));
 
         $this->actingAs($this->friend, 'sanctum')->postJson("/api/invite-links/{$token}/accept")
-            ->assertOk()->assertJsonPath('data.type', 'cookbook');
+            ->assertOk()->assertJsonPath('data.type', 'cookbook')->assertJsonPath('data.name', 'Samen koken');
         $this->assertContains($this->friend->id, $cookbook->memberIds());
-        // The earlier email invite doesn't stay pending next to it
-        $this->assertSame(0, CookbookInvite::where('status', GroceryListInvitesStatus::PENDING)->count());
         Queue::assertPushed(SendPushNotification::class, fn ($job) => $job->userId === $this->owner->id && $job->type === 'cookbook_invite_accepted');
 
         // Someone in it who isn't the creator can't make a link

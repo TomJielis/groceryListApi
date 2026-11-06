@@ -47,11 +47,6 @@ class Cookbook extends Model
         return $this->invites()->where('status', GroceryListInvitesStatus::ACCEPTED);
     }
 
-    public function pendingInvites(): HasMany
-    {
-        return $this->invites()->where('status', GroceryListInvitesStatus::PENDING);
-    }
-
     /**
      * The cookbooks the user may see, like GroceryList's global scope: their own and the ones they accepted an
      * invite for

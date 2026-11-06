@@ -13,10 +13,6 @@ enum RecipeCategory: string
     case Snack = 'snack';
     case Dessert = 'dessert';
 
-    // What app versions from before categories know: they send and show one of these (Recipe::category).
-    // LEGACY(category): for app builds before 60 (one category). Remove once nobody uses them.
-    public const LEGACY = [self::Breakfast, self::Lunch, self::Main, self::Side, self::Dessert];
-
     /** @return list<string> In this order: how the app lists them */
     public static function values(): array
     {

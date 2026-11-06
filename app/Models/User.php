@@ -56,7 +56,7 @@ class User extends Authenticatable implements MustVerifyEmail
      * (types are the keys in resources/lang/{nl,en}/push.php).
      */
     public const NOTIFICATION_SETTINGS = [
-        'invites' => ['list_shared', 'invite_accepted', 'cookbook_shared', 'cookbook_invite_accepted'],
+        'invites' => ['invite_accepted', 'cookbook_invite_accepted'],
         'list_changes' => ['list_removed', 'list_deleted', 'cookbook_removed', 'cookbook_deleted'],
         'items_added' => ['items_added'],
         'items_checked' => ['items_checked'],
@@ -164,24 +164,5 @@ class User extends Authenticatable implements MustVerifyEmail
     public function pushTokens()
     {
         return $this->hasMany(PushToken::class, 'user_id', 'id');
-    }
-
-    /**
-     * Number of lists and cookbooks waiting for this user to accept or decline; shown as the app icon badge.
-     * Matches GroceryListController::pending and CookbookController::pending: invites by user id, or by email when
-     * sent before signing up.
-     */
-    public function pendingInviteCount(): int
-    {
-        $lists = GroceryListInvites::where('status', GroceryListInvitesStatus::PENDING)
-            ->where(fn ($query) => $query->where('user_id', $this->id)->orWhere('email', $this->email))
-            ->distinct()
-            ->count('grocery_list_id');
-        $cookbooks = CookbookInvite::where('status', GroceryListInvitesStatus::PENDING)
-            ->where(fn ($query) => $query->where('user_id', $this->id)->orWhere('email', $this->email))
-            ->distinct()
-            ->count('cookbook_id');
-
-        return $lists + $cookbooks;
     }
 }

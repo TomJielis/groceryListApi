@@ -72,7 +72,7 @@ class NotificationSettingsTest extends TestCase
         Http::assertNothingSent();
 
         // Other kinds still arrive
-        (new SendPushNotification($user->id, 'list_shared', ['user' => 'Tom', 'list' => 'Weekend']))->handle();
+        (new SendPushNotification($user->id, 'invite_accepted', ['user' => 'Tom', 'list' => 'Weekend']))->handle();
         Http::assertSentCount(1);
     }
 }

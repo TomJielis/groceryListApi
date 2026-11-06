@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
-// Cookbooks work like grocery lists: several per user, each private or shared by email. Only the creator renames one,
+// Cookbooks work like grocery lists: several per user, each private or shared by invite link. Only the creator renames one,
 // decides who is in it and deletes it, for everyone.
 class CookbookTest extends TestCase
 {
@@ -50,11 +50,11 @@ class CookbookTest extends TestCase
         return in_array($user->id, Cookbook::find($cookbookId)->memberIds(), true);
     }
 
+    // The creator makes an invite link and the partner accepts it, like in the app
     private function shareAndAccept(User $owner, int $cookbookId, User $partner): void
     {
-        $this->actingAs($owner, 'sanctum')->postJson("/api/cookbooks/{$cookbookId}/share", ['email' => $partner->email])->assertOk();
-        $inviteId = $this->actingAs($partner, 'sanctum')->getJson('/api/cookbooks/pending')->json('data.0.id');
-        $this->postJson("/api/cookbooks/pending/{$inviteId}/update-status", ['status' => 'accepted'])->assertOk();
+        $token = $this->actingAs($owner, 'sanctum')->postJson("/api/cookbooks/{$cookbookId}/invite-link")->assertOk()->json('data.token');
+        $this->actingAs($partner, 'sanctum')->postJson("/api/invite-links/{$token}/accept")->assertOk();
     }
 
     public function test_registering_gives_a_first_cookbook_in_the_users_language_as_favourite(): void
@@ -155,7 +155,7 @@ class CookbookTest extends TestCase
         ])->assertForbidden();
     }
 
-    public function test_sharing_invites_by_email_and_accepting_shows_the_recipes(): void
+    public function test_joining_by_invite_link_shows_the_recipes(): void
     {
         $owner = User::factory()->create(['name' => 'Tom']);
         $partner = User::factory()->create();
@@ -164,76 +164,22 @@ class CookbookTest extends TestCase
         $this->createRecipe($owner, $private, 'Geheim recept');
         $sharedRecipe = $this->createRecipe($owner, $shared, 'Gedeeld recept');
 
-        $this->postJson("/api/cookbooks/{$shared}/share", ['email' => $partner->email])
-            ->assertOk()->assertJsonPath('data.pending_invites.0.email', $partner->email);
-        Queue::assertPushed(SendPushNotification::class, fn ($job) => $job->userId === $partner->id && $job->type === 'cookbook_shared');
-
-        // Before accepting: nothing of it yet
+        // Before joining: nothing of it yet
         $this->actingAs($partner, 'sanctum');
         $this->assertSame([], $this->getJson('/api/recipes/index')->json('data'));
-        $pending = $this->getJson('/api/cookbooks/pending')->assertOk()->json('data.0');
-        $this->assertSame('Samen koken', $pending['cookbook']['name']);
-        $this->assertSame('Tom', $pending['created_by']['name']);
 
-        $this->postJson("/api/cookbooks/pending/{$pending['id']}/update-status", ['status' => 'accepted'])->assertOk();
+        $this->shareAndAccept($owner, $shared, $partner);
         Queue::assertPushed(SendPushNotification::class, fn ($job) => $job->userId === $owner->id && $job->type === 'cookbook_invite_accepted');
 
         // Only the shared cookbook's recipes. Having a cookbook now, the partner doesn't get an empty one of their own
         // too (like lists, they can make one)
         $this->assertSame([$sharedRecipe], array_column($this->getJson('/api/recipes/index')->json('data'), 'id'));
         $this->assertSame(['Samen koken'], array_column($this->getJson('/api/cookbooks/index')->json('data'), 'name'));
-        $this->assertSame([], $this->getJson('/api/cookbooks/pending')->json('data'));
         $members = $this->getJson('/api/cookbooks/index')->json('data.0.members');
         $this->assertSame([$owner->id, $partner->id], array_column($members, 'id'));
         $this->assertSame($owner->id, $this->getJson('/api/cookbooks/index')->json('data.0.created_by.id'));
-    }
-
-    public function test_an_invite_to_an_address_without_an_account_works_once_they_register(): void
-    {
-        $owner = User::factory()->create();
-        $shared = $this->newCookbook($owner);
-        $this->postJson("/api/cookbooks/{$shared}/share", ['email' => 'nieuw@example.com'])->assertOk();
-        Queue::assertNotPushed(SendPushNotification::class);
-
-        $newcomer = User::factory()->create(['email' => 'nieuw@example.com']);
-        $this->shareAccepted($newcomer, $shared);
-    }
-
-    private function shareAccepted(User $user, int $cookbookId): void
-    {
-        $inviteId = $this->actingAs($user, 'sanctum')->getJson('/api/cookbooks/pending')->json('data.0.id');
-        $this->postJson("/api/cookbooks/pending/{$inviteId}/update-status", ['status' => 'accepted'])->assertOk();
-        $this->assertTrue($this->isMember($cookbookId, $user));
-    }
-
-    public function test_declining_adds_nothing_and_someone_elses_invite_cant_be_used(): void
-    {
-        $owner = User::factory()->create();
-        $partner = User::factory()->create();
-        $stranger = User::factory()->create();
-        $shared = $this->newCookbook($owner);
-        $this->postJson("/api/cookbooks/{$shared}/share", ['email' => $partner->email]);
-        $inviteId = CookbookInvite::sole()->id;
-
-        $this->actingAs($stranger, 'sanctum')->postJson("/api/cookbooks/pending/{$inviteId}/update-status", ['status' => 'accepted'])->assertNotFound();
-        $this->actingAs($partner, 'sanctum')->postJson("/api/cookbooks/pending/{$inviteId}/update-status", ['status' => 'declined'])->assertOk();
-
-        $this->assertFalse($this->isMember($shared, $partner));
-        $this->assertFalse($this->isMember($shared, $stranger));
-    }
-
-    public function test_sharing_with_yourself_or_an_existing_member_sends_nothing(): void
-    {
-        $owner = User::factory()->create();
-        $partner = User::factory()->create();
-        $shared = $this->newCookbook($owner);
-        $this->shareAndAccept($owner, $shared, $partner);
-        Queue::fake();
-
-        $this->actingAs($owner, 'sanctum')->postJson("/api/cookbooks/{$shared}/share", ['email' => $owner->email])->assertStatus(400);
-        $this->postJson("/api/cookbooks/{$shared}/share", ['email' => $partner->email])->assertOk();
-        Queue::assertNothingPushed();
-        $this->postJson("/api/cookbooks/{$shared}/share", ['email' => 'geen-adres'])->assertUnprocessable()->assertJsonValidationErrors('email');
+        // Email invites are gone, and with them the invites waiting to be accepted
+        $this->getJson('/api/cookbooks/index')->assertJsonMissingPath('data.0.pending_invites');
     }
 
     public function test_a_member_leaves_and_the_cookbook_stays_with_the_creator(): void
@@ -263,9 +209,8 @@ class CookbookTest extends TestCase
         $this->actingAs($partner, 'sanctum');
         $this->postJson("/api/cookbooks/{$shared}/update", ['name' => 'Van mij'])
             ->assertForbidden()->assertJsonPath('message', 'Alleen de maker van het kookboek kan dit.');
-        $this->postJson("/api/cookbooks/{$shared}/share", ['email' => 'vriend@example.com'])->assertForbidden();
+        $this->postJson("/api/cookbooks/{$shared}/invite-link")->assertForbidden();
         $this->assertSame('Samen', Cookbook::find($shared)->name);
-        $this->assertSame(0, CookbookInvite::where('email', 'vriend@example.com')->count());
         // Adding and editing recipes in it is fine
         $this->createRecipe($partner, $shared, 'Van de partner');
     }
@@ -328,7 +273,7 @@ class CookbookTest extends TestCase
 
         $this->actingAs($stranger, 'sanctum');
         $this->postJson("/api/cookbooks/{$cookbook}/update", ['name' => 'Overgenomen'])->assertNotFound();
-        $this->postJson("/api/cookbooks/{$cookbook}/share", ['email' => 'a@example.com'])->assertNotFound();
+        $this->postJson("/api/cookbooks/{$cookbook}/invite-link")->assertNotFound();
         $this->deleteJson("/api/cookbooks/{$cookbook}/delete")->assertNotFound();
         $this->assertSame('Mijn recepten', Cookbook::find($cookbook)->name);
     }
@@ -352,17 +297,6 @@ class CookbookTest extends TestCase
         $this->assertNotNull(Recipe::find($ownersRecipe));
         $this->assertNull(Recipe::find($ownersRecipe)->created_by);
         $this->assertSame([$partner->id], Cookbook::find($partners)->memberIds());
-    }
-
-    public function test_deleting_an_account_removes_invites_to_its_address(): void
-    {
-        $owner = User::factory()->create();
-        $partner = User::factory()->create();
-        $shared = $this->newCookbook($owner);
-        $this->postJson("/api/cookbooks/{$shared}/share", ['email' => $partner->email]);
-
-        $this->actingAs($partner, 'sanctum')->postJson('/api/deactivate')->assertOk();
-        $this->assertSame(0, CookbookInvite::count());
     }
 
     public function test_a_favorite_cookbook_is_personal_and_forgotten_when_leaving_or_deleted(): void
@@ -392,34 +326,6 @@ class CookbookTest extends TestCase
         $this->postJson('/api/cookbooks/favorite', ['cookbook_id' => $shared])->assertOk();
         $this->deleteJson("/api/cookbooks/{$shared}/delete")->assertOk();
         $this->assertNull($owner->fresh()->favorite_cookbook_id);
-    }
-
-    public function test_the_creator_withdraws_a_pending_invite_also_to_an_address_without_an_account(): void
-    {
-        $owner = User::factory()->create();
-        $partner = User::factory()->create();
-        $shared = $this->newCookbook($owner);
-        $this->postJson("/api/cookbooks/{$shared}/share", ['email' => 'nieuw@example.com'])->assertOk();
-        $inviteId = $this->getJson('/api/cookbooks/index')->json('data.0.pending_invites.0.id');
-        $this->shareAndAccept($owner, $shared, $partner);
-
-        // Someone else in it can't
-        $this->actingAs($partner, 'sanctum')->deleteJson("/api/cookbooks/{$shared}/invites/{$inviteId}")->assertForbidden();
-        $this->actingAs($owner, 'sanctum')->deleteJson("/api/cookbooks/{$shared}/invites/{$inviteId}")
-            ->assertOk()->assertJsonPath('data.pending_invites', []);
-        $this->assertSame(0, CookbookInvite::where('email', 'nieuw@example.com')->count());
-        // An accepted invite isn't withdrawn this way (that's removing a member)
-        $acceptedId = CookbookInvite::where('user_id', $partner->id)->value('id');
-        $this->deleteJson("/api/cookbooks/{$shared}/invites/{$acceptedId}")->assertNotFound();
-    }
-
-    public function test_sharing_with_your_own_address_in_other_letters_is_refused(): void
-    {
-        $owner = User::factory()->create(['email' => 'tom@example.com']);
-        $shared = $this->newCookbook($owner);
-
-        $this->postJson("/api/cookbooks/{$shared}/share", ['email' => 'Tom@Example.com'])->assertStatus(400);
-        $this->assertSame(0, CookbookInvite::count());
     }
 
     public function test_validation_messages_are_in_the_users_language(): void

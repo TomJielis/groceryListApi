@@ -87,7 +87,7 @@ class RecipeController extends Controller
         }
 
         DB::transaction(function () use ($request, $recipe, $cookbookId) {
-            $recipe->update([...$this->fields($request, $recipe), 'cookbook_id' => $cookbookId]);
+            $recipe->update([...$this->fields($request), 'cookbook_id' => $cookbookId]);
             $recipe->replaceParts($request->validated('ingredients'), $request->validated('steps'));
             $this->syncShownIn($request, $recipe);
             // Moved to a cookbook it was shown in: it lives there now
@@ -250,24 +250,13 @@ class RecipeController extends Controller
         ]);
     }
 
-    /**
-     * The recipe's own fields as the form sent them. An app version from before categories sends one category: a new
-     * recipe gets just that one; an edit keeps its categories when the category is the one that version was shown
-     * (Recipe::category), so editing it there doesn't lose a snack or a second kind of meal.
-     */
-    private function fields(RecipeRequest $request, ?Recipe $recipe = null): array
+    // The recipe's own fields as the form sent them
+    private function fields(RecipeRequest $request): array
     {
-        $fields = $request->safe()->except(['ingredients', 'steps', 'cookbook_id', 'category', 'categories']);
-        if ($request->has('categories')) {
-            return [...$fields, 'categories' => array_values($request->validated('categories'))];
-        }
-        // LEGACY(category): for app builds before 60 (one category). Remove once nobody uses them.
-        $category = $request->validated('category');
-        if ($recipe && $category === $recipe->category) {
-            return $fields;
-        }
-
-        return [...$fields, 'categories' => [$category]];
+        return [
+            ...$request->safe()->except(['ingredients', 'steps', 'cookbook_id', 'categories']),
+            'categories' => array_values($request->validated('categories')),
+        ];
     }
 
     // Stops showing it in a cookbook: by the people in its own cookbook, or by the creator of the one it's shown in
@@ -367,8 +356,6 @@ class RecipeController extends Controller
             'cookbook_id' => $recipe->cookbook_id,
             'title' => $recipe->title,
             'categories' => $recipe->categories ?? [],
-            // LEGACY(category): for app builds before 60 (one category). Remove once nobody uses them.
-            'category' => $recipe->category,
             'servings' => $recipe->servings,
             'prep_minutes' => $recipe->prep_minutes,
             'cook_minutes' => $recipe->cook_minutes,

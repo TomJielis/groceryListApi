@@ -9,7 +9,6 @@ use App\Jobs\Users\StoreUserJob;
 use App\Jobs\Users\UpdateUserJob;
 use App\Mail\ResetPassword;
 use App\Models\TemporaryPasswordCode;
-use App\Models\CookbookInvite;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -281,7 +280,6 @@ class AuthController extends Controller
             $cookbook->deleteWithRecipes();
         }
         $user->cookbookInvites()->delete();
-        CookbookInvite::where('email', $user->email)->delete();
 
         $user->temporaryPasswordCodes()->delete();
         $user->personalAccessTokens()->delete();

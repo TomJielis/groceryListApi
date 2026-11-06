@@ -94,19 +94,6 @@ class Recipe extends Model
         $this->pendingCategories = array_values(array_unique(array_intersect($categories ?? [], RecipeCategory::values())));
     }
 
-    // The one an older app version shows and sends: the first of its kinds of meal it knows, otherwise a main course.
-    // LEGACY(category): for app builds before 60 (one category). Remove once nobody uses them.
-    public function getCategoryAttribute(): string
-    {
-        foreach ($this->categories as $category) {
-            if (in_array(RecipeCategory::from($category), RecipeCategory::LEGACY, true)) {
-                return $category;
-            }
-        }
-
-        return RecipeCategory::Main->value;
-    }
-
     public function cookbook(): BelongsTo
     {
         return $this->belongsTo(Cookbook::class);

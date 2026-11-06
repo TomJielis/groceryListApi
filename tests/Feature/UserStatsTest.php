@@ -25,7 +25,7 @@ class UserStatsTest extends TestCase
         $friend = User::factory()->create();
         $own = GroceryList::create(['name' => 'Eigen', 'created_by' => $user->id]);
         $shared = GroceryList::create(['name' => 'Gedeeld', 'created_by' => $friend->id]);
-        GroceryListInvites::create(['grocery_list_id' => $shared->id, 'user_id' => $user->id, 'email' => $user->email, 'status' => GroceryListInvitesStatus::ACCEPTED]);
+        GroceryListInvites::create(['grocery_list_id' => $shared->id, 'user_id' => $user->id, 'status' => GroceryListInvitesStatus::ACCEPTED]);
         $elsewhere = GroceryList::create(['name' => 'Ander', 'created_by' => $friend->id]);
 
         GroceryListItem::create(['name' => 'melk', 'quantity' => 2, 'list_id' => $own->id, 'created_by' => $user->id]);
