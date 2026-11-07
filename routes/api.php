@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AppVersionController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\PushTokenController;
 use Illuminate\Support\Facades\Route;
@@ -40,3 +41,6 @@ Route::get('/verify-email/{hash}', [AuthController::class, 'verifyUser'])->witho
 // Lets the app tell "server down" from "no internet". Answers 503 in maintenance mode (php artisan down),
 // unlike Laravel's /up, which keeps answering 200.
 Route::get('/status', fn () => response()->json(['status' => 'ok']))->withoutMiddleware('auth:sanctum');
+
+// The oldest app version that still works and where to update (the app asks at launch, also before logging in)
+Route::get('/app-version', [AppVersionController::class, 'show'])->withoutMiddleware('auth:sanctum')->middleware('throttle:60,1');

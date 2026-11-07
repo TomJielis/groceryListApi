@@ -31,12 +31,21 @@ class SuccessfulLogin extends Model
     public static function record(User $user, Request $request): self
     {
         $userAgent = (string) $request->userAgent();
+        // The app says which platform and build it is (X-App-Platform: ios|android, X-App-Build: 65); Android's own
+        // User-Agent ("okhttp/…") doesn't
+        $platform = strtolower((string) $request->header('X-App-Platform'));
+        $build = (string) $request->header('X-App-Build');
 
-        // The iOS app sends "Boodschappenvriendje/<build> CFNetwork/..."; the website's Nuxt server sends "node"
-        if (preg_match('/^Boodschappenvriendje\/([\w.\-]+)/', $userAgent, $match)) {
+        if (in_array($platform, ['ios', 'android'], true) && preg_match('/^[\w.\-]{1,20}$/', $build)) {
+            // iOS stays "app", as logins were recorded before Android was
+            $client = $platform === 'android' ? 'android' : 'app';
+            $appVersion = $build;
+        } elseif (preg_match('/^Boodschappenvriendje\/([\w.\-]+)/', $userAgent, $match)) {
+            // iOS builds from before the headers send "Boodschappenvriendje/<build> CFNetwork/..."
             $client = 'app';
             $appVersion = $match[1];
         } else {
+            // The website's Nuxt server sends "node"
             $client = $userAgent === 'node' ? 'website' : 'other';
             $appVersion = null;
         }

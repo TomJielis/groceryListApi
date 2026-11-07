@@ -35,6 +35,43 @@ class SuccessfulLoginTest extends TestCase
         $this->assertSame(['app'], $user->tokens()->pluck('name')->all());
     }
 
+    public function test_a_login_from_the_android_app_is_recorded_with_its_build(): void
+    {
+        $user = User::factory()->create();
+
+        // Android's own User-Agent says nothing about the app: the headers do
+        $this->withHeaders(['X-App-Platform' => 'android', 'X-App-Build' => '65', 'X-App-Version' => '1.0.0'])
+            ->login($user, 'password', 'okhttp/4.12.0')
+            ->assertJsonStructure(['access_token']);
+
+        $login = SuccessfulLogin::sole();
+        $this->assertSame('android', $login->client);
+        $this->assertSame('65', $login->app_version);
+        $this->assertSame(['android'], $user->tokens()->pluck('name')->all());
+    }
+
+    public function test_an_ios_build_sending_the_headers_stays_an_app_login(): void
+    {
+        $user = User::factory()->create();
+
+        $this->withHeaders(['X-App-Platform' => 'ios', 'X-App-Build' => '65'])
+            ->login($user, 'password', 'Boodschappenvriendje/65 CFNetwork/3896.100.1.2.1 Darwin/27.0.0');
+
+        $login = SuccessfulLogin::sole();
+        $this->assertSame('app', $login->client);
+        $this->assertSame('65', $login->app_version);
+    }
+
+    public function test_an_unknown_platform_header_is_not_believed(): void
+    {
+        $user = User::factory()->create();
+
+        $this->withHeaders(['X-App-Platform' => 'windows', 'X-App-Build' => '1'])->login($user, 'password', 'curl/8.0');
+
+        $this->assertSame('other', SuccessfulLogin::sole()->client);
+        $this->assertNull(SuccessfulLogin::sole()->app_version);
+    }
+
     public function test_a_login_through_the_website_is_recorded_as_website(): void
     {
         $user = User::factory()->create();

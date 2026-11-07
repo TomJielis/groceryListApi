@@ -30,5 +30,9 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <env name="MIN_APP_VERSION_IOS" value="0.0.0"/>
+        <env name="MIN_APP_VERSION_ANDROID" value="0.0.0"/>
+        <env name="MIN_APP_BUILD_IOS" value="0"/>
+        <env name="MIN_APP_BUILD_ANDROID" value="0"/>
     </php>
 </phpunit>
