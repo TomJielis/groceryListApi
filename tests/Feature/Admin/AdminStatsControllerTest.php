@@ -9,6 +9,7 @@ use App\Models\GroceryListInvites;
 use App\Models\GroceryListInvitesStatus;
 use App\Models\GroceryListItem;
 use App\Models\Recipe;
+use App\Models\SuccessfulLogin;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -21,7 +22,7 @@ class AdminStatsControllerTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const ENDPOINTS = ['users', 'items', 'lists', 'recipes', 'activity', 'versions', 'top-items'];
+    private const ENDPOINTS = ['users', 'items', 'lists', 'recipes', 'activity', 'versions', 'platforms', 'top-items'];
 
     private User $admin;
     private User $user;
@@ -162,5 +163,91 @@ class AdminStatsControllerTest extends TestCase
         // Another month shows that month's numbers
         $this->actingAs($this->admin, 'sanctum')->getJson("/api/admin/users/{$this->user->id}?month=" . now()->subMonthsNoOverflow(2)->format('Y-m'))
             ->assertOk()->assertJsonPath('recipes.current_month.added', 0)->assertJsonPath('recipes.recipes_added', 2);
+    }
+
+    private function usedToken(User $user, string $client, $lastUsedAt): void
+    {
+        $user->createToken($client)->accessToken->forceFill(['last_used_at' => $lastUsedAt])->save();
+    }
+
+    private function loggedIn(User $user, string $client, $at): void
+    {
+        SuccessfulLogin::create(['user_id' => $user->id, 'ip_address' => '203.0.113.9', 'client' => $client, 'logged_in_at' => $at]);
+    }
+
+    public function test_platforms_count_each_user_once_per_platform(): void
+    {
+        $this->usedToken($this->user, 'website', now()->subDays(2));
+        $this->usedToken($this->user, 'app', now()->subDay());
+        // A second phone and the login that made the token: still one iPhone user
+        $this->usedToken($this->user, 'app', now()->subHour());
+        $this->loggedIn($this->user, 'app', now()->subHour());
+        $this->usedToken(User::factory()->create(), 'android', now()->subDays(29));
+
+        $this->stats('platforms')
+            ->assertOk()
+            ->assertJsonPath('current_month.active_users', 2)
+            ->assertJsonPath('current_month.on_multiple_platforms', 1)
+            ->assertJsonPath('current_month.breakdown.website', ['count' => 1, 'percentage' => 50])
+            ->assertJsonPath('current_month.breakdown.ios', ['count' => 1, 'percentage' => 50])
+            ->assertJsonPath('current_month.breakdown.android', ['count' => 1, 'percentage' => 50]);
+    }
+
+    public function test_platforms_show_every_platform_even_without_users(): void
+    {
+        $this->stats('platforms')
+            ->assertOk()
+            ->assertJsonPath('current_month.active_users', 0)
+            ->assertJsonPath('current_month.breakdown', [
+                'website' => ['count' => 0, 'percentage' => 0],
+                'ios' => ['count' => 0, 'percentage' => 0],
+                'android' => ['count' => 0, 'percentage' => 0],
+            ]);
+    }
+
+    public function test_platforms_leave_out_old_use_and_unknown_clients(): void
+    {
+        // Longer than 30 days ago
+        $this->usedToken($this->user, 'website', now()->subDays(31));
+        $this->loggedIn($this->user, 'android', now()->subDays(31));
+        // Tokens from before they were named after the client, and scripts
+        $this->usedToken($this->user, 'nuxt-frontend', now()->subDay());
+        $this->usedToken($this->user, 'other', now()->subDay());
+        $this->loggedIn($this->user, 'other', now()->subDay());
+
+        $this->stats('platforms')
+            ->assertOk()
+            ->assertJsonPath('current_month.active_users', 0);
+    }
+
+    public function test_platforms_count_a_login_whose_token_is_gone(): void
+    {
+        // Logged in on the phone, then logged out: the token is deleted but the login stays
+        $this->loggedIn($this->user, 'android', now()->subDays(3));
+
+        $this->stats('platforms')
+            ->assertOk()
+            ->assertJsonPath('current_month.active_users', 1)
+            ->assertJsonPath('current_month.breakdown.android.count', 1);
+    }
+
+    public function test_platforms_of_an_earlier_month_use_the_30_days_before_its_end(): void
+    {
+        $this->travelTo('2026-11-08 12:00:00');
+        $this->loggedIn($this->user, 'website', '2026-10-15 09:00:00');
+        $this->loggedIn($this->user, 'app', '2026-09-20 09:00:00');
+        $this->usedToken($this->user, 'android', '2026-09-15 09:00:00');
+
+        $this->stats('platforms', 'month=2026-10')
+            ->assertOk()
+            ->assertJsonPath('current_month.period', '2026-10')
+            ->assertJsonPath('current_month.active_users', 1)
+            ->assertJsonPath('current_month.breakdown.website.count', 1)
+            ->assertJsonPath('current_month.breakdown.ios.count', 0)
+            ->assertJsonPath('current_month.breakdown.android.count', 0)
+            ->assertJsonPath('previous_month.period', '2026-09')
+            ->assertJsonPath('previous_month.breakdown.ios.count', 1)
+            ->assertJsonPath('previous_month.breakdown.android.count', 1)
+            ->assertJsonPath('previous_month.breakdown.website.count', 0);
     }
 }

@@ -13,6 +13,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => 'admin'], f
     Route::get('stats/recipes', [AdminStatsController::class, 'recipes']);
     Route::get('stats/activity', [AdminStatsController::class, 'activity']);
     Route::get('stats/versions', [AdminStatsController::class, 'versions']);
+    Route::get('stats/platforms', [AdminStatsController::class, 'platforms']);
     Route::get('stats/top-items', [AdminStatsController::class, 'topItems']);
     Route::get('stats/spend', [AdminStatsController::class, 'spend']);
 
