@@ -41,7 +41,11 @@ class GroceryListController extends Controller
                 // Everyone who joined (the owner is createdBy)
                 'groceryListInvites' => fn ($query) => $query->where('status', GroceryListInvitesStatus::ACCEPTED)->with('user'),
                 'createdBy',
-            ]);
+            ])
+            // The user's favorite on top, then the most still to buy; equal lists stay oldest first
+            ->orderByRaw('CASE WHEN grocery_lists.id = ? THEN 0 ELSE 1 END', [auth()->user()->favorite_list_id])
+            ->orderByDesc('open_items_count')
+            ->orderBy('grocery_lists.id');
 
         if(isset($offset) && isset($limit)){
             $listItems->limit($limit)
