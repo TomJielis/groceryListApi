@@ -9,7 +9,7 @@ return [
     'header_title' => $app,
     'greeting' => 'Hallo :name 👋,',
     'welcome' => 'Welkom bij ' . $app . '!',
-    'activate_account' => 'Activeer je account:',
+    'activate_account' => 'Activeer je account',
     'intro' => 'Met je nieuwe account kun je snel en eenvoudig je boodschappenlijsten beheren, waar je ook bent.',
     'share' => 'Deel lijsten eenvoudig met vrienden of familie, werk samen in real-time en vergeet nooit meer een item.',
     'start' => 'Begin vandaag nog met organiseren en geniet van een slimmere, handigere manier van winkelen!',

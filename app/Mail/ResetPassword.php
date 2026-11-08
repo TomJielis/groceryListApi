@@ -23,11 +23,10 @@ class ResetPassword extends Mailable
      *
      * @return void
      */
-    public function __construct($url, $user, $markdown = 'emails.password.user-password-reset')
+    public function __construct($url, $user)
     {
         $this->url = $url;
         $this->user = $user;
-        $this->markdown = $markdown;
         $this->language = $user->language;
     }
 
@@ -39,6 +38,8 @@ class ResetPassword extends Mailable
     public function build()
     {
         \App::setLocale($this->language);
-        return $this->markdown($this->markdown);
+        return $this->subject(__('password-reset.subject'))
+            ->view('emails.password.user-password-reset')
+            ->text('emails.password.user-password-reset_text');
     }
 }

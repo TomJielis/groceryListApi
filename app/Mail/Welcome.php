@@ -22,11 +22,10 @@ class Welcome extends Mailable
      *
      * @return void
      */
-    public function __construct($url, $user, $markdown = 'emails.welcome')
+    public function __construct($url, $user)
     {
         $this->url = $url;
         $this->user = $user;
-        $this->markdown = $markdown;
         $this->language = $user->language;
 
     }
@@ -39,6 +38,8 @@ class Welcome extends Mailable
     public function build()
     {
         \App::setLocale($this->language);
-        return $this->markdown($this->markdown);
+        return $this->subject(__('welcome.welcome'))
+            ->view('emails.welcome')
+            ->text('emails.welcome_text');
     }
 }

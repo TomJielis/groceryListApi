@@ -4,9 +4,9 @@
 @section('header-title', $isNew ? __('support.admin_new_title') : __('support.admin_message_title'))
 
 @section('content')
-    <p>{{ __('support.admin_intro', ['name' => $ticket->name, 'email' => $ticket->email, 'subject' => $ticket->subject]) }}</p>
-    <p style="white-space: pre-line; border-left: 3px solid #cbd5e1; padding-left: 12px; color: #475569;">{{ $body }}</p>
-    <p class="muted" style="text-align: center; margin-top: 16px; font-size: 14px;">{{ __('support.admin_hint') }}</p>
+    <x-email.text>{{ __('support.admin_intro', ['name' => $ticket->name, 'email' => $ticket->email, 'subject' => $ticket->subject]) }}</x-email.text>
+    <x-email.quote>{{ $body }}</x-email.quote>
+    <x-email.text variant="muted">{{ __('support.admin_hint') }}</x-email.text>
 @endsection
 
 @section('footer', '#' . $ticket->id)

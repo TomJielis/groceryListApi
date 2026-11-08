@@ -1,183 +1,69 @@
+{{--
+    Shared layout of the mails, the same look as the auth screens of the app (GroceryListExpo/constants/auth-theme.ts):
+    navy header with the brand, and a white sheet with rounded top corners on top of it.
+
+    Mail apps support little CSS, so the layout is built with tables and inline styles (see components/email). The
+    <style> below only holds what can't be inline: filling the screen on phones and dark mode. A mail app that ignores
+    it still shows the complete mail.
+--}}
 <!DOCTYPE html>
 <html lang="{{ app()->getLocale() }}">
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="x-apple-disable-message-reformatting"/>
+    <meta name="format-detection" content="telephone=no, date=no, address=no, email=no"/>
+    <meta name="color-scheme" content="light dark"/>
+    <meta name="supported-color-schemes" content="light dark"/>
     <title>@yield('title')</title>
     <style>
-        * { box-sizing: border-box; }
-
-        body {
-            background-color: #eaede9;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            margin: 0;
-            padding: 40px 16px 56px;
-            color: #334155;
-            -webkit-font-smoothing: antialiased;
+        @media only screen and (max-width: 600px) {
+            .em-gutter { padding: 0 !important; }
+            .em-flat { border-radius: 0 !important; }
         }
 
-        .email-container {
-            max-width: 600px;
-            margin: auto;
-            background-color: #ffffff;
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 4px 24px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04);
-        }
-
-        .header {
-            background-color: #1c2b2b;
-            padding: 36px 32px 32px;
-        }
-
-        .header .brand-row {
-            display: flex;
-            align-items: center;
-            gap: 7px;
-            margin-bottom: 20px;
-        }
-
-        .header .dot {
-            width: 7px;
-            height: 7px;
-            border-radius: 50%;
-            background-color: #5ebd8a;
-            display: inline-block;
-            flex-shrink: 0;
-        }
-
-        .header .brand {
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-            color: rgba(255,255,255,0.4);
-        }
-
-        .header .title {
-            font-size: 22px;
-            font-weight: 700;
-            color: #ffffff;
-            letter-spacing: -0.02em;
-            margin: 0;
-            line-height: 1.3;
-        }
-
-        .content {
-            padding: 36px 32px 32px;
-        }
-
-        .content p {
-            font-size: 15px;
-            color: #475569;
-            line-height: 1.75;
-            margin: 0 0 14px;
-        }
-
-        .content h2 {
-            color: #0f172a;
-            font-size: 17px;
-            font-weight: 600;
-            margin: 32px 0 8px;
-        }
-
-        .content h4 {
-            color: #334155;
-            font-size: 14px;
-            font-weight: 600;
-            margin: 24px 0 6px;
-        }
-
-        .cta-button {
-            display: inline-block;
-            margin-top: 8px;
-            background-color: #5ebd8a;
-            color: #ffffff;
-            padding: 13px 32px;
-            border-radius: 6px;
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 15px;
-            letter-spacing: 0.01em;
-        }
-
-        .tips {
-            margin-top: 28px;
-            background-color: #f8fafc;
-            padding: 20px 22px;
-            border-radius: 8px;
-            border-left: 3px solid #5ebd8a;
-        }
-
-        .tips h3 {
-            margin: 0 0 10px;
-            font-size: 14px;
-            font-weight: 600;
-            color: #0f172a;
-        }
-
-        .tips ul {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .tips li {
-            margin-bottom: 7px;
-            font-size: 14px;
-            color: #475569;
-        }
-
-        ul {
-            color: #475569;
-            padding-left: 20px;
-        }
-
-        li {
-            margin-bottom: 6px;
-            font-size: 14px;
-        }
-
-        .divider {
-            height: 1px;
-            background-color: #e2e8f0;
-            margin: 32px 0;
-        }
-
-        .muted {
-            color: #94a3b8;
-            font-size: 13px;
-        }
-
-        .footer {
-            background-color: #fafafa;
-            border-top: 1px solid #f1f5f9;
-            text-align: center;
-            font-size: 12px;
-            color: #94a3b8;
-            padding: 18px 32px;
+        @media (prefers-color-scheme: dark) {
+            .em-page { background-color: #0f1514 !important; }
+            .em-header { background-color: #2b4441 !important; }
+            .em-sheet { background-color: #18201f !important; }
+            .em-panel { background-color: #1e2827 !important; border-color: #2b3736 !important; }
+            .em-quote { background-color: #1e2827 !important; }
+            .em-heading { color: #eef2f1 !important; }
+            .em-text { color: #a6b2b0 !important; }
+            .em-muted { color: #8e9c9a !important; }
         }
     </style>
 </head>
-<body>
-<div class="email-container">
-
-    <div class="header">
-        <div class="brand-row">
-            <span class="dot"></span>
-            <span class="brand">{{ config('app.name') }}</span>
-        </div>
-        <div class="title">@yield('header-title')</div>
-    </div>
-
-    <div class="content">
-        @yield('content')
-    </div>
-
-    <div class="footer">
-        @yield('footer')
-    </div>
-
-</div>
+<body class="em-page" style="margin: 0; padding: 0; background-color: #f4f6f3; -webkit-text-size-adjust: 100%;">
+<table role="presentation" class="em-page" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f4f6f3;">
+    <tr>
+        <td align="center" class="em-gutter" style="padding: 32px 16px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%; max-width: 520px; border-collapse: separate; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+                <tr>
+                    <td class="em-header em-flat" style="background-color: #1c2b2b; border-radius: 16px 16px 0 0; padding: 0;">
+                        <div style="padding: 40px 24px 24px;">
+                            <div style="margin: 0 0 12px; font-size: 12px; line-height: 16px; font-weight: 600; letter-spacing: 0.6px; text-transform: uppercase; color: #c6cccc;">
+                                <span style="display: inline-block; width: 8px; height: 8px; border-radius: 4px; background-color: #5ebd8a; margin-right: 6px;"></span>{{ config('app.name') }}
+                            </div>
+                            <div style="font-size: 28px; line-height: 34px; font-weight: 700; letter-spacing: -0.5px; color: #ffffff;">@yield('header-title')</div>
+                        </div>
+                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: separate;">
+                            <tr>
+                                <td class="em-sheet" style="background-color: #ffffff; border-radius: 24px 24px 0 0; padding: 32px 24px 24px;">
+                                    @yield('content')
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="em-muted" align="center" style="padding: 20px 24px 32px; font-size: 12px; line-height: 18px; color: #64748b;">
+                        @yield('footer')
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
 </body>
 </html>

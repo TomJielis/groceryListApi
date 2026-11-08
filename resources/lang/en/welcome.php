@@ -9,7 +9,7 @@ return [
     'header_title' => $app,
     'greeting' => 'Hello :name 👋,',
     'welcome' => 'Welcome to ' . $app . '!',
-    'activate_account' => 'Activate your account:',
+    'activate_account' => 'Activate your account',
     'intro' => 'With your new account, you can quickly and easily manage your grocery lists, wherever you are.',
     'share' => 'Share lists easily with friends or family, collaborate in real-time and never forget an item again.',
     'start' => 'Start organizing today and enjoy a smarter, more convenient way of shopping!',

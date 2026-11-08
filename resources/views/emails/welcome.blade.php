@@ -1,55 +1,45 @@
 @extends('emails.layout')
 
-@section('title', __('welcome.title'))
-@section('header-title', __('welcome.title'))
+@section('title', __('welcome.welcome'))
+@section('header-title', __('welcome.welcome'))
 
 @section('content')
-    <p>{{ __('welcome.hello') }} {{ $user->name }} 👋</p>
-    <p>
-        {{ __('welcome.welcome') }}<br>
-        {{ __('welcome.intro') }}<br>
-        {{ __('welcome.share') }}<br>
-        {{ __('welcome.start') }}!
-    </p>
+    <x-email.heading>{{ __('welcome.greeting', ['name' => $user->name]) }}</x-email.heading>
+    <x-email.text>{{ __('welcome.intro') }}</x-email.text>
+    <x-email.text>{{ __('welcome.share') }}</x-email.text>
+    <x-email.text>{{ __('welcome.start') }}</x-email.text>
 
-    <a href="{{ $url }}" class="cta-button">{{ __('welcome.activate_account') }}</a>
+    <x-email.button :href="$url">{{ __('welcome.activate_account') }}</x-email.button>
 
-    <div class="tips">
-        <h3>💡 {{ __('welcome.tips_for_usage') }}</h3>
-        <ul>
-            <li>✅ {{ __('welcome.tip_1') }}</li>
-            <li>👥 {{ __('welcome.tip_2') }}</li>
-            <li>📱 {{ __('welcome.tip_3') }}</li>
-        </ul>
-    </div>
+    <x-email.panel>
+        <x-email.label>{{ __('welcome.tips_for_usage') }}</x-email.label>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+            @foreach (['✅' => 'tip_1', '👥' => 'tip_2', '📱' => 'tip_3'] as $icon => $tip)
+                <tr>
+                    <td width="28" valign="top" style="width: 28px; font-size: 15px; line-height: 22px;">{{ $icon }}</td>
+                    <td valign="top"><x-email.text variant="small">{{ __('welcome.' . $tip) }}</x-email.text></td>
+                </tr>
+            @endforeach
+        </table>
+    </x-email.panel>
 
-    <div class="divider"></div>
+    <div style="height: 16px; font-size: 0; line-height: 0;">&nbsp;</div>
 
-    <h2 style="text-align: center;">{{ __('welcome.add_app_to_start_screen') }}</h2>
+    <x-email.heading>{{ __('welcome.add_app_to_start_screen') }}</x-email.heading>
 
-    <h4 style="text-align: center;">{{ __('welcome.instruction_safari') }}</h4>
-    <ul style="text-align: center; list-style: none; padding: 0;">
-        <li>{{ __('welcome.instruction_safari_1') }}</li>
-        <li>{{ __('welcome.instruction_safari_2') }}</li>
-        <li>{{ __('welcome.instruction_safari_3') }}</li>
-        <li>{{ __('welcome.instruction_safari_4') }}</li>
-    </ul>
+    @foreach (['safari', 'chrome'] as $browser)
+        <x-email.panel>
+            <x-email.label>{{ rtrim(trim(__('welcome.instruction_' . $browser)), ':') }}</x-email.label>
+            @foreach (range(1, 4) as $step)
+                <x-email.text variant="small">{{ __('welcome.instruction_' . $browser . '_' . $step) }}</x-email.text>
+            @endforeach
+        </x-email.panel>
+    @endforeach
 
-    <h4 style="text-align: center;">{{ __('welcome.instruction_chrome') }}</h4>
-    <ul style="text-align: center; list-style: none; padding: 0;">
-        <li>{{ __('welcome.instruction_chrome_1') }}</li>
-        <li>{{ __('welcome.instruction_chrome_2') }}</li>
-        <li>{{ __('welcome.instruction_chrome_3') }}</li>
-        <li>{{ __('welcome.instruction_chrome_4') }}</li>
-    </ul>
-    <p style="text-align: center; margin-top: 16px;">{{ __('welcome.instruction_chrome_5') }}</p>
+    <div style="height: 4px; font-size: 0; line-height: 0;">&nbsp;</div>
 
-    <div class="divider"></div>
-
-    <p style="text-align: center; color: #64748b;">
-        {{ __('welcome.wish_message') }}<br>
-        {{ __('welcome.team') }}
-    </p>
+    <x-email.text>{{ __('welcome.instruction_chrome_5') }}</x-email.text>
+    <x-email.text variant="muted">{{ __('welcome.wish_message') }}<br>{{ trim(__('welcome.team')) }}</x-email.text>
 @endsection
 
 @section('footer', __('welcome.footer'))
