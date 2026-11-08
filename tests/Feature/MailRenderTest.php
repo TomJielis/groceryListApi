@@ -23,6 +23,9 @@ class MailRenderTest extends TestCase
         $mail->assertHasSubject($language === 'nl' ? 'Welkom bij Shoplisto!' : 'Welcome to Shoplisto!');
         $mail->assertSeeInHtml('https://example.com/activate');
         $mail->assertSeeInHtml('Sam');
+        $mail->assertSeeInHtml('/information');
+        $mail->assertSeeInHtml('/android');
+        $mail->assertDontSeeInHtml('Safari');
         $mail->assertDontSeeInHtml('welcome.');
         $mail->assertSeeInText('https://example.com/activate');
         $mail->assertDontSeeInText('<table', false);

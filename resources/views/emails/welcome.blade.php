@@ -11,6 +11,14 @@
 
     <x-email.button :href="$url">{{ __('welcome.activate_account') }}</x-email.button>
 
+    <x-email.heading>{{ __('welcome.download_title') }}</x-email.heading>
+    <x-email.text>{{ __('welcome.download_text') }}</x-email.text>
+    {{-- The information page knows the current iPhone link: TestFlight during the beta, then the App Store --}}
+    <x-email.button variant="outline" :href="config('app.url') . '/information'">{{ __('welcome.download_iphone') }}</x-email.button>
+    <x-email.button variant="outline" :href="config('app.url') . '/android'">{{ __('welcome.download_android') }}</x-email.button>
+
+    <div style="height: 12px; font-size: 0; line-height: 0;">&nbsp;</div>
+
     <x-email.panel>
         <x-email.label>{{ __('welcome.tips_for_usage') }}</x-email.label>
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
@@ -23,22 +31,8 @@
         </table>
     </x-email.panel>
 
-    <div style="height: 16px; font-size: 0; line-height: 0;">&nbsp;</div>
-
-    <x-email.heading>{{ __('welcome.add_app_to_start_screen') }}</x-email.heading>
-
-    @foreach (['safari', 'chrome'] as $browser)
-        <x-email.panel>
-            <x-email.label>{{ rtrim(trim(__('welcome.instruction_' . $browser)), ':') }}</x-email.label>
-            @foreach (range(1, 4) as $step)
-                <x-email.text variant="small">{{ __('welcome.instruction_' . $browser . '_' . $step) }}</x-email.text>
-            @endforeach
-        </x-email.panel>
-    @endforeach
-
     <div style="height: 4px; font-size: 0; line-height: 0;">&nbsp;</div>
 
-    <x-email.text>{{ __('welcome.instruction_chrome_5') }}</x-email.text>
     <x-email.text variant="muted">{{ __('welcome.wish_message') }}<br>{{ trim(__('welcome.team')) }}</x-email.text>
 @endsection
 

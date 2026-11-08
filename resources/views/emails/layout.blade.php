@@ -28,6 +28,7 @@
             .em-sheet { background-color: #18201f !important; }
             .em-panel { background-color: #1e2827 !important; border-color: #2b3736 !important; }
             .em-quote { background-color: #1e2827 !important; }
+            .em-outline { background-color: #18201f !important; border-color: #3b4948 !important; }
             .em-heading { color: #eef2f1 !important; }
             .em-text { color: #a6b2b0 !important; }
             .em-muted { color: #8e9c9a !important; }
