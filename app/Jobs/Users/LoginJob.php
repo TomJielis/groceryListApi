@@ -41,7 +41,9 @@ class LoginJob implements ShouldQueue
         $user = User::where('email', $request->email)->first();
 
         if ($user) {
+            // Locked per account and address together: someone guessing elsewhere can't lock the owner out
             $isBlockedTill = $user && InvalidLoginAttempt::where('user_id', $user->id)
+                    ->where('ip_address', $request->ip())
                     ->where('blocked_till', '>', now())
                     ->orderBy('blocked_till', 'desc')
                     ->first();
@@ -58,6 +60,7 @@ class LoginJob implements ShouldQueue
             if (!Auth::attempt($request->only('email', 'password'))) {
                 if ($user) {
                     $invalidAttemptsCount = InvalidLoginAttempt::where('user_id', $user->id)
+                        ->where('ip_address', $request->ip())
                         ->where('attempted_at', '>=', now()->subMinutes(15))
                         ->count();
 

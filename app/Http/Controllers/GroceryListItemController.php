@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\DB;
 
 class GroceryListItemController extends Controller
 {
+    private const MAX_QUANTITY = 100000;
+    private const MAX_PRICE = 1000000;
 
     /**
      * @param Request $request
@@ -54,6 +56,10 @@ class GroceryListItemController extends Controller
     {
         $data = $request->all();
         $this->ensureListAccess($data['list_id'] ?? null);
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'quantity' => 'sometimes|numeric|min:0|max:' . self::MAX_QUANTITY,
+        ]);
 
         $existingListItem = GroceryListItem::where('name', $data['name'])
             ->where('list_id', $data['list_id'] ?? null)
@@ -80,6 +86,7 @@ class GroceryListItemController extends Controller
     public function checked(Request $request, GroceryListItem $listItem): \Illuminate\Http\JsonResponse
     {
         $this->ensureListAccess($listItem->list_id);
+        $request->validate(['checked' => 'sometimes|boolean']);
 
         // Find the latest record with the same name in the same list
         $latestItem = GroceryListItem::where('name', $listItem->name)
@@ -134,6 +141,12 @@ class GroceryListItemController extends Controller
     public function update(Request $request, GroceryListItem $listItem): \Illuminate\Http\JsonResponse
     {
         $this->ensureListAccess($listItem->list_id);
+        $request->validate([
+            'item' => 'sometimes|array',
+            'item.name' => 'sometimes|required|string|max:255',
+            'item.quantity' => 'sometimes|required|numeric|min:0|max:' . self::MAX_QUANTITY,
+            'item.unit_price' => 'sometimes|nullable|numeric|min:0|max:' . self::MAX_PRICE,
+        ]);
         $data = $request->input('item', []);
         // Only what the request contains: the app sends just the fields that were changed, so an edit made with an
         // older copy of the item (someone else changed the price meanwhile) can't wipe that price. A field sent as

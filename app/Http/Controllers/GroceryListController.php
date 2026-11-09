@@ -39,8 +39,8 @@ class GroceryListController extends Controller
             ->withCount('groceryListItemsChecked')
             ->with([
                 // Everyone who joined (the owner is createdBy)
-                'groceryListInvites' => fn ($query) => $query->where('status', GroceryListInvitesStatus::ACCEPTED)->with('user'),
-                'createdBy',
+                'groceryListInvites' => fn ($query) => $query->where('status', GroceryListInvitesStatus::ACCEPTED)->with('user:id,name,email'),
+                'createdBy:id,name',
             ])
             // The user's favorite on top, then the most still to buy; equal lists stay oldest first
             ->orderByRaw('CASE WHEN grocery_lists.id = ? THEN 0 ELSE 1 END', [auth()->user()->favorite_list_id])
@@ -53,8 +53,14 @@ class GroceryListController extends Controller
         }
 
 
+        $lists = $listItems->get();
+
+        // Only the owner manages the members (the sharing screen shows their addresses); the others get just the names
+        $lists->reject(fn (GroceryList $list) => (int) $list->getAttribute('created_by') === auth()->id())
+            ->each(fn (GroceryList $list) => $list->groceryListInvites->each(fn ($invite) => $invite->user?->makeHidden('email')));
+
         return response()->json([
-            'data' => $listItems->get(),
+            'data' => $lists,
         ]);
     }
 

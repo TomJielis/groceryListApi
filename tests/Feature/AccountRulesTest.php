@@ -47,13 +47,13 @@ class AccountRulesTest extends TestCase
         $this->assertSame(0, User::count());
     }
 
-    public function test_a_second_account_for_the_same_email_is_refused(): void
+    public function test_a_second_account_for_the_same_email_is_not_made(): void
     {
         User::factory()->create(['email' => 'sam@example.com']);
 
         $this->register(['email' => ' sam@example.com '])
             ->assertOk()
-            ->assertJsonPath('error', 'Er bestaat al een account met dit e-mailadres.');
+            ->assertJsonPath('user.email', 'sam@example.com');
 
         $this->assertSame(1, User::count());
     }

@@ -7,6 +7,7 @@ use App\Http\Requests\User\RegisterUserRequest;
 use App\Jobs\Users\LoginJob;
 use App\Jobs\Users\StoreUserJob;
 use App\Jobs\Users\UpdateUserJob;
+use App\Mail\AccountExists;
 use App\Mail\ResetPassword;
 use App\Models\TemporaryPasswordCode;
 use App\Models\User;
@@ -39,8 +40,33 @@ class AuthController extends Controller
             return response()->json(['success' => false, 'error' => $error, 'message' => $error, 'status' => 422]);
         }
 
-        $user = (new StoreUserJob(array_merge($request->all(), ['email' => trim($request->input('email'))])))->handle();
-        return response()->json($user);
+        $data = array_merge($request->all(), ['email' => trim($request->input('email'))]);
+        $existing = User::where('email', $data['email'])->first();
+        $result = $existing ? $this->tellAccountExists($existing, $data['password']) : (new StoreUserJob($data))->handle();
+        if ($result instanceof JsonResponse) {
+            return $result;
+        }
+
+        // Only what was sent in, so an address that has an account can't be told from a new one
+        return response()->json([
+            'token_type' => 'Bearer',
+            'user' => ['name' => $data['name'], 'email' => $data['email'], 'language' => $data['language'] ?? 'nl'],
+        ]);
+    }
+
+    private function tellAccountExists(User $user, string $password): ?JsonResponse
+    {
+        // A new account hashes the password; the same work here, so the answer doesn't come noticeably sooner
+        Hash::make($password);
+
+        try {
+            app(\App\Services\MailService::class)->send(new AccountExists($user), $user->email, $user->name);
+        } catch (\Exception $exception) {
+            \Log::error($exception->getMessage());
+            return response()->json(['message' => 'Email versturen is mislukt'], 500);
+        }
+
+        return null;
     }
 
     /**
@@ -144,10 +170,6 @@ class AuthController extends Controller
                 ? 'Your password must be at least ' . self::MIN_PASSWORD_LENGTH . ' characters.'
                 : 'Je wachtwoord moet minimaal ' . self::MIN_PASSWORD_LENGTH . ' tekens hebben.';
         }
-        if (User::where('email', $data['email'])->exists()) {
-            return $english ? 'An account with this email address already exists.' : 'Er bestaat al een account met dit e-mailadres.';
-        }
-
         return null;
     }
 
