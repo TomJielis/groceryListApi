@@ -111,8 +111,8 @@ return [
     */
 
     'from' => [
-        'address' => env('MAIL_FROM_ADDRESS', 'tomjielis@gmail.com'),
-        'name' => env('MAIL_FROM_NAME', 'TomJielis'),
+        'address' => env('MAIL_FROM_ADDRESS', 'shoplisto@googlegroups.com'),
+        'name' => env('MAIL_FROM_NAME', 'Shoplisto'),
     ],
 
 ];
