@@ -11,4 +11,10 @@ abstract class Controller
     {
         return $request->user()->language ?: 'nl';
     }
+
+    // The same, where there's no request at hand (e.g. a shared access check)
+    protected function userLanguage(): string
+    {
+        return auth()->user()?->language ?: 'nl';
+    }
 }

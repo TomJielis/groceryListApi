@@ -96,12 +96,12 @@ class GroceryListController extends Controller
     {
         $data = $request->all();
         if(!isset($data['groceryListId']) || !isset($data['userId'])){
-            return response()->json(['message' => 'Ongeldige aanvraag'], 400);
+            return response()->json(['message' => __('lists.invalid_request', [], $this->language($request))], 400);
         }
 
         // Only someone with access to the list (owner or member) can remove people from it
         if (!GroceryList::find($data['groceryListId'])) {
-            return response()->json(['message' => 'Boodschappen lijst niet gevonden'], 404);
+            return response()->json(['message' => __('lists.not_found', [], $this->language($request))], 404);
         }
 
         $invites = GroceryListInvites::where('grocery_list_id', $data['groceryListId'])
@@ -121,7 +121,7 @@ class GroceryListController extends Controller
         }
 
         return response()->json([
-            'message' => 'Toegang tot de lijst is ingetrokken.',
+            'message' => __('lists.access_revoked', [], $this->language($request)),
         ]);
     }
 
@@ -131,12 +131,12 @@ class GroceryListController extends Controller
         $listId = $request->get('listId');
         // Only a list the user can see can be their favorite (null clears it)
         if ($listId && !GroceryList::find($listId)) {
-            return response()->json(['message' => 'Boodschappen lijst niet gevonden'], 404);
+            return response()->json(['message' => __('lists.not_found', [], $this->language($request))], 404);
         }
         $user->favorite_list_id = $listId ?? null;
         $user->save();
         return response()->json([
-            'message' => 'Lijst is gekenmerkt als favoriet',
+            'message' => __('lists.marked_favorite', [], $this->language($request)),
         ]);
     }
 
@@ -153,7 +153,7 @@ class GroceryListController extends Controller
             $groceryListInvite->delete();
 
             return response()->json([
-                'message' => 'Lijst is verwijderd.',
+                'message' => __('lists.deleted', [], $this->language($request)),
             ]);
         }
 
@@ -175,7 +175,7 @@ class GroceryListController extends Controller
         }
 
         return response()->json([
-            'message' => 'Lijstitem is verwijderd.',
+            'message' => __('lists.deleted', [], $this->language($request)),
         ]);
     }
 }

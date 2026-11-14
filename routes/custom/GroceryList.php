@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\GroceryListController;
+use App\Http\Controllers\WeekPlannerController;
 use Illuminate\Support\Facades\Route;
 
 Route::group(['prefix' => 'grocery-list', 'as' => 'grocery-list.'], function () {
@@ -10,4 +11,6 @@ Route::group(['prefix' => 'grocery-list', 'as' => 'grocery-list.'], function () 
     Route::post('unshare', [GroceryListController::class, 'unshare']);
     Route::post('favorite', [GroceryListController::class, 'favorite']);
     Route::delete('{groceryList}/delete', [GroceryListController::class, 'delete']);
+    Route::get('{id}/week-planner', [WeekPlannerController::class, 'show'])->whereNumber('id');
+    Route::post('{id}/week-planner/add', [WeekPlannerController::class, 'add'])->whereNumber('id');
 });

@@ -204,7 +204,7 @@ class GroceryListItemController extends Controller
         $listItem->delete();
 
         return response()->json([
-            'message' => 'Lijstitem succesvol verwijderd',
+            'message' => __('lists.item_deleted', [], $this->language($request)),
         ]);
     }
 
@@ -289,7 +289,7 @@ class GroceryListItemController extends Controller
         abort_unless(
             $listId && GroceryList::whereKey($listId)->exists(),
             403,
-            'Je hebt geen toegang tot deze lijst'
+            __('lists.no_access', [], $this->userLanguage())
         );
     }
 }
