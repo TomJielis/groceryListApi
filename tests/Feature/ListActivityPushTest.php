@@ -41,20 +41,21 @@ class ListActivityPushTest extends TestCase
 
     public function test_adding_items_is_grouped_into_one_push_for_the_other_members(): void
     {
-        foreach (['Melk', 'Brood', 'Kaas'] as $name) {
+        foreach (['Melk', 'Brood', 'Kaas', 'Eieren'] as $name) {
             $this->actingAs($this->owner, 'sanctum')
                 ->postJson('/api/grocery-list-item/store', ['name' => $name, 'list_id' => $this->list->id])
                 ->assertOk();
         }
 
-        // Every item schedules a check; only the one of the last item sends, with all three counted
-        Queue::assertPushed(SendListActivityPush::class, 3);
+        // Every item schedules a check; only the one of the last item sends, with all four counted (more than
+        // three: counted, not named)
+        Queue::assertPushed(SendListActivityPush::class, 4);
         $this->runGroupJobs();
 
         $this->assertCount(1, Queue::pushed(SendPushNotification::class));
         Queue::assertPushed(SendPushNotification::class, fn ($job) => $job->userId === $this->member->id
             && $job->type === 'items_added'
-            && $job->replace === ['user' => 'Tom', 'list' => 'Weekend', 'count' => 3]
+            && $job->replace === ['user' => 'Tom', 'list' => 'Weekend', 'count' => 4]
             && $job->data === ['url' => '/list/' . $this->list->id]);
         // The person adding the items doesn't get a push about it
         Queue::assertNotPushed(SendPushNotification::class, fn ($job) => $job->userId === $this->owner->id);
@@ -86,6 +87,73 @@ class ListActivityPushTest extends TestCase
         // Two minutes after the last item: one push for both
         $second->handle();
         Queue::assertPushed(SendPushNotification::class, fn ($job) => $job->replace['count'] === 2);
+    }
+
+    public function test_up_to_three_added_products_are_named_with_their_quantity(): void
+    {
+        $this->add('Melk', 2);
+        $this->add('Brood');
+        // The same product again adds to its quantity
+        $this->add('melk');
+        $this->runGroupJobs();
+
+        Queue::assertPushed(SendPushNotification::class, fn ($job) => $job->replace === [
+            'user' => 'Tom',
+            'list' => 'Weekend',
+            'count' => 3,
+            'products' => [['name' => 'Melk', 'quantity' => 3], ['name' => 'Brood', 'quantity' => 1]],
+        ]);
+    }
+
+    public function test_moved_products_are_counted_and_named(): void
+    {
+        $other = GroceryList::create(['name' => 'Albert Heijn', 'created_by' => $this->owner->id]);
+        $items = array_map(fn ($name) => GroceryListItem::create([
+            'name' => $name, 'quantity' => 1, 'list_id' => $other->id, 'checked' => false,
+        ]), ['Melk', 'Brood']);
+
+        $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/grocery-list-item/move', ['ids' => array_map(fn ($i) => $i->id, $items), 'list_id' => $this->list->id])
+            ->assertOk();
+        $this->runGroupJobs();
+
+        Queue::assertPushed(SendPushNotification::class, fn ($job) => $job->replace['count'] === 2
+            && array_column($job->replace['products'], 'name') === ['Melk', 'Brood']);
+    }
+
+    public function test_named_texts_join_the_products_in_the_users_language(): void
+    {
+        Http::fake(['exp.host/*' => Http::response(['data' => [['status' => 'ok']]])]);
+        PushToken::create(['user_id' => $this->member->id, 'token' => 'ExponentPushToken[sam]']);
+        $push = fn (array $products) => (new SendPushNotification($this->member->id, 'items_added', [
+            'user' => 'Tom', 'list' => 'Weekend', 'count' => count($products), 'products' => $products,
+        ]))->handle();
+
+        $push([['name' => 'Melk', 'quantity' => 2]]);
+        $push([['name' => 'Melk', 'quantity' => 1], ['name' => 'Brood', 'quantity' => 1]]);
+        $push([['name' => 'Melk', 'quantity' => 2], ['name' => 'Brood', 'quantity' => 1], ['name' => 'Kaas', 'quantity' => 1]]);
+        $push([['name' => 'Biologische halfvolle melk van de boer', 'quantity' => 1]]);
+        $this->member->update(['language' => 'en']);
+        $push([['name' => 'Milk', 'quantity' => 1], ['name' => 'Bread', 'quantity' => 3]]);
+
+        $bodies = collect(Http::recorded())->map(fn ($pair) => json_decode($pair[0]->body(), true)[0]['body'])->all();
+        $this->assertSame([
+            'Tom heeft 2× Melk toegevoegd.',
+            'Tom heeft Melk en Brood toegevoegd.',
+            'Tom heeft 2× Melk, Brood en Kaas toegevoegd.',
+            'Tom heeft Biologische halfvolle melk van… toegevoegd.',
+            'Tom added Milk and 3× Bread.',
+        ], $bodies);
+    }
+
+    public function test_checked_off_items_stay_counted(): void
+    {
+        $items = $this->createItems(['Melk', 'Brood', 'Kaas']);
+        $this->check($this->member, $items[0]);
+        $this->runGroupJobs();
+
+        Queue::assertPushed(SendPushNotification::class, fn ($job) => $job->type === 'items_checked'
+            && !isset($job->replace['products']));
     }
 
     public function test_checking_off_items_is_grouped(): void
@@ -163,6 +231,13 @@ class ListActivityPushTest extends TestCase
         $bodies = collect(Http::recorded())->map(fn ($pair) => json_decode($pair[0]->body(), true)[0]['body'])->all();
         $this->assertSame(['Tom heeft 1 product toegevoegd.', 'Tom heeft 5 producten toegevoegd.'], $bodies);
         Http::assertSent(fn (Request $request) => json_decode($request->body(), true)[0]['title'] === 'Nieuw op "Weekend"');
+    }
+
+    private function add(string $name, int $quantity = 1): void
+    {
+        $this->actingAs($this->owner, 'sanctum')
+            ->postJson('/api/grocery-list-item/store', ['name' => $name, 'quantity' => $quantity, 'list_id' => $this->list->id])
+            ->assertOk();
     }
 
     /** @return list<GroceryListItem> */

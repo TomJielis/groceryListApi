@@ -74,7 +74,9 @@ class GroceryListItemController extends Controller
         ]);
 
         if ($listItem->list_id) {
-            SendListActivityPush::record((int) $listItem->list_id, auth()->id(), 'items_added');
+            SendListActivityPush::record((int) $listItem->list_id, auth()->id(), 'items_added', [
+                ['name' => $listItem->name, 'quantity' => (int) $listItem->quantity],
+            ]);
         }
 
         return response()->json([
@@ -244,7 +246,10 @@ class GroceryListItemController extends Controller
         });
 
         if ($items->isNotEmpty()) {
-            SendListActivityPush::record($targetId, auth()->id(), 'items_added');
+            SendListActivityPush::record($targetId, auth()->id(), 'items_added', $items
+                ->map(fn (GroceryListItem $item) => ['name' => $item->name, 'quantity' => (int) $item->quantity])
+                ->values()
+                ->all());
         }
 
         return response()->json([

@@ -171,7 +171,9 @@ class RecipeController extends Controller
                     'list_id' => $list->id,
                     'unit_price' => $latestItem?->unit_price,
                 ]);
-                SendListActivityPush::record((int) $list->id, $userId, 'items_added');
+                SendListActivityPush::record((int) $list->id, $userId, 'items_added', [
+                    ['name' => $listItem->name, 'quantity' => (int) $listItem->quantity],
+                ]);
 
                 return $listItem;
             });

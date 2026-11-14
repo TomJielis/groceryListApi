@@ -54,12 +54,19 @@ class SendPushNotification implements ShouldQueue
         }
 
         $language = $user->language ?: 'nl';
+        $replace = $this->replace;
+        $bodyKey = "push.{$this->type}.body";
+        // Named products ("2× Melk, Brood en Kaas") are joined in the user's own language, with the text that names them
+        if (isset($replace['products'])) {
+            $replace['products'] = self::joinProducts($replace['products'], $language);
+            $bodyKey = "push.{$this->type}.body_named";
+        }
         // With a count, texts can have singular|plural forms ("1 product" / "5 producten")
-        $translate = isset($this->replace['count'])
-            ? fn (string $key) => trans_choice($key, $this->replace['count'], $this->replace, $language)
-            : fn (string $key) => __($key, $this->replace, $language);
+        $translate = isset($replace['count'])
+            ? fn (string $key) => trans_choice($key, $replace['count'], $replace, $language)
+            : fn (string $key) => __($key, $replace, $language);
         $title = $translate("push.{$this->type}.title");
-        $body = $translate("push.{$this->type}.body");
+        $body = $translate($bodyKey);
 
         $messages = $tokens->map(fn (string $token) => [
             'to' => $token,
@@ -90,5 +97,25 @@ class SendPushNotification implements ShouldQueue
                 PushToken::where('token', $messages[$index]['to'])->delete();
             }
         }
+    }
+
+    // Longer product names are cut off, so the push stays readable on a lock screen or a watch
+    private const MAX_NAME_LENGTH = 30;
+
+    /**
+     * "2× Melk, Brood en Kaas": the quantity only when it's more than one
+     *
+     * @param list<array{name: string, quantity: int}> $products
+     */
+    private static function joinProducts(array $products, string $language): string
+    {
+        $names = array_map(function (array $product) {
+            $name = \Illuminate\Support\Str::limit($product['name'], self::MAX_NAME_LENGTH, '…');
+
+            return $product['quantity'] > 1 ? $product['quantity'] . '× ' . $name : $name;
+        }, $products);
+        $last = array_pop($names);
+
+        return $names === [] ? $last : implode(', ', $names) . ' ' . __('push.and', [], $language) . ' ' . $last;
     }
 }

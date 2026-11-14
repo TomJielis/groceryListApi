@@ -1,5 +1,7 @@
 <?php
 return [
+    // Before the last of a few named products: "Melk, Brood en Kaas"
+    'and' => 'en',
     'invite_accepted' => [
         'title' => 'Uitnodiging geaccepteerd',
         'body' => ':user doet nu mee met je boodschappenlijst ":list".',
@@ -27,6 +29,8 @@ return [
     'items_added' => [
         'title' => 'Nieuw op ":list"',
         'body' => '{1} :user heeft 1 product toegevoegd.|[2,*] :user heeft :count producten toegevoegd.',
+        // 1 to 3 products, by name: "2× Melk, Brood en Kaas"
+        'body_named' => ':user heeft :products toegevoegd.',
     ],
     'items_checked' => [
         'title' => 'Afgevinkt op ":list"',

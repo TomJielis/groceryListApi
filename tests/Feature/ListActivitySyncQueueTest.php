@@ -39,6 +39,6 @@ class ListActivitySyncQueueTest extends TestCase
             ->postJson('/api/grocery-list-item/store', ['name' => 'Melk', 'list_id' => $list->id])
             ->assertOk();
 
-        Http::assertSent(fn (Request $request) => json_decode($request->body(), true)[0]['body'] === 'Tom added 1 item.');
+        Http::assertSent(fn (Request $request) => json_decode($request->body(), true)[0]['body'] === 'Tom added Melk.');
     }
 }

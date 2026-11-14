@@ -1,5 +1,7 @@
 <?php
 return [
+    // Before the last of a few named products: "Melk, Brood and Kaas"
+    'and' => 'and',
     'invite_accepted' => [
         'title' => 'Invite accepted',
         'body' => ':user has joined your grocery list ":list".',
@@ -27,6 +29,8 @@ return [
     'items_added' => [
         'title' => 'New on ":list"',
         'body' => '{1} :user added 1 item.|[2,*] :user added :count items.',
+        // 1 to 3 products, by name: "2× Melk, Brood en Kaas"
+        'body_named' => ':user added :products.',
     ],
     'items_checked' => [
         'title' => 'Checked off on ":list"',

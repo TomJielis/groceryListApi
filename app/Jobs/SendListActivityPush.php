@@ -22,6 +22,10 @@ class SendListActivityPush implements ShouldQueue
 
     public const GROUP_MINUTES = 2;
 
+    // Up to this many different products the push names them ("Tom heeft 2× Melk en Brood toegevoegd"), above it
+    // it counts them; kept short so it also reads well on a watch
+    public const MAX_NAMED = 3;
+
     /**
      * @param string $type 'items_added' or 'items_checked' (keys in resources/lang/{nl,en}/push.php)
      */
@@ -33,16 +37,21 @@ class SendListActivityPush implements ShouldQueue
     ) {
     }
 
-    public static function record(int $listId, int $actorId, string $type): void
+    /**
+     * @param list<array{name: string, quantity: int}> $products The products of this activity, so the push can name
+     *                                                          them; without them it counts the activity as one
+     */
+    public static function record(int $listId, int $actorId, string $type, array $products = []): void
     {
         $key = self::cacheKey($listId, $actorId, $type);
-        // Long enough for a whole shopping trip; the job removes both keys when it sends
+        // Long enough for a whole shopping trip; the job removes the keys when it sends
         $expires = now()->addHours(12);
 
         // Count first: with QUEUE_CONNECTION=sync the job runs right away (no delay, so no grouping)
         // and must find this activity already counted
         Cache::add($key, 0, $expires);
-        Cache::increment($key);
+        Cache::increment($key, max(1, count($products)));
+        self::rememberProducts($key, $products, $expires);
 
         $token = (string) Str::uuid();
         Cache::put($key . ':latest', $token, $expires);
@@ -56,6 +65,7 @@ class SendListActivityPush implements ShouldQueue
         $key = self::cacheKey($listId, $actorId, $type);
         Cache::forget($key);
         Cache::forget($key . ':latest');
+        Cache::forget($key . ':products');
     }
 
     public function handle(): void
@@ -69,6 +79,7 @@ class SendListActivityPush implements ShouldQueue
 
         Cache::forget($key . ':latest');
         $count = (int) Cache::pull($key);
+        $products = Cache::pull($key . ':products');
         if ($count < 1) {
             return;
         }
@@ -80,18 +91,49 @@ class SendListActivityPush implements ShouldQueue
             return;
         }
 
+        $replace = ['user' => $actor->name, 'list' => $list->name, 'count' => $count];
+        // Every product of the group is known and there are few enough: name them instead of counting.
+        // (The products are joined in the language of each member, in SendPushNotification.)
+        if (is_array($products) && $products !== [] && count($products) <= self::MAX_NAMED
+            && !array_key_exists(self::UNNAMED, $products)) {
+            $replace['products'] = collect($products)
+                ->map(fn (int $quantity, string $name) => ['name' => $name, 'quantity' => $quantity])
+                ->values()
+                ->all();
+        }
+
         foreach ($list->memberIds() as $memberId) {
             if ($memberId === $this->actorId) {
                 continue;
             }
 
-            SendPushNotification::dispatch(
-                $memberId,
-                $this->type,
-                ['user' => $actor->name, 'list' => $list->name, 'count' => $count],
-                ['url' => '/list/' . $list->id],
-            );
+            SendPushNotification::dispatch($memberId, $this->type, $replace, ['url' => '/list/' . $list->id]);
         }
+    }
+
+    // Marks a group with an activity that didn't say its products: that push can only count
+    private const UNNAMED = "\0unnamed";
+
+    /**
+     * Adds the products to the group, per name ("Melk" twice becomes 2× Melk). Past MAX_NAMED names the push counts
+     * anyway, so it stops keeping them there.
+     *
+     * @param list<array{name: string, quantity: int}> $products
+     */
+    private static function rememberProducts(string $key, array $products, \DateTimeInterface $expires): void
+    {
+        $known = Cache::get($key . ':products', []);
+        if ($products === []) {
+            $known[self::UNNAMED] = 0;
+        }
+        foreach ($products as $product) {
+            if (count($known) > self::MAX_NAMED) {
+                break;
+            }
+            $name = (string) $product['name'];
+            $known[$name] = ($known[$name] ?? 0) + max(1, (int) $product['quantity']);
+        }
+        Cache::put($key . ':products', $known, $expires);
     }
 
     private static function cacheKey(int $listId, int $actorId, string $type): string
