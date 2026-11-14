@@ -25,11 +25,6 @@ class User extends Authenticatable implements MustVerifyEmail
         'language',
     ];
 
-    // Same as the column default, so a user created just now (e.g. in the register response) has it too
-    protected $attributes = [
-        'week_planner' => true,
-    ];
-
     /**
      * The attributes that should be hidden for serialization.
      *

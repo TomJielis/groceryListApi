@@ -243,7 +243,9 @@ class WeekPlannerTest extends TestCase
 
     public function test_the_planner_is_on_by_default_and_can_be_switched_off(): void
     {
-        $this->actingAs($this->user, 'sanctum')->postJson('/api/me')->assertJsonPath('user.week_planner', true);
+        // The column default (not the model): a register request sends no week_planner, so it works before and
+        // after the migration ran on a server
+        $this->actingAs($this->user->fresh(), 'sanctum')->postJson('/api/me')->assertJsonPath('user.week_planner', true);
 
         $this->actingAs($this->user, 'sanctum')
             ->postJson('/api/user/week-planner', ['enabled' => false])
