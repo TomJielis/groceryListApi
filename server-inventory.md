@@ -129,8 +129,8 @@ npm run build
 `public/storage` is not linked on the Pi, and photos are served through the API, so `php artisan storage:link` isn't needed.
 The Android APK (`downloads/Shoplisto.apk`) and `Shoplisto.json` come with the website's git repository.
 
-Deploying today: `php release.php` for the API (composer install, migrate, db:seed, clear caches, restart queue), and
-`release.sh` for the website (git pull, npm install, build, pm2 restart). Pull the API's code before running `release.php`.
+Deploying today: `php release.php` for the API (git pull, composer install, migrate, db:seed, clear caches, restart queue), and
+`release.sh` for the website (git pull, npm install, build, pm2 restart). `release.php` pulls the code itself.
 
 ## 6. Settings to copy (`.env`)
 

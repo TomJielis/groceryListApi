@@ -2,6 +2,9 @@
 // release.php
 
 $commands = [
+    // Fetch the new code first. --ff-only stops the release when the server has its own commits or edits, instead of
+    // merging them into an untested mix. (Changes to this file itself apply from the next release: PHP already read it.)
+    'git pull --ff-only',
     'composer install',
     'php artisan migrate',
     'php artisan db:seed',
