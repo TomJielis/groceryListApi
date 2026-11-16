@@ -52,4 +52,8 @@ return [
         'title' => 'Nieuwe reactie op een supportvraag',
         'body' => ':name: :subject',
     ],
+    'mail_failed' => [
+        'title' => 'E-mail niet verstuurd',
+        'body' => 'Een mail (:type) aan :email kon na herhaalde pogingen niet worden verstuurd.',
+    ],
 ];

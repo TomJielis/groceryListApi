@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\SendMail;
 use App\Jobs\SendPushNotification;
 use App\Mail\SupportMail;
 use App\Models\PushToken;
@@ -29,7 +30,8 @@ class SupportTest extends TestCase
     {
         parent::setUp();
         Mail::fake();
-        Queue::fake();
+        // Mails are sent through the queue: those still run
+        Queue::fake()->except(SendMail::class);
         config(['support.notify_email' => 'support-admin@example.com']);
         $this->admin = User::factory()->create(['is_admin' => true]);
         $this->user = User::factory()->create(['name' => 'Sanne', 'email' => 'sanne@example.com', 'language' => 'en']);
@@ -102,7 +104,8 @@ class SupportTest extends TestCase
         PushToken::create(['user_id' => $this->admin->id, 'token' => 'ExponentPushToken[admin]']);
         $this->ask();
         $ticket = SupportTicket::firstOrFail();
-        Queue::fake();
+        // Mails are sent through the queue: those still run
+        Queue::fake()->except(SendMail::class);
 
         $this->actingAs($this->user, 'sanctum')
             ->postJson("/api/support/tickets/{$ticket->id}/messages", ['message' => 'More info', 'via' => 'app'])

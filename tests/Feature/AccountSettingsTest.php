@@ -53,6 +53,20 @@ class AccountSettingsTest extends TestCase
         $this->assertNotNull($user->accepted_terms_at);
     }
 
+    public function test_an_older_app_does_not_lower_the_accepted_version(): void
+    {
+        // Accepted 1.4 on the website; an older app build (1.3) accepts its own version afterwards
+        $user = User::factory()->create();
+        $user->forceFill(['accepted_terms' => true, 'accepted_terms_version' => '1.4'])->save();
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/approve-terms', ['acceptedTermsVersion' => '1.3'])->assertOk();
+        $this->assertSame('1.4', $user->fresh()->accepted_terms_version);
+
+        // A newer version still raises it ("1.10" is newer than "1.4")
+        $this->actingAs($user, 'sanctum')->postJson('/api/approve-terms', ['acceptedTermsVersion' => '1.10'])->assertOk();
+        $this->assertSame('1.10', $user->fresh()->accepted_terms_version);
+    }
+
     public function test_the_settings_endpoints_need_a_login(): void
     {
         $this->postJson('/api/update', ['body' => ['name' => 'X']])->assertUnauthorized();

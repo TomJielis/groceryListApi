@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\SendMail;
 use App\Models\SentEmail;
 use App\Models\TemporaryPasswordCode;
 use App\Models\User;
@@ -17,7 +18,8 @@ class AccountSecurityTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        Queue::fake();
+        // Mails are sent through the queue: those still run
+        Queue::fake()->except(SendMail::class);
     }
 
     public function test_blocking_ends_the_sessions_that_are_open(): void

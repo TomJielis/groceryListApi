@@ -52,4 +52,8 @@ return [
         'title' => 'New reply on a support question',
         'body' => ':name: :subject',
     ],
+    'mail_failed' => [
+        'title' => 'Email not sent',
+        'body' => 'A mail (:type) to :email could not be sent after repeated tries.',
+    ],
 ];

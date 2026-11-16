@@ -25,7 +25,7 @@ use Illuminate\Support\Facades\Validator;
 
 class AuthController extends Controller
 {
-    private const RESET_LINK_MINUTES = 60;
+    public const RESET_LINK_MINUTES = 60;
     private const MIN_PASSWORD_LENGTH = 8;
 
     /**
@@ -118,7 +118,13 @@ class AuthController extends Controller
         $user = \auth()->user();
         $user->accepted_terms = true;
         $user->accepted_terms_at = Carbon::now();
-        $user->accepted_terms_version = $request->get('acceptedTermsVersion');
+        // Never lower it: an older app accepting its own (older) version after a newer one was accepted elsewhere
+        // would otherwise make the newer app and the website ask again, back and forth
+        $version = (string) $request->get('acceptedTermsVersion');
+        $current = (string) $user->accepted_terms_version;
+        if ($current === '' || version_compare($version, $current, '>')) {
+            $user->accepted_terms_version = $version;
+        }
         $user->save();
         return response()->json($user);
     }
@@ -203,7 +209,7 @@ class AuthController extends Controller
 
         $url = config('app.url') . '/auth/password/' . $code;
 
-        $mail = new ResetPassword($url, $user);
+        $mail = new ResetPassword($url, $user, $code);
 
         Config::set('mail.from', [
             'address' => config('mail.from.address'),

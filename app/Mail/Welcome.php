@@ -35,6 +35,13 @@ class Welcome extends Mailable
      *
      * @return $this
      */
+    // Sent again later: not when the account was activated meanwhile
+    public function stillWanted(): bool
+    {
+        $user = $this->user->fresh();
+        return $user !== null && !$user->email_verified_at;
+    }
+
     public function build()
     {
         \App::setLocale($this->language);
