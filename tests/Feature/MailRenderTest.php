@@ -44,4 +44,21 @@ class MailRenderTest extends TestCase
         $mail->assertSeeInText('https://example.com/reset');
         $mail->assertDontSeeInText('<table', false);
     }
+
+    /** @dataProvider languages */
+    public function test_every_mail_says_whose_app_it_is_and_where_to_ask(string $language): void
+    {
+        config(['app.url' => 'https://www.tomjielis.com', 'support.address' => 'support@tomjielis.com']);
+        $user = User::factory()->make(['name' => 'Sam', 'language' => $language]);
+        $line = $language === 'nl' ? 'Shoplisto is een app van' : 'Shoplisto is an app by';
+
+        foreach ([new Welcome('https://example.com/activate', $user), new ResetPassword('https://example.com/reset', $user)] as $mail) {
+            $mail->assertSeeInHtml($line);
+            $mail->assertSeeInHtml('>tomjielis.com</a>', false);
+            $mail->assertSeeInHtml('mailto:support@tomjielis.com', false);
+            $mail->assertSeeInText($line . ' tomjielis.com');
+            $mail->assertSeeInText('support@tomjielis.com');
+            $mail->assertDontSeeInText('mail.sender');
+        }
+    }
 }

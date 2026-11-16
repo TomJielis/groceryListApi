@@ -60,6 +60,17 @@
                 <tr>
                     <td class="em-muted" align="center" style="padding: 20px 24px 32px; font-size: 12px; line-height: 18px; color: #64748b;">
                         @yield('footer')
+                        @php
+                            $site = preg_replace('/^www\./', '', (string) parse_url(config('app.url'), PHP_URL_HOST));
+                            $supportEmail = config('support.address');
+                        @endphp
+                        <div style="margin-top: 8px;">
+                            {!! __('mail.sender', [
+                                'app' => e(config('app.name')),
+                                'site' => '<a href="'.e(config('app.url')).'" style="color: #64748b; text-decoration: underline;">'.e($site).'</a>',
+                                'email' => '<a href="mailto:'.e($supportEmail).'" style="color: #64748b; text-decoration: underline;">'.e($supportEmail).'</a>',
+                            ]) !!}
+                        </div>
                     </td>
                 </tr>
             </table>

@@ -4,4 +4,7 @@ return [
     // Where a new question or reply is announced by email (admins also get a push). Use a personal address: answering
     // happens in the admin of the app or the website, not by replying to this mail.
     'notify_email' => env('SUPPORT_NOTIFY_EMAIL', env('MAIL_FROM_ADDRESS')),
+
+    // The address users can write to, shown at the bottom of every mail (a Cloudflare forward to the admin's mailbox)
+    'address' => env('SUPPORT_ADDRESS', 'support@tomjielis.com'),
 ];
