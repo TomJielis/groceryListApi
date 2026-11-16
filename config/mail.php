@@ -115,4 +115,11 @@ return [
         'name' => env('MAIL_FROM_NAME', 'TomJielis'),
     ],
 
+    // Where "Reply" in a mail goes, e.g. support@ while the mails come from noreply@. Not set: replies go to the
+    // from address.
+    'reply_to' => env('MAIL_REPLY_TO_ADDRESS') ? [
+        'address' => env('MAIL_REPLY_TO_ADDRESS'),
+        'name' => env('MAIL_REPLY_TO_NAME', env('MAIL_FROM_NAME')),
+    ] : null,
+
 ];
