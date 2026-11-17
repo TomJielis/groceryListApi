@@ -172,7 +172,7 @@ class SupportTest extends TestCase
             $html = $mail->render();
             return $mail->kind === 'reply'
                 && str_contains($html, 'Profile → Help &amp; contact')
-                && str_contains($html, 'Replies to this email are not read')
+                && str_contains($html, 'Replying works best in the app')
                 && $mail->subject === 'Reply to your question: Can not share';
         });
         // Rendering the mail in the asker's language doesn't change the language of everything after it
