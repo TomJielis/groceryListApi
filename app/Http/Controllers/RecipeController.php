@@ -9,19 +9,19 @@ use App\Http\Requests\Recipe\RecipeImageRequest;
 use App\Http\Requests\Recipe\RecipeRequest;
 use App\Http\Requests\Recipe\RecipeShowManyInRequest;
 use App\Http\Requests\RecipeLink\RecipeLinkSaveRequest;
-use App\Jobs\SendListActivityPush;
+use App\Http\Resources\GroceryListItemResource;
+use App\Http\Resources\RecipeImageResource;
+use App\Http\Resources\RecipeResource;
+use App\Http\Resources\RecipeSummaryResource;
 use App\Models\Cookbook;
 use App\Models\GroceryList;
-use App\Models\GroceryListItem;
 use App\Models\Recipe;
-use App\Models\RecipeIngredient;
-use App\Models\User;
-use App\Services\RecipeImageStore;
+use App\Services\RecipeService;
+use App\Queries\Cookbook\UserCookbooksQuery;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -34,156 +34,83 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class RecipeController extends Controller
 {
-    public function __construct(private RecipeImageStore $images)
+    public function __construct(private RecipeService $recipes)
     {
     }
 
-    // The overview: no steps, and only the ingredient names (for searching on an ingredient)
-    public function index(Request $request): JsonResponse
+    // The overview: A to Z (MySQL's collation ignores capitals and accents); the id breaks ties
+    public function index(Request $request): AnonymousResourceCollection
     {
         $recipes = Recipe::visibleTo($request->user())
-            ->with(['ingredients:id,recipe_id,name,position', 'favoritedBy:id', 'shownIn:id', 'categoryLinks:id,recipe_id,category'])
-            // A to Z (MySQL's collation ignores capitals and accents); the id breaks ties
+            ->with(Recipe::SUMMARY_WITH)
             ->orderBy('title')
             ->orderBy('id')
             ->get();
 
-        return response()->json([
-            'data' => $recipes->map(fn (Recipe $recipe) => $this->presentSummary($request, $recipe))->values(),
-        ]);
+        return RecipeSummaryResource::collection($recipes);
     }
 
-    public function show(Request $request, int $id): JsonResponse
+    public function show(Request $request, int $id): RecipeResource
     {
-        return response()->json(['data' => $this->present($request, $this->readableRecipe($request, $id))]);
+        return new RecipeResource($this->readableRecipe($request, $id));
     }
 
     public function store(RecipeRequest $request): JsonResponse
     {
-        $user = $request->user();
-        $cookbook = Cookbook::visibleTo($user)->find($request->validated('cookbook_id'));
-        if (!$cookbook || !$this->mayShowIn($request)) {
-            return response()->json(['message' => __('recipes.no_cookbook_access', [], $this->language($request))], 403);
-        }
+        $input = $request->recipe();
+        $cookbook = $this->cookbook($request, $input->cookbookId);
+        abort_unless($this->recipes->mayShowIn($input->shownIn, UserCookbooksQuery::ids($request)), 403, $this->noCookbookAccess($request));
 
-        $recipe = DB::transaction(function () use ($request, $user, $cookbook) {
-            $recipe = Recipe::create([
-                ...$this->fields($request),
-                'cookbook_id' => $cookbook->id,
-                'created_by' => $user->id,
-            ]);
-            $recipe->replaceParts($request->validated('ingredients'), $request->validated('steps'));
-            $this->syncShownIn($request, $recipe);
+        $recipe = $this->recipes->create($input, $cookbook, $request->user());
 
-            return $recipe;
-        });
-
-        return response()->json(['data' => $this->present($request, $recipe->fresh())], 201);
+        return (new RecipeResource($recipe->fresh()))->response()->setStatusCode(201);
     }
 
-    public function update(RecipeRequest $request, int $id): JsonResponse
+    public function update(RecipeRequest $request, int $id): RecipeResource
     {
         $recipe = $this->editableRecipe($request, $id);
+        $input = $request->recipe();
         // Moving it to another cookbook: only to one the user may see
-        $cookbookId = $request->validated('cookbook_id');
-        if (!Cookbook::visibleTo($request->user())->whereKey($cookbookId)->exists() || !$this->mayShowIn($request, $recipe)) {
-            return response()->json(['message' => __('recipes.no_cookbook_access', [], $this->language($request))], 403);
-        }
+        $this->cookbook($request, $input->cookbookId);
+        abort_unless($this->recipes->mayShowIn($input->shownIn, UserCookbooksQuery::ids($request), $recipe), 403, $this->noCookbookAccess($request));
 
-        DB::transaction(function () use ($request, $recipe, $cookbookId) {
-            $recipe->update([...$this->fields($request), 'cookbook_id' => $cookbookId]);
-            $recipe->replaceParts($request->validated('ingredients'), $request->validated('steps'));
-            $this->syncShownIn($request, $recipe);
-            // Moved to a cookbook it was shown in: it lives there now
-            $recipe->shownIn()->detach($cookbookId);
-        });
-
-        return response()->json(['data' => $this->present($request, $recipe->fresh())]);
+        return new RecipeResource($this->recipes->update($recipe, $input, $request->user())->fresh());
     }
 
     public function delete(Request $request, int $id): JsonResponse
     {
-        $recipe = $this->editableRecipe($request, $id);
-        $recipe->deleteImage();
-        $recipe->delete();
+        $this->recipes->delete($this->editableRecipe($request, $id));
 
         return response()->json(['message' => __('recipes.deleted', [], $this->language($request))]);
     }
 
-    // Favorites are personal: a star in a shared cookbook doesn't change it for the others
     // Deletes several recipes at once, like one by one: only the ones the user may change, the others are left
     public function deleteMany(RecipeDeleteManyRequest $request): JsonResponse
     {
-        $recipes = Recipe::editableBy($request->user())->whereIn('recipes.id', $request->validated('recipe_ids'))->get();
-        DB::transaction(fn () => $recipes->each->delete());
-        // The photos only once the recipes are gone, so a failed delete doesn't leave recipes without their photo
-        $recipes->each->deleteImage();
+        $count = $this->recipes->deleteMany($request->recipeIds(), $request->user());
 
         return response()->json([
-            'message' => trans_choice('recipes.deleted_many', $recipes->count(), ['count' => $recipes->count()], $this->language($request)),
-            'deleted' => $recipes->count(),
+            'message' => trans_choice('recipes.deleted_many', $count, ['count' => $count], $this->language($request)),
+            'deleted' => $count,
         ]);
     }
 
     public function favorite(RecipeFavoriteRequest $request, int $id): JsonResponse
     {
-        $recipe = $this->ownRecipe($request, $id);
-        $data = $request->validated();
+        $this->recipes->setFavorite($this->ownRecipe($request, $id), $request->user(), $request->favorite());
 
-        if ($data['favorite']) {
-            $recipe->favoritedBy()->syncWithoutDetaching([$request->user()->id]);
-        } else {
-            $recipe->favoritedBy()->detach($request->user()->id);
-        }
-
-        return response()->json(['data' => ['favorite' => (bool) $data['favorite']]]);
+        return response()->json(['data' => ['favorite' => $request->favorite()]]);
     }
 
-    /**
-     * The products checked in the app go on a shopping list, the way adding them by hand does: a product that's
-     * still open on the list gets the number added to it, anything else becomes a new item (with the price it had
-     * last time). The others on the list get the grouped "added N products" push for the new ones.
-     */
-    public function addToList(RecipeAddToListRequest $request, int $id): JsonResponse
+    // The products checked in the app go on a shopping list (RecipeService::addToList)
+    public function addToList(RecipeAddToListRequest $request, int $id): AnonymousResourceCollection
     {
         $this->readableRecipe($request, $id);
         // GroceryList's global scope only finds lists the user may see (own and accepted shares)
-        $list = GroceryList::find($request->validated('list_id'));
-        if (!$list) {
-            return response()->json(['message' => __('recipes.no_list_access', [], $this->language($request))], 403);
-        }
+        $list = GroceryList::find($request->listId());
+        abort_unless($list, 403, __('recipes.no_list_access', [], $this->language($request)));
 
-        $userId = $request->user()->id;
-        $items = DB::transaction(function () use ($request, $list, $userId) {
-            return collect($request->validated('items'))->map(function (array $item) use ($list, $userId) {
-                // The latest row of a name is the current item (items are versioned per name), matched like
-                // GroceryListItemController::store
-                $latestItem = GroceryListItem::where('list_id', $list->id)
-                    ->where('name', $item['name'])
-                    ->orderByDesc('id')
-                    ->first();
-
-                if ($latestItem && !$latestItem->checked) {
-                    $latestItem->increment('quantity', $item['quantity']);
-
-                    return $latestItem->fresh();
-                }
-
-                $listItem = GroceryListItem::create([
-                    'name' => ucfirst($item['name']),
-                    'quantity' => $item['quantity'],
-                    'list_id' => $list->id,
-                    'unit_price' => $latestItem?->unit_price,
-                ]);
-                SendListActivityPush::record((int) $list->id, $userId, 'items_added', [
-                    ['name' => $listItem->name, 'quantity' => (int) $listItem->quantity],
-                ]);
-
-                return $listItem;
-            });
-        });
-
-        return response()->json(['data' => $items->values()]);
+        return GroceryListItemResource::collection($this->recipes->addToList($list, $request->items(), $request->user()));
     }
 
     /**
@@ -192,28 +119,18 @@ class RecipeController extends Controller
      */
     public function copy(RecipeLinkSaveRequest $request, int $id): JsonResponse
     {
-        $user = $request->user();
         $language = $this->language($request);
         $original = $this->readableRecipe($request, $id);
-        $cookbook = Cookbook::visibleTo($user)->find($request->validated('cookbook_id'));
-        if (!$cookbook) {
-            return response()->json(['message' => __('recipes.no_cookbook_access', [], $language)], 403);
-        }
-        // One at a time per user and recipe: a double tap mustn't make two copies (the second finds the first)
+        $cookbook = $this->cookbook($request, $request->cookbookId());
+
         try {
-            return Cache::lock("recipe-copy:{$user->id}:{$original->id}", 30)->block(10, fn () => $this->saveCopy($original, $user, $cookbook, $language));
+            ['copy' => $copy, 'already' => $already] = $this->recipes->copy($original, $cookbook, $request->user());
         } catch (LockTimeoutException) {
             return response()->json(['message' => __('recipe-links.busy', [], $language)], 429);
         }
-    }
-
-    private function saveCopy(Recipe $original, User $user, Cookbook $cookbook, string $language): JsonResponse
-    {
-        if ($already = $original->alreadySavedBy($user)) {
+        if ($already) {
             return response()->json(['message' => __('recipe-links.already_saved', [], $language), 'data' => $already], 409);
         }
-
-        $copy = $original->copyInto($cookbook, $user, $this->images);
 
         return response()->json([
             'message' => __('recipe-links.saved', [], $language),
@@ -222,23 +139,14 @@ class RecipeController extends Controller
     }
 
     // A new photo, as a data URL like the cards send ("data:image/jpeg;base64,...")
-    public function storeImage(RecipeImageRequest $request, int $id): JsonResponse
+    public function storeImage(RecipeImageRequest $request, int $id): RecipeImageResource
     {
-        $recipe = $this->editableRecipe($request, $id);
-
-        // RecipeImageRequest made sure it's a picture
-        $path = $this->images->store($this->images->decodeDataUrl($request->validated('image')));
-        $recipe->deleteImage();
-        $recipe->update(['image_path' => $path]);
-
-        return response()->json(['data' => ['image_url' => $this->imageUrl($recipe), 'thumb_url' => $this->imageUrl($recipe, true)]]);
+        return new RecipeImageResource($this->recipes->replaceImage($this->editableRecipe($request, $id), $request->imageBytes()));
     }
 
     public function deleteImage(Request $request, int $id): JsonResponse
     {
-        $recipe = $this->editableRecipe($request, $id);
-        $recipe->deleteImage();
-        $recipe->update(['image_path' => null]);
+        $this->recipes->removeImage($this->editableRecipe($request, $id));
 
         return response()->json(['message' => __('recipes.image_deleted', [], $this->language($request))]);
     }
@@ -263,86 +171,45 @@ class RecipeController extends Controller
         ]);
     }
 
-    /**
-     * Shows several recipes at once in one more cookbook of the user's, like ticking it under "Ook tonen in" in each
-     * recipe's form. Only recipes the user may change; the ones already in that cookbook (its own, or shown there
-     * before) are left as they are.
-     */
+    // Shows several recipes at once in one more cookbook of the user's (RecipeService::showManyIn)
     public function showManyIn(RecipeShowManyInRequest $request): JsonResponse
     {
-        $user = $request->user();
-        $language = $this->language($request);
-        $cookbook = Cookbook::visibleTo($user)->find($request->validated('cookbook_id'));
-        if (!$cookbook) {
-            return response()->json(['message' => __('recipes.no_cookbook_access', [], $language)], 403);
-        }
-
-        $recipes = Recipe::editableBy($user)
-            ->whereIn('recipes.id', $request->validated('recipe_ids'))
-            ->where('recipes.cookbook_id', '!=', $cookbook->id)
-            ->whereDoesntHave('shownIn', fn ($query) => $query->whereKey($cookbook->id))
-            ->pluck('recipes.id');
-
-        $cookbook->shownRecipes()->attach($recipes->mapWithKeys(fn ($id) => [$id => ['shown_by' => $user->id]])->all());
+        $cookbook = $this->cookbook($request, $request->cookbookId());
+        $count = $this->recipes->showManyIn($request->recipeIds(), $cookbook, $request->user());
 
         return response()->json([
-            'message' => trans_choice('recipes.shown_many_in', $recipes->count(), ['count' => $recipes->count(), 'cookbook' => $cookbook->name], $language),
-            'shown' => $recipes->count(),
+            'message' => trans_choice('recipes.shown_many_in', $count, ['count' => $count, 'cookbook' => $cookbook->name], $this->language($request)),
+            'shown' => $count,
         ]);
-    }
-
-    // The recipe's own fields as the form sent them
-    private function fields(RecipeRequest $request): array
-    {
-        return [
-            ...$request->safe()->except(['ingredients', 'steps', 'cookbook_id', 'categories']),
-            'categories' => array_values($request->validated('categories')),
-        ];
     }
 
     // Stops showing it in a cookbook: by the people in its own cookbook, or by the creator of the one it's shown in
     public function hideFrom(Request $request, int $id, int $cookbookId): JsonResponse
     {
-        $user = $request->user();
         $recipe = $this->ownRecipe($request, $id);
-        $editable = Recipe::editableBy($user)->whereKey($recipe->id)->exists();
-        $createdThatCookbook = Cookbook::where('created_by', $user->id)->whereKey($cookbookId)->exists();
-        abort_unless($editable || $createdThatCookbook, 403, __('recipes.read_only', [], $this->language($request)));
+        $createdThatCookbook = Cookbook::where('created_by', $request->user()->id)->whereKey($cookbookId)->exists();
+        abort_unless($this->isEditable($request, $recipe) || $createdThatCookbook, 403, __('recipes.read_only', [], $this->language($request)));
 
         $recipe->shownIn()->detach($cookbookId);
 
         return response()->json(['message' => __('recipes.hidden_from', [], $this->language($request))]);
     }
 
-    /**
-     * Where the recipe is shown besides its own cookbook, as the form sends it (shown_in): the user's other cookbooks
-     * they ticked. Cookbooks of others it's shown in stay unless the list leaves them out (taking it out there is
-     * fine, putting it in isn't). Without shown_in (older apps) nothing changes.
-     */
-    private function syncShownIn(RecipeRequest $request, Recipe $recipe): void
+    // A cookbook of the user's (own or shared with them); another one answers 403
+    private function cookbook(Request $request, int $id): Cookbook
     {
-        if (!$request->has('shown_in')) {
-            return;
-        }
+        $cookbook = Cookbook::visibleTo($request->user())->find($id);
+        abort_unless($cookbook, 403, $this->noCookbookAccess($request));
 
-        $wanted = collect($request->validated('shown_in'))->map(fn ($id) => (int) $id)->reject(fn ($id) => $id === (int) $recipe->cookbook_id)->unique();
-        $current = $recipe->shownIn()->pluck('cookbooks.id')->map(fn ($id) => (int) $id);
-
-        $recipe->shownIn()->detach($current->diff($wanted)->all());
-        $recipe->shownIn()->attach(
-            $wanted->diff($current)->mapWithKeys(fn ($id) => [$id => ['shown_by' => $request->user()->id]])->all()
-        );
+        return $cookbook;
     }
 
-    // Only cookbooks of the user's are added to shown_in (the ones it's in already may stay)
-    private function mayShowIn(RecipeRequest $request, ?Recipe $recipe = null): bool
+    private function noCookbookAccess(Request $request): string
     {
-        $current = $recipe ? $recipe->shownIn()->pluck('cookbooks.id')->map(fn ($id) => (int) $id)->all() : [];
-        $allowed = [...$this->userCookbookIds($request), ...$current];
-
-        return collect($request->validated('shown_in') ?? [])->every(fn ($id) => in_array((int) $id, $allowed, true));
+        return __('recipes.no_cookbook_access', [], $this->language($request));
     }
 
+    // One in the user's recipe book: in a cookbook of theirs, or shown in one
     private function ownRecipe(Request $request, int $id): Recipe
     {
         return Recipe::visibleTo($request->user())->findOrFail($id);
@@ -363,99 +230,8 @@ class RecipeController extends Controller
         return $recipe;
     }
 
-    // The cookbooks of the user, looked up once per request (the overview asks for every recipe)
-    private function userCookbookIds(Request $request): array
-    {
-        if (!$request->attributes->has('cookbook_ids')) {
-            $request->attributes->set('cookbook_ids', Cookbook::visibleTo($request->user())->pluck('id')->map(fn ($id) => (int) $id)->all());
-        }
-
-        return $request->attributes->get('cookbook_ids');
-    }
-
     private function isEditable(Request $request, Recipe $recipe): bool
     {
-        return in_array((int) $recipe->cookbook_id, $this->userCookbookIds($request), true);
-    }
-
-    // Where the app loads the photo (or its small copy); the version changes with every new photo, so a cached old
-    // one isn't shown. On the API's public address (API_URL) when that's set: behind a proxy the request itself can
-    // look like plain http or localhost, and iOS doesn't load photos from such an address. (APP_URL is the website.)
-    private function imageUrl(Recipe $recipe, bool $thumb = false): ?string
-    {
-        return $recipe->imageUrl($thumb);
-    }
-
-    private function presentSummary(Request $request, Recipe $recipe): array
-    {
-        $userId = $request->user()->id;
-
-        return [
-            'id' => $recipe->id,
-            'cookbook_id' => $recipe->cookbook_id,
-            'title' => $recipe->title,
-            'categories' => $recipe->categories ?? [],
-            'servings' => $recipe->servings,
-            'prep_minutes' => $recipe->prep_minutes,
-            'cook_minutes' => $recipe->cook_minutes,
-            'oven_minutes' => $recipe->oven_minutes,
-            'oven_celsius' => $recipe->oven_celsius,
-            'difficulty' => $recipe->difficulty,
-            'kcal' => $recipe->kcal,
-            'image_url' => $this->imageUrl($recipe),
-            // The small copy, for the tiles in the overview
-            'thumb_url' => $this->imageUrl($recipe, true),
-            'favorite' => $recipe->favoritedBy->contains('id', $userId),
-            // In a cookbook of the user's: they may change it; otherwise it's only shown to them
-            'editable' => $this->isEditable($request, $recipe),
-            // The user's other cookbooks it's shown in
-            'shown_in' => $recipe->shownIn
-                ->pluck('id')
-                ->map(fn ($id) => (int) $id)
-                ->intersect($this->userCookbookIds($request))
-                ->values(),
-            'ingredient_names' => $recipe->ingredients->pluck('name')->values(),
-            'created_at' => $recipe->created_at,
-        ];
-    }
-
-    // The whole recipe, as the recipe screen shows it
-    private function present(Request $request, Recipe $recipe): array
-    {
-        $recipe->loadMissing(['ingredients', 'steps', 'createdBy:id,name', 'favoritedBy:id', 'shownIn:id,name', 'cookbook:id,name', 'categoryLinks']);
-        $editable = $this->isEditable($request, $recipe);
-        $inRecipeBook = Recipe::visibleTo($request->user())->whereKey($recipe->id)->exists();
-
-        return [
-            ...$this->presentSummary($request, $recipe),
-            'description' => $recipe->description,
-            'protein' => $recipe->protein,
-            'carbs' => $recipe->carbs,
-            'fat' => $recipe->fat,
-            'source_url' => $recipe->source_url,
-            'created_by' => $recipe->createdBy,
-            // Not for a recipe only seen through a week menu: which (private) cookbook it lives in stays its owners'
-            'cookbook_id' => $inRecipeBook ? $recipe->cookbook_id : null,
-            // The cookbook it lives in (shown with a recipe that's read-only for the user: "from 'Samen koken'")
-            // Not for a recipe only seen through a week menu: the name of someone else's private cookbook stays theirs
-            'cookbook_name' => $inRecipeBook ? $recipe->cookbook?->name : null,
-            // False for a recipe the user only sees through a week menu: the app then offers saving a copy
-            'in_recipe_book' => $inRecipeBook,
-            // For the people who change it: the cookbooks of others it's shown in (someone in its cookbook put it
-            // there), so they see where it is and can take it out again
-            'shown_elsewhere' => $editable
-                ? $recipe->shownIn
-                    ->reject(fn (Cookbook $cookbook) => in_array((int) $cookbook->id, $this->userCookbookIds($request), true))
-                    ->map(fn (Cookbook $cookbook) => ['id' => $cookbook->id, 'name' => $cookbook->name])
-                    ->values()
-                : [],
-            'ingredients' => $recipe->ingredients->map(fn (RecipeIngredient $ingredient) => [
-                'name' => $ingredient->name,
-                'amount' => $ingredient->amount === null ? null : (float) $ingredient->amount,
-                'unit' => $ingredient->unit,
-            ])->values(),
-            'steps' => $recipe->steps->pluck('body')->values(),
-            'updated_at' => $recipe->updated_at,
-        ];
+        return UserCookbooksQuery::has($request, (int) $recipe->cookbook_id);
     }
 }

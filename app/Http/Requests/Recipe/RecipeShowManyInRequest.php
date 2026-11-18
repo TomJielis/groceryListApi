@@ -2,28 +2,14 @@
 
 namespace App\Http\Requests\Recipe;
 
-use Illuminate\Foundation\Http\FormRequest;
-
-class RecipeShowManyInRequest extends FormRequest
+// Shows several recipes in one more cookbook; which recipes and which cookbook the user may use is checked by the
+// controller
+class RecipeShowManyInRequest extends RecipeFormRequest
 {
-
     /**
-     * Determine if the user is authorized to make this request.
-     * Which recipes and which cookbook the user may use is checked by the controller.
-     *
-     * @return bool
-     */
-    public function authorize()
-    {
-        return true;
-    }
-
-    /**
-     * Get the validation rules that apply to the request.
-     *
      * @return array<string, mixed>
      */
-    public function rules()
+    public function rules(): array
     {
         return [
             'recipe_ids' => 'required|array|min:1|max:500',
@@ -33,23 +19,15 @@ class RecipeShowManyInRequest extends FormRequest
     }
 
     /**
-     * Custom message for validation
-     *
-     * @return array
+     * @return list<int>
      */
-    public function messages()
+    public function recipeIds(): array
     {
-        // In the user's language, like the push notifications
-        return __('recipes.validation.rules', [], $this->user()?->language ?: 'nl');
+        return array_map('intval', array_values($this->validated('recipe_ids')));
     }
 
-    /**
-     * The field names in the messages, in the user's language
-     *
-     * @return array
-     */
-    public function attributes()
+    public function cookbookId(): int
     {
-        return __('recipes.validation.attributes', [], $this->user()?->language ?: 'nl');
+        return (int) $this->validated('cookbook_id');
     }
 }

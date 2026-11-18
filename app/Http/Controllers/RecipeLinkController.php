@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\RecipeLink\RecipeLinkImageRequest;
 use App\Http\Requests\RecipeLink\RecipeLinkSaveRequest;
+use App\Http\Resources\RecipeLinkResource;
+use App\Http\Resources\RecipeLinkViewResource;
 use App\Models\Cookbook;
 use App\Models\Recipe;
-use App\Models\RecipeIngredient;
 use App\Models\RecipeLink;
-use App\Services\RecipeImageStore;
+use App\Services\RecipeService;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -26,11 +29,11 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class RecipeLinkController extends Controller
 {
-    public function __construct(private RecipeImageStore $images)
+    public function __construct(private RecipeService $recipes)
     {
     }
 
-    public function store(Request $request, int $id): JsonResponse
+    public function store(Request $request, int $id): RecipeLinkResource
     {
         $recipe = Recipe::visibleTo($request->user())->findOrFail($id);
         abort_unless(
@@ -38,9 +41,8 @@ class RecipeLinkController extends Controller
             403,
             __('recipe-links.read_only', [], $this->language($request)),
         );
-        $link = RecipeLink::forRecipe($recipe, $request->user());
 
-        return response()->json(['data' => ['url' => $link->url(), 'expires_at' => $link->expires_at]]);
+        return new RecipeLinkResource(RecipeLink::forRecipe($recipe, $request->user()));
     }
 
     // The maker withdraws a link: opening it then shows that it no longer works
@@ -55,9 +57,9 @@ class RecipeLinkController extends Controller
     /**
      * The recipe a link shows, also without being logged in: status valid, expired (also withdrawn) or not_found
      */
-    public function show(Request $request, string $token): JsonResponse
+    public function show(string $token): RecipeLinkViewResource|JsonResponse
     {
-        $link = RecipeLink::where('token', $token)->with(['recipe.ingredients', 'recipe.steps', 'createdBy:id,name'])->first();
+        $link = RecipeLink::where('token', $token)->with(RecipeLink::PRESENTED_WITH)->first();
         if (!$link || !$link->recipe) {
             return response()->json(['data' => ['status' => 'not_found']]);
         }
@@ -65,52 +67,19 @@ class RecipeLinkController extends Controller
             return response()->json(['data' => ['status' => 'expired']]);
         }
 
-        $recipe = $link->recipe;
-        $user = $request->user('sanctum');
-
-        return response()->json(['data' => [
-            'status' => 'valid',
-            'shared_by' => $link->createdBy?->name,
-            // Only known when logged in: whether they have it already, and where
-            'already' => $user ? $recipe->alreadySavedBy($user) : null,
-            'expires_at' => $link->expires_at,
-            'recipe' => [
-                'title' => $recipe->title,
-                'description' => $recipe->description,
-                'categories' => $recipe->categories ?? [],
-                'servings' => $recipe->servings,
-                'prep_minutes' => $recipe->prep_minutes,
-                'cook_minutes' => $recipe->cook_minutes,
-                'oven_minutes' => $recipe->oven_minutes,
-                'oven_celsius' => $recipe->oven_celsius,
-                'difficulty' => $recipe->difficulty,
-                'kcal' => $recipe->kcal,
-                'protein' => $recipe->protein,
-                'carbs' => $recipe->carbs,
-                'fat' => $recipe->fat,
-                'source_url' => $recipe->source_url,
-                // Through the link itself: whoever opens it isn't in the recipe's cookbook
-                'image_url' => $recipe->image_path ? $this->apiUrl("/api/recipe-links/{$link->token}/image") : null,
-                'ingredients' => $recipe->ingredients->map(fn (RecipeIngredient $ingredient) => [
-                    'name' => $ingredient->name,
-                    'amount' => $ingredient->amount === null ? null : (float) $ingredient->amount,
-                    'unit' => $ingredient->unit,
-                ])->values(),
-                'steps' => $recipe->steps->pluck('body')->values(),
-            ],
-        ]]);
+        return new RecipeLinkViewResource($link);
     }
 
     // The recipe's photo while the link works, for whoever opens it (no login: the website shows it too). ?size=thumb
     // gives the small copy: what WhatsApp and the like show in a link's preview block.
-    public function image(Request $request, string $token): Response
+    public function image(RecipeLinkImageRequest $request, string $token): Response
     {
         $link = RecipeLink::where('token', $token)->with('recipe')->first();
         $disk = Storage::disk(Recipe::IMAGE_DISK);
         abort_unless($link && $link->isUsable() && $link->recipe?->image_path && $disk->exists($link->recipe->image_path), 404);
 
         $path = $link->recipe->image_path;
-        if ($request->query('size') === 'thumb' && $disk->exists(Recipe::thumbPath($path))) {
+        if ($request->wantsThumb() && $disk->exists(Recipe::thumbPath($path))) {
             $path = Recipe::thumbPath($path);
         }
 
@@ -132,30 +101,25 @@ class RecipeLinkController extends Controller
         if (!$link->isUsable()) {
             return response()->json(['message' => __('recipe-links.expired', [], $language)], 410);
         }
-        $cookbook = Cookbook::visibleTo($user)->find($request->validated('cookbook_id'));
+        $cookbook = Cookbook::visibleTo($user)->find($request->cookbookId());
         if (!$cookbook) {
             return response()->json(['message' => __('recipes.no_cookbook_access', [], $language)], 403);
         }
 
-        $original = $link->recipe;
-        // They have it already (a copy, or the recipe itself in a cookbook of theirs): no second copy
-        if ($already = $original->alreadySavedBy($user)) {
+        // They have it already (a copy, or the recipe itself in a cookbook of theirs): no second copy. One at a time per
+        // user and recipe, so a double tap doesn't make two copies either (the second finds the first)
+        try {
+            ['copy' => $copy, 'already' => $already] = $this->recipes->copy($link->recipe, $cookbook, $user);
+        } catch (LockTimeoutException) {
+            return response()->json(['message' => __('recipe-links.busy', [], $language)], 429);
+        }
+        if ($already) {
             return response()->json(['message' => __('recipe-links.already_saved', [], $language), 'data' => $already], 409);
         }
-
-        $copy = $original->copyInto($cookbook, $user, $this->images);
 
         return response()->json([
             'message' => __('recipe-links.saved', [], $language),
             'data' => ['id' => $copy->id, 'cookbook_id' => $cookbook->id],
         ], 201);
-    }
-
-    // On the API's public address when set (API_URL), like RecipeController's photo addresses
-    private function apiUrl(string $path): string
-    {
-        $apiUrl = rtrim((string) config('app.api_url'), '/');
-
-        return $apiUrl !== '' ? $apiUrl . $path : url($path);
     }
 }

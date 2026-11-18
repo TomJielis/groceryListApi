@@ -49,6 +49,37 @@ class ListCrudTest extends TestCase
         $this->assertDatabaseHas('grocery_lists', ['name' => 'Feestje', 'created_by' => $this->stranger->id]);
     }
 
+    public function test_a_new_list_needs_a_name_in_the_users_language(): void
+    {
+        $this->stranger->forceFill(['language' => 'en'])->save();
+
+        // It used to be a server error
+        $this->actingAs($this->stranger, 'sanctum')->postJson('/api/grocery-list/store', [])
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.name.0', 'Please give the list a name.');
+        $this->postJson('/api/grocery-list/store', ['name' => str_repeat('x', 256)])
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.name.0', 'The name may be at most 255 characters.');
+        $this->assertSame(1, GroceryList::withoutGlobalScopes()->count());
+    }
+
+    public function test_the_owner_sees_the_members_addresses_in_their_own_list_only(): void
+    {
+        // The member is also in a list of someone else's that the owner joined: still their address in the owner's own list
+        $other = GroceryList::create(['name' => 'Van de buren', 'created_by' => $this->stranger->id]);
+        foreach ([$this->owner, $this->member] as $user) {
+            GroceryListInvites::create(['grocery_list_id' => $other->id, 'user_id' => $user->id, 'status' => GroceryListInvitesStatus::ACCEPTED]);
+        }
+
+        $lists = collect($this->actingAs($this->owner, 'sanctum')->getJson('/api/grocery-list/index')->assertOk()->json('data'))->keyBy('id');
+
+        $own = collect($lists[$this->list->id]['grocery_list_invites'])->firstWhere('user_id', $this->member->id);
+        $this->assertSame($this->member->email, $own['user']['email']);
+        foreach ($lists[$other->id]['grocery_list_invites'] as $invite) {
+            $this->assertArrayNotHasKey('email', $invite['user']);
+        }
+    }
+
     public function test_the_list_index_shows_only_who_joined(): void
     {
         // "Gedeeld met": the members, never a row that isn't accepted (like the old pending email invites)

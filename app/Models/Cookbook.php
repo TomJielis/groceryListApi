@@ -16,6 +16,10 @@ use Illuminate\Support\Facades\Storage;
 // delete it (or their account) it's gone for everyone.
 class Cookbook extends Model
 {
+    // What CookbookResource shows: who made it and who joined, and how many recipes (withCount)
+    public const PRESENTED_WITH = ['createdBy:id,name', 'acceptedInvites.user:id,name'];
+    public const PRESENTED_COUNTS = ['recipes', 'shownRecipes'];
+
     protected $fillable = [
         'name',
         'created_by',

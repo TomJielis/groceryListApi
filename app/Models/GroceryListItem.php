@@ -16,6 +16,10 @@ class GroceryListItem extends Model
      */
     protected $table = 'grocery_list_items';
 
+    // The most a product's quantity and price can be (adding and changing an item)
+    public const MAX_QUANTITY = 100000;
+    public const MAX_PRICE = 1000000;
+
     protected static function boot()
     {
         parent::boot();

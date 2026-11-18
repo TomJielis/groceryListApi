@@ -2,46 +2,42 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Http\Requests\Card\CardStoreRequest;
+use App\Http\Resources\CardResource;
 use App\Models\Card;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
+// The user's loyalty cards. The answers carry success besides the card(s), and their messages are Dutch only.
 class CardController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
-        $cards = Card::where('user_id', auth()->user()->id)->get();
+        $cards = Card::where('user_id', $request->user()->id)->get();
 
         return response()->json([
             'success' => true,
-            'data' => $cards,
+            'data' => CardResource::collection($cards),
         ]);
     }
-    public function store(Request $request)
-    {
-        $request->validate([
-            'title' => 'required|string|max:255',
-            // A data URL (photo or barcode) or a link; ~10 MB of text is a photo of about 7.5 MB
-            'attachment' => 'required|string|max:10000000',
-        ], [
-            'attachment.max' => 'De afbeelding is te groot. Kies een kleinere foto.',
-        ]);
 
+    public function store(CardStoreRequest $request): JsonResponse
+    {
         $card = Card::create([
-            'user_id' => Auth::id(),
-            'title' => $request->title,
-            'attachment' => $request->attachment,
+            'user_id' => $request->user()->id,
+            'title' => $request->title(),
+            'attachment' => $request->attachment(),
         ]);
 
         return response()->json([
             'success' => true,
-            'data' => $card,
+            'data' => new CardResource($card),
         ]);
     }
 
-    public function delete(Card $card)
+    public function delete(Request $request, Card $card): JsonResponse
     {
-        if ($card->user_id !== Auth::id()) {
+        if ($card->user_id !== $request->user()->id) {
             return response()->json([
                 'success' => false,
                 'message' => 'Onbevoegd',

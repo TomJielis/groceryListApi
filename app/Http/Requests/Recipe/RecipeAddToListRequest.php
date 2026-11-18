@@ -2,30 +2,14 @@
 
 namespace App\Http\Requests\Recipe;
 
-use Illuminate\Foundation\Http\FormRequest;
-
-class RecipeAddToListRequest extends FormRequest
+// The products as checked in the app, each with the number that goes on the list. A list the user isn't on answers 403
+// in the controller, like adding a product by hand.
+class RecipeAddToListRequest extends RecipeFormRequest
 {
-
     /**
-     * Determine if the user is authorized to make this request.
-     * Access to the recipe and the list is checked by the controller (404 for someone else's recipe, 403 for a list
-     * the user isn't on, like adding a product by hand).
-     *
-     * @return bool
-     */
-    public function authorize()
-    {
-        return true;
-    }
-
-    /**
-     * Get the validation rules that apply to the request.
-     * The products as checked in the app: each with the number that goes on the list.
-     *
      * @return array<string, mixed>
      */
-    public function rules()
+    public function rules(): array
     {
         return [
             'list_id'          => 'required|integer',
@@ -35,31 +19,28 @@ class RecipeAddToListRequest extends FormRequest
         ];
     }
 
-    /**
-     * Custom message for validation
-     *
-     * @return array
-     */
-    public function messages()
+    protected function ownMessages(): array
     {
-        // In the user's language, like the push notifications
-        $language = $this->user()?->language ?: 'nl';
-
         return [
-            ...__('recipes.validation.rules', [], $language),
-            'list_id.required' => __('recipes.validation.list_required', [], $language),
-            'items.required'   => __('recipes.validation.items_required', [], $language),
-            'items.min'        => __('recipes.validation.items_required', [], $language),
+            'list_id.required' => 'recipes.validation.list_required',
+            'items.required'   => 'recipes.validation.items_required',
+            'items.min'        => 'recipes.validation.items_required',
         ];
     }
 
-    /**
-     * The field names in the messages, in the user's language
-     *
-     * @return array
-     */
-    public function attributes()
+    public function listId(): int
     {
-        return __('recipes.validation.attributes', [], $this->user()?->language ?: 'nl');
+        return (int) $this->validated('list_id');
+    }
+
+    /**
+     * @return list<array{name: string, quantity: int}>
+     */
+    public function items(): array
+    {
+        return array_map(
+            fn (array $item) => ['name' => (string) $item['name'], 'quantity' => (int) $item['quantity']],
+            array_values($this->validated('items')),
+        );
     }
 }

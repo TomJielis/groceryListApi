@@ -2,44 +2,36 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\SentEmail;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
+use App\Http\Requests\Admin\AdminEmailIndexRequest;
+use App\Http\Resources\PageMeta;
+use App\Http\Resources\SentEmailResource;
+use App\Queries\Mail\SentEmailLogQuery;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class AdminEmailController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    public function index(AdminEmailIndexRequest $request, SentEmailLogQuery $log): AnonymousResourceCollection
     {
-        $query = SentEmail::with('triggeredBy:id,name,email')
-            ->orderBy('created_at', 'desc')
-            ->when($request->filled('status'), fn($q) => $q->where('status', $request->query('status')))
-            ->when($request->filled('type'), fn($q) => $q->where('type', $request->query('type')))
-            ->when($request->filled('date_from'), fn($q) => $q->whereDate('sent_at', '>=', $request->query('date_from')))
-            ->when($request->filled('date_to'), fn($q) => $q->whereDate('sent_at', '<=', $request->query('date_to')));
+        $query = $log->query($request->status(), $request->type(), $request->dateFrom(), $request->dateTo());
 
-        if ($request->filled('limit')) {
-            $emails = $query->limit((int) $request->query('limit'))->get();
-            return response()->json(['data' => $emails]);
+        if ($request->limit() !== null) {
+            return SentEmailResource::collection($query->limit($request->limit())->get());
         }
 
-        $perPage = min((int) $request->query('per_page', 20), 100);
-        $paginator = $query->paginate($perPage);
+        $paginator = $query->paginate($request->perPage());
 
-        return response()->json([
-            'data'  => $paginator->items(),
-            'meta'  => [
-                'current_page' => $paginator->currentPage(),
-                'last_page'    => $paginator->lastPage(),
-                'per_page'     => $paginator->perPage(),
-                'total'        => $paginator->total(),
-                'from'         => $paginator->firstItem(),
-                'to'           => $paginator->lastItem(),
+        // The longer paging shape the website's mail log reads: also from/to and the page links
+        return SentEmailResource::collection($paginator->getCollection())->additional([
+            'meta' => [
+                ...PageMeta::of($paginator),
+                'from' => $paginator->firstItem(),
+                'to' => $paginator->lastItem(),
             ],
             'links' => [
                 'first' => $paginator->url(1),
-                'last'  => $paginator->url($paginator->lastPage()),
-                'prev'  => $paginator->previousPageUrl(),
-                'next'  => $paginator->nextPageUrl(),
+                'last' => $paginator->url($paginator->lastPage()),
+                'prev' => $paginator->previousPageUrl(),
+                'next' => $paginator->nextPageUrl(),
             ],
         ]);
     }

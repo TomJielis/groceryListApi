@@ -2,58 +2,30 @@
 
 namespace App\Http\Requests\Cookbook;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\Recipe\RecipeFormRequest;
 
-class CookbookRequest extends FormRequest
+// A new cookbook, or renaming one (its creator); a cookbook the user isn't in answers 404 in the controller
+class CookbookRequest extends RecipeFormRequest
 {
-
     /**
-     * Determine if the user is authorized to make this request.
-     * Access to the cookbook is checked by the controller: one the user isn't in answers 404, like one that doesn't
-     * exist.
-     *
-     * @return bool
-     */
-    public function authorize()
-    {
-        return true;
-    }
-
-    /**
-     * Get the validation rules that apply to the request.
-     *
      * @return array<string, mixed>
      */
-    public function rules()
+    public function rules(): array
     {
         return [
             'name' => 'required|string|max:100',
         ];
     }
 
-    /**
-     * Custom message for validation
-     *
-     * @return array
-     */
-    public function messages()
+    protected function ownMessages(): array
     {
-        // In the user's language, like the push notifications
-        $language = $this->user()?->language ?: 'nl';
-
         return [
-            ...__('recipes.validation.rules', [], $language),
-            'name.required' => __('recipes.validation.cookbook_name_required', [], $language),
+            'name.required' => 'recipes.validation.cookbook_name_required',
         ];
     }
 
-    /**
-     * The field names in the messages, in the user's language
-     *
-     * @return array
-     */
-    public function attributes()
+    public function cookbookName(): string
     {
-        return __('recipes.validation.attributes', [], $this->user()?->language ?: 'nl');
+        return $this->validated('name');
     }
 }

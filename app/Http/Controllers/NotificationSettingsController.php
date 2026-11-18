@@ -2,33 +2,25 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
-use Illuminate\Http\JsonResponse;
+use App\Http\Requests\User\NotificationSettingsRequest;
+use App\Http\Resources\NotificationSettingsResource;
 use Illuminate\Http\Request;
 
+// Which pushes the user wants; everything is on unless they switched it off (User::NOTIFICATION_SETTINGS)
 class NotificationSettingsController extends Controller
 {
-    public function show(): JsonResponse
+    public function show(Request $request): NotificationSettingsResource
     {
-        return response()->json(['data' => auth()->user()->notificationSettings()]);
+        return new NotificationSettingsResource($request->user());
     }
 
     // Accepts any subset of the settings, e.g. {"items_added": false}; the others keep their value
-    public function update(Request $request): JsonResponse
+    public function update(NotificationSettingsRequest $request): NotificationSettingsResource
     {
-        $rules = collect(User::NOTIFICATION_SETTINGS)
-            ->mapWithKeys(fn ($types, string $setting) => [$setting => ['sometimes', 'boolean']])
-            ->all();
-        $validated = $request->validate($rules);
-
-        /** @var User $user */
-        $user = auth()->user();
-        $user->notification_settings = array_merge(
-            $user->notificationSettings(),
-            array_map(fn ($value) => (bool) $value, $validated),
-        );
+        $user = $request->user();
+        $user->notification_settings = array_merge($user->notificationSettings(), $request->settings());
         $user->save();
 
-        return response()->json(['data' => $user->notificationSettings()]);
+        return new NotificationSettingsResource($user);
     }
 }

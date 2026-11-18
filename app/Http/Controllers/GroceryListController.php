@@ -2,180 +2,89 @@
 
 namespace App\Http\Controllers;
 
-use App\Jobs\SendPushNotification;
+use App\Http\Requests\GroceryList\GroceryListFavoriteRequest;
+use App\Http\Requests\GroceryList\GroceryListIndexRequest;
+use App\Http\Requests\GroceryList\GroceryListNameRequest;
+use App\Http\Requests\GroceryList\GroceryListUnshareRequest;
+use App\Http\Resources\GroceryListOverviewResource;
+use App\Http\Resources\GroceryListResource;
 use App\Models\GroceryList;
-use App\Models\GroceryListInvites;
-use App\Models\GroceryListInvitesStatus;
-use App\Models\GroceryListItem;
+use App\Queries\GroceryList\ListOverviewQuery;
+use App\Services\GroceryListService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
-
+/**
+ * The user's grocery lists: their own and the ones they joined by invite link (GroceryList's global scope finds
+ * exactly those, so another list answers 404). Members rename a list too; only its owner deletes it for everyone.
+ */
 class GroceryListController extends Controller
 {
-
-    /**
-     * @param Request $request
-     *
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function index(Request $request)
+    public function __construct(private GroceryListService $lists)
     {
-        $offset = $request->get('from');
-        $limit = $request->get('till');
-        // Items are versioned per name (a new row per change); the current item is the latest row of each name.
-        // The two counts above include every version and stay as they are for the web app;
-        // open_items_count is what is still to be bought right now (used by the mobile app).
-        $latestIds = GroceryListItem::selectRaw('MAX(id)')
-            ->whereColumn('list_id', 'grocery_lists.id')
-            ->groupBy('name');
-        $openItemsCount = GroceryListItem::selectRaw('COUNT(*)')
-            ->whereColumn('list_id', 'grocery_lists.id')
-            ->where('checked', false)
-            ->whereIn('id', $latestIds);
-
-        $listItems = GroceryList::select('*')
-            ->selectSub($openItemsCount, 'open_items_count')
-            ->withCount('groceryListItems')
-            ->withCount('groceryListItemsChecked')
-            ->with([
-                // Everyone who joined (the owner is createdBy)
-                'groceryListInvites' => fn ($query) => $query->where('status', GroceryListInvitesStatus::ACCEPTED)->with('user:id,name,email'),
-                'createdBy:id,name',
-            ])
-            // The user's favorite on top, then the most still to buy; equal lists stay oldest first
-            ->orderByRaw('CASE WHEN grocery_lists.id = ? THEN 0 ELSE 1 END', [auth()->user()->favorite_list_id])
-            ->orderByDesc('open_items_count')
-            ->orderBy('grocery_lists.id');
-
-        if(isset($offset) && isset($limit)){
-            $listItems->limit($limit)
-                    ->offset($offset);
-        }
-
-
-        $lists = $listItems->get();
-
-        // Only the owner manages the members (the sharing screen shows their addresses); the others get just the names
-        $lists->reject(fn (GroceryList $list) => (int) $list->getAttribute('created_by') === auth()->id())
-            ->each(fn (GroceryList $list) => $list->groceryListInvites->each(fn ($invite) => $invite->user?->makeHidden('email')));
-
-        return response()->json([
-            'data' => $lists,
-        ]);
     }
 
-    public function store(Request $request): \Illuminate\Http\JsonResponse
+    public function index(GroceryListIndexRequest $request, ListOverviewQuery $overview): AnonymousResourceCollection
     {
-        $data = $request->all();
-        $data['created_by'] = auth()->user()?->id;
-
-        $listItem = GroceryList::create(
-            [
-                'name' => $data['name'],
-                'created_by' => $data['created_by'] ?? 1,
-            ]
-        );
-
-        return response()->json([
-            'data' => $listItem,
-        ]);
+        return GroceryListOverviewResource::collection($overview->forUser($request->user(), $request->page()));
     }
 
-    public function update(Request $request, GroceryList $groceryList): \Illuminate\Http\JsonResponse
+    public function store(GroceryListNameRequest $request): GroceryListResource
     {
-        $data = $request->all();
-        $groceryList->name = $data['name'] ?? $groceryList->name;
+        $list = GroceryList::create(['name' => $request->listName(), 'created_by' => $request->user()->id]);
+
+        return new GroceryListResource($list);
+    }
+
+    public function update(GroceryListNameRequest $request, GroceryList $groceryList): GroceryListResource
+    {
+        $groceryList->name = $request->listName() ?? $groceryList->name;
         $groceryList->save();
 
-        return response()->json([
-            'data' => $groceryList,
-        ]);
+        return new GroceryListResource($groceryList);
     }
 
-    public function unshare(Request $request): \Illuminate\Http\JsonResponse
+    public function unshare(GroceryListUnshareRequest $request): JsonResponse
     {
-        $data = $request->all();
-        if(!isset($data['groceryListId']) || !isset($data['userId'])){
+        if (!$request->isComplete()) {
             return response()->json(['message' => __('lists.invalid_request', [], $this->language($request))], 400);
         }
 
         // Only someone with access to the list (owner or member) can remove people from it
-        if (!GroceryList::find($data['groceryListId'])) {
+        if (!GroceryList::find($request->listId())) {
             return response()->json(['message' => __('lists.not_found', [], $this->language($request))], 404);
         }
 
-        $invites = GroceryListInvites::where('grocery_list_id', $data['groceryListId'])
-            ->where('user_id', $data['userId']);
-        // Only someone who actually joined is told
-        $wasMember = (clone $invites)->where('status', GroceryListInvitesStatus::ACCEPTED)->exists();
-        $invites->delete();
+        $this->lists->unshare($request->listId(), $request->userId(), $request->user());
 
-        $groceryList = GroceryList::withoutGlobalScopes()->find($data['groceryListId']);
-        if ($wasMember && $groceryList && (int) $data['userId'] !== auth()->id()) {
-            SendPushNotification::dispatch(
-                (int) $data['userId'],
-                'list_removed',
-                ['user' => auth()->user()->name, 'list' => $groceryList->name],
-                ['url' => '/'],
-            );
-        }
-
-        return response()->json([
-            'message' => __('lists.access_revoked', [], $this->language($request)),
-        ]);
+        return response()->json(['message' => __('lists.access_revoked', [], $this->language($request))]);
     }
 
-    public function favorite(Request $request): \Illuminate\Http\JsonResponse
+    public function favorite(GroceryListFavoriteRequest $request): JsonResponse
     {
-        $user = auth()->user();
-        $listId = $request->get('listId');
+        $listId = $request->listId();
         // Only a list the user can see can be their favorite (null clears it)
         if ($listId && !GroceryList::find($listId)) {
             return response()->json(['message' => __('lists.not_found', [], $this->language($request))], 404);
         }
-        $user->favorite_list_id = $listId ?? null;
+
+        $user = $request->user();
+        $user->favorite_list_id = $listId;
         $user->save();
-        return response()->json([
-            'message' => __('lists.marked_favorite', [], $this->language($request)),
-        ]);
+
+        return response()->json(['message' => __('lists.marked_favorite', [], $this->language($request))]);
     }
 
-    public function delete(Request $request, GroceryList $groceryList): \Illuminate\Http\JsonResponse
+    // The owner deletes it for everyone; someone who joined leaves it
+    public function delete(Request $request, GroceryList $groceryList): JsonResponse
     {
-
-        if($groceryList->created_by !== auth()->id()) {
-
-            $groceryListInvite = GroceryListInvites::where('grocery_list_id', $groceryList->id)
-                ->where('user_id', auth()->id())
-                ->where('status', '=', GroceryListInvitesStatus::ACCEPTED)
-                ->first();
-
-            $groceryListInvite->delete();
-
-            return response()->json([
-                'message' => __('lists.deleted', [], $this->language($request)),
-            ]);
+        if ($groceryList->created_by !== $request->user()->id) {
+            $this->lists->leave($groceryList, $request->user());
+        } else {
+            $this->lists->delete($groceryList, $request->user());
         }
 
-
-        // Collected before the invites are gone
-        $memberIds = array_diff($groceryList->memberIds(), [auth()->id()]);
-
-        $groceryList->groceryListInvites()->delete();
-        $groceryList->groceryListItems()->delete();
-        $groceryList->delete();
-
-        foreach ($memberIds as $memberId) {
-            SendPushNotification::dispatch(
-                $memberId,
-                'list_deleted',
-                ['user' => auth()->user()->name, 'list' => $groceryList->name],
-                ['url' => '/'],
-            );
-        }
-
-        return response()->json([
-            'message' => __('lists.deleted', [], $this->language($request)),
-        ]);
+        return response()->json(['message' => __('lists.deleted', [], $this->language($request))]);
     }
 }

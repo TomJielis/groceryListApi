@@ -26,6 +26,18 @@ class AccountSettingsTest extends TestCase
         $this->assertSame('Nieuw', $user->fresh()->name);
     }
 
+    public function test_update_without_a_name_is_refused_in_the_users_language(): void
+    {
+        $user = User::factory()->create(['name' => 'Oud', 'language' => 'nl']);
+
+        // It used to be a server error
+        $this->actingAs($user, 'sanctum')->postJson('/api/update', [])
+            ->assertUnprocessable()
+            ->assertJsonPath('errors', ['body.name' => ['Vul je naam in (hoogstens 255 tekens).']]);
+        $this->postJson('/api/update', ['body' => ['name' => str_repeat('x', 256)]])->assertUnprocessable();
+        $this->assertSame('Oud', $user->fresh()->name);
+    }
+
     public function test_update_language_changes_the_language(): void
     {
         $user = User::factory()->create(['language' => 'nl']);
