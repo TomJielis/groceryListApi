@@ -2,334 +2,142 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Contracts\Encryption\DecryptException;
+use App\Http\Requests\User\ApproveTermsRequest;
+use App\Http\Requests\User\CheckResetLinkRequest;
+use App\Http\Requests\User\LoginRequest;
+use App\Http\Requests\User\LogoutRequest;
 use App\Http\Requests\User\RegisterUserRequest;
-use App\Jobs\Users\LoginJob;
-use App\Jobs\Users\StoreUserJob;
-use App\Jobs\Users\UpdateUserJob;
-use App\Mail\AccountExists;
-use App\Mail\ResetPassword;
-use App\Models\TemporaryPasswordCode;
+use App\Http\Requests\User\ResetPasswordRequest;
+use App\Http\Requests\User\SetNewPasswordRequest;
+use App\Http\Requests\User\UpdateLanguageRequest;
+use App\Http\Requests\User\UpdateUserRequest;
+use App\Http\Resources\LoginResource;
+use App\Http\Resources\RegistrationResource;
+use App\Http\Resources\UserResource;
 use App\Models\User;
-use Carbon\Carbon;
-use Illuminate\Http\Exceptions\HttpResponseException;
+use App\Services\AccountService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\Crypt;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Validator;
 
-
+/**
+ * Logging in and out, registering, the password reset and the user's own account. Login and registration answer a
+ * failure with HTTP 200 and `success: false` plus `error` (also their rate limits, see AppServiceProvider): the app and
+ * the website show that message.
+ */
 class AuthController extends Controller
 {
-    public const RESET_LINK_MINUTES = 60;
-    private const MIN_PASSWORD_LENGTH = 8;
-
-    /**
-     * @param RegisterUserRequest $request
-     *
-     * @return JsonResponse
-     */
-    public function register(Request $request): JsonResponse
+    public function __construct(private AccountService $accounts)
     {
-        // Answered like a failed login (HTTP 200 with `error`): the app and the website show that message
-        if ($error = $this->registrationError($request)) {
-            return response()->json(['success' => false, 'error' => $error, 'message' => $error, 'status' => 422]);
-        }
-
-        $data = array_merge($request->all(), ['email' => trim($request->input('email'))]);
-        $existing = User::where('email', $data['email'])->first();
-        $result = $existing ? $this->tellAccountExists($existing, $data['password']) : (new StoreUserJob($data))->handle();
-        if ($result instanceof JsonResponse) {
-            return $result;
-        }
-
-        // Only what was sent in, so an address that has an account can't be told from a new one
-        return response()->json([
-            'token_type' => 'Bearer',
-            'user' => ['name' => $data['name'], 'email' => $data['email'], 'language' => $data['language'] ?? 'nl'],
-        ]);
     }
 
-    private function tellAccountExists(User $user, string $password): ?JsonResponse
+    public function register(RegisterUserRequest $request): RegistrationResource|JsonResponse
     {
-        // A new account hashes the password; the same work here, so the answer doesn't come noticeably sooner
-        Hash::make($password);
-
-        try {
-            app(\App\Services\MailService::class)->send(new AccountExists($user), $user->email, $user->name);
-        } catch (\Exception $exception) {
-            \Log::error($exception->getMessage());
+        $account = $request->account();
+        if (!$this->accounts->register($account)) {
             return response()->json(['message' => 'Email versturen is mislukt'], 500);
         }
 
-        return null;
+        return new RegistrationResource($account);
     }
 
-    /**
-     * @param Request $request
-     *
-     * @return JsonResponse
-     */
-    public function login(Request $request)
+    public function login(LoginRequest $request): LoginResource|JsonResponse
     {
-        // Nothing to check without both fields: answer like any failed login (the app and website read
-        // `success`/`error`), but don't record it, so empty bot requests don't fill the failed-login list
-        if (!is_string($request->input('email')) || trim($request->input('email')) === ''
-            || !is_string($request->input('password')) || $request->input('password') === '') {
-            return response()->json([
-                'error' => 'Email and password are required',
-                'success' => false,
-                'status' => 422,
-            ]);
-        }
+        $result = $this->accounts->login($request->email(), $request->password(), $request);
 
-        $user = (new LoginJob($request))->handle();
-        return response()->json($user);
+        return $result->failedToLogIn() ? response()->json($result->toArray()) : new LoginResource($result);
     }
 
-    public function update(Request $request): JsonResponse
-    {
-        $request = $request->all();
-
-        /** @var User $user */
-        $user = \auth()->user();
-        $user->name = $request['body']['name'];
-        $user->save();
-
-        return response()->json($user);
-    }
-
-    public function updateLanguage(Request $request): JsonResponse
+    public function update(UpdateUserRequest $request): UserResource
     {
         /** @var User $user */
-        $user = \auth()->user();
-        $user->language = $request->get('language');
+        $user = $request->user();
+        $user->name = $request->name();
         $user->save();
-        return response()->json($user);
+
+        return new UserResource($user);
     }
 
-    public function approveTerms(Request $request): JsonResponse
+    public function updateLanguage(UpdateLanguageRequest $request): UserResource
     {
         /** @var User $user */
-        $user = \auth()->user();
-        $user->accepted_terms = true;
-        $user->accepted_terms_at = Carbon::now();
-        // Never lower it: an older app accepting its own (older) version after a newer one was accepted elsewhere
-        // would otherwise make the newer app and the website ask again, back and forth
-        $version = (string) $request->get('acceptedTermsVersion');
-        // Only a version number ("1.4"): anything else would compare oddly, and stay forever as it's never lowered
-        abort_unless(preg_match('/^\d{1,3}(\.\d{1,3}){0,2}$/', $version) === 1, 422, 'Invalid terms version');
-        $current = (string) $user->accepted_terms_version;
-        if ($current === '' || version_compare($version, $current, '>')) {
-            $user->accepted_terms_version = $version;
-        }
-        $user->save();
-        return response()->json($user);
-    }
-
-    public function verifyUser(Request $request, string $token)
-    {
-        // `reason` lets the app and the website show a fitting message (they read it from an HTTP 200 answer)
-        try {
-            $user = User::find(Crypt::decryptString($token));
-        } catch (DecryptException) {
-            $user = null;
-        }
-
-        if (!$user) {
-            return response()->json(['success' => false, 'reason' => 'invalid_link', 'message' => 'Deze link is ongeldig.']);
-        }
-
-        // Opening the link again: nothing to do, the account is ready to use
-        if ($user->email_verified_at) {
-            return response()->json(['success' => false, 'reason' => 'already_verified', 'message' => 'Gebruiker is al geverifieerd']);
-        }
-
-        $user->email_verified_at = Carbon::now();
+        $user = $request->user();
+        $user->language = $request->language();
         $user->save();
 
-        return response()->json(['success' => true, 'message' => 'Gebruiker is geverifieerd'], 200);
-
+        return new UserResource($user);
     }
 
-    // The first problem with a registration, in the language the user picked; null when it's fine
-    private function registrationError(Request $request): ?string
+    public function approveTerms(ApproveTermsRequest $request): UserResource
     {
-        $english = $request->input('language') === 'en';
-        $data = array_merge($request->all(), ['email' => is_string($request->input('email')) ? trim($request->input('email')) : null]);
-        $validator = Validator::make($data, [
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255',
-            'password' => 'required|string|min:' . self::MIN_PASSWORD_LENGTH . '|max:255',
-        ]);
+        $this->accounts->acceptTerms($request->user(), $request->termsVersion());
 
-        if ($validator->errors()->has('name')) {
-            return $english ? 'Please enter your name.' : 'Vul je naam in.';
-        }
-        if ($validator->errors()->has('email')) {
-            return $english ? 'Please enter a valid email address.' : 'Vul een geldig e-mailadres in.';
-        }
-        if ($validator->errors()->has('password')) {
-            return $english
-                ? 'Your password must be at least ' . self::MIN_PASSWORD_LENGTH . ' characters.'
-                : 'Je wachtwoord moet minimaal ' . self::MIN_PASSWORD_LENGTH . ' tekens hebben.';
-        }
-        return null;
+        return new UserResource($request->user());
     }
 
-    public function resetPassword(Request $request)
+    // `reason` lets the app and the website show a fitting message (they read it from an HTTP 200 answer)
+    public function verifyUser(string $token): JsonResponse
     {
-        $email = $request->get('email');
-
-        if (!$email) {
-            return response()->json(['message' => 'Email is verplicht'], 400);
-        }
-
-        $user = User::where('email', $email)->first();
-
-        // The same answer as when an email is sent, so nobody can find out which addresses have an account
-        if(!$user)
-        {
-            return response()->json(['message' => 'Wachtwoordherstel-e-mail verzonden'], 200);
-        }
-
-        TemporaryPasswordCode::where('user_id', '=', $user->id)
-            ->where('is_used', '=', false)
-            ->delete();
-
-        $code = Crypt::encryptString($user->email . '-' . Carbon::now() . '-' . $user->id);
-
-        $temporaryPasswordCode = new TemporaryPasswordCode();
-        $temporaryPasswordCode->user_id = $user->id;
-        $temporaryPasswordCode->code = $code;
-        $temporaryPasswordCode->is_used = false;
-        $temporaryPasswordCode->save();
-
-        $url = config('app.url') . '/auth/password/' . $code;
-
-        $mail = new ResetPassword($url, $user, $code);
-
-        Config::set('mail.from', [
-            'address' => config('mail.from.address'),
-            'name' => config('mail.from.name'),
-        ]);
-
-        try {
-            app(\App\Services\MailService::class)->send($mail, $email);
-
-        } catch (\Exception $exception) {
-            \Log::error($exception->getMessage());
-            return response()->json(['message' => $exception->getMessage()], 500);
-        }
-
-        return response()->json(['message' => 'Wachtwoordherstel-e-mail verzonden'], 200);
-
+        return response()->json(match ($this->accounts->verifyEmail($token)) {
+            AccountService::INVALID_LINK => ['success' => false, 'reason' => 'invalid_link', 'message' => 'Deze link is ongeldig.'],
+            AccountService::ALREADY_VERIFIED => ['success' => false, 'reason' => 'already_verified', 'message' => 'Gebruiker is al geverifieerd'],
+            AccountService::VERIFIED => ['success' => true, 'message' => 'Gebruiker is geverifieerd'],
+        });
     }
 
+    public function resetPassword(ResetPasswordRequest $request): JsonResponse
+    {
+        $user = User::where('email', $request->email())->first();
+
+        // Without an account the same answer as when an email is sent, so nobody can find out which addresses have one
+        if ($user && ($error = $this->accounts->sendResetLink($user, $request->email()))) {
+            return response()->json(['message' => $error], 500);
+        }
+
+        return response()->json(['message' => 'Wachtwoordherstel-e-mail verzonden']);
+    }
 
     /**
      * Whether a reset link can still be used, so the page can say "request a new one" before the user types
      * anything. The same rules as setNewPassword: not used yet and at most an hour old.
      */
-    public function checkResetLink(Request $request): JsonResponse
+    public function checkResetLink(CheckResetLinkRequest $request): JsonResponse
     {
-        $token = $request->get('token');
+        $token = $request->token();
 
-        $valid = is_string($token) && TemporaryPasswordCode::where('code', $token)
-            ->where('is_used', false)
-            ->where('created_at', '>=', now()->subMinutes(self::RESET_LINK_MINUTES))
-            ->exists();
-
-        return response()->json(['valid' => $valid]);
+        return response()->json(['valid' => $token !== null && $this->accounts->usableResetCode($token) !== null]);
     }
 
-    public function setNewPassword(Request $request)
+    public function setNewPassword(SetNewPasswordRequest $request): JsonResponse
     {
-        $email = $request->get('email');
-        $token = $request->get('token');
-        $newPassword = $request->get('password');
-
-        if (!is_string($newPassword) || mb_strlen($newPassword) < self::MIN_PASSWORD_LENGTH) {
-            return response()->json([
-                'reason' => 'password_too_short',
-                'message' => 'Je wachtwoord moet minimaal ' . self::MIN_PASSWORD_LENGTH . ' tekens hebben.',
-            ], 400);
-        }
-        if ($request->has('repeatPassword') && $request->get('repeatPassword') !== $newPassword) {
-            return response()->json(['reason' => 'passwords_do_not_match', 'message' => 'De wachtwoorden zijn niet hetzelfde.'], 400);
-        }
-
-        $user = User::where('email', $email)->first();
-        // A reset link works for an hour (and once)
-        $temporaryPasswordCode = $user ? TemporaryPasswordCode::where('user_id', '=', $user->id)
-            ->where('code', '=', $token)
-            ->where('is_used', '=', false)
-            ->where('created_at', '>=', now()->subMinutes(self::RESET_LINK_MINUTES))
-            ->first() : null;
+        $user = User::where('email', $request->email())->first();
+        $code = $user ? $this->accounts->usableResetCode($request->token(), $user) : null;
 
         // Used before, expired, or not a real link
-        if (!$temporaryPasswordCode) {
+        if (!$code) {
             return response()->json([
                 'reason' => 'invalid_link',
                 'message' => 'Deze link is ongeldig, al gebruikt of verlopen. Vraag een nieuwe aan.',
             ], 400);
         }
 
-        $user->password = Hash::make($newPassword);
-        $user->save();
-        $temporaryPasswordCode->is_used = true;
-        $temporaryPasswordCode->save();
+        $this->accounts->setNewPassword($user, $code, $request->password());
 
-        // Whoever knew the old password is logged out everywhere
-        $user->tokens()->delete();
-
-        return response()->json(['message' => 'Wachtwoord is geupdate'], 200);
+        return response()->json(['message' => 'Wachtwoord is geupdate']);
     }
 
-    public function deactivate(Request $request)
+    // Answers an empty 200, as it always did
+    public function deactivate(Request $request): void
     {
-        /** @var User $user */
-        $user = \auth()->user();
-        // Others who had one of these lists as favorite no longer point at a list that's gone
-        User::whereIn('favorite_list_id', $user->groceryLists->pluck('id'))->update(['favorite_list_id' => null]);
-        foreach ($user->groceryLists as $groceryList)
-        {
-            $groceryList->groceryListItems()->delete();
-            $groceryList->groceryListInvites()->delete();
-            $groceryList->delete();
-        }
-
-        $user->groceryListInvites()->delete();
-        $user->cards()->delete();
-        // Their cookbooks go with all recipes and photos, like their lists; recipes they added to someone else's stay
-        foreach ($user->cookbooks as $cookbook) {
-            $cookbook->deleteWithRecipes();
-        }
-        $user->cookbookInvites()->delete();
-
-        $user->temporaryPasswordCodes()->delete();
-        $user->personalAccessTokens()->delete();
-        // Personal data that isn't linked to the user row (so it isn't removed with it): failed logins with their
-        // email address, the mails sent to them, their web sessions and support questions. Login history and push tokens go with the user.
-        DB::table('invalid_login_attempts')->where('user_id', $user->id)->orWhere('username', $user->email)->delete();
-        DB::table('sent_emails')->where('recipient_email', $user->email)->delete();
-        DB::table('sessions')->where('user_id', $user->id)->delete();
-        // Support questions, also those asked without logging in with this address (messages go with their ticket)
-        DB::table('support_tickets')->where('user_id', $user->id)->orWhere('email', $user->email)->delete();
-        $user->delete();
+        $this->accounts->deactivate($request->user());
     }
 
     /**
      * Revokes only the token of this device; other devices stay logged in.
      * The app also sends its push token, so this device stops getting notifications for this account.
      */
-    public function logout(Request $request): JsonResponse
+    public function logout(LogoutRequest $request): JsonResponse
     {
-        if ($pushToken = $request->get('pushToken')) {
+        if ($pushToken = $request->pushToken()) {
             $request->user()->pushTokens()->where('token', $pushToken)->delete();
         }
 
@@ -338,17 +146,8 @@ class AuthController extends Controller
         return response()->json(['message' => 'Uitgelogd']);
     }
 
-    /**
-     * @param Request $request
-     *
-     * @return mixed
-     */
-    public function me(Request $request)
+    public function me(Request $request): JsonResponse
     {
-        $user = Auth::user();
-
-        return response()->json([
-            'user' => $user
-        ]);
+        return response()->json(['user' => new UserResource($request->user())]);
     }
 }

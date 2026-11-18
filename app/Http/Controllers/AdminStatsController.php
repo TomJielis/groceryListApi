@@ -2,423 +2,111 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Cookbook;
-use App\Models\GroceryList;
-use App\Models\GroceryListInvites;
-use App\Models\GroceryListInvitesStatus;
-use App\Models\GroceryListItem;
-use App\Models\InvalidLoginAttempt;
-use App\Models\Recipe;
-use App\Models\SuccessfulLogin;
+use App\Http\Requests\Admin\AdminStatsRequest;
+use App\Http\Resources\AdminStatsResource;
+use App\Http\Resources\AdminUserDetailResource;
+use App\Http\Resources\AdminUserRowResource;
 use App\Models\User;
-use App\Services\RecipeStats;
+use App\Queries\Admin\DailyActivityQuery;
+use App\Queries\Admin\ItemStatsQuery;
+use App\Queries\Admin\ListStatsQuery;
+use App\Queries\Admin\PlatformUsageQuery;
+use App\Queries\Admin\RecipeTotalsQuery;
+use App\Queries\Admin\TermsVersionsQuery;
+use App\Queries\Admin\TopListsQuery;
+use App\Queries\Admin\UserActivityQuery;
+use App\Queries\Admin\UserGrowthQuery;
+use App\Queries\Items\SpendQuery;
+use App\Queries\Items\TopItemsQuery;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Laravel\Sanctum\PersonalAccessToken;
 
+/**
+ * The admin dashboard: every statistic for the chosen month and the one before (the queries are in App\Queries\Admin),
+ * the list of users, one user's page, and blocking someone. Admins only (AdminMiddleware).
+ */
 class AdminStatsController extends Controller
 {
-    // What the admin calls each platform => how tokens and logins name it (SuccessfulLogin::record)
-    private const PLATFORM_CLIENTS = ['website' => 'website', 'ios' => 'app', 'android' => 'android'];
-
-    public function users(Request $request): JsonResponse
+    public function users(AdminStatsRequest $request, UserGrowthQuery $stats): AdminStatsResource
     {
-        $currentMonth = $this->parseMonth($request->query('month'));
-        $previousMonth = $currentMonth->copy()->subMonth();
-
-        $currentData = $this->getUsersData($currentMonth);
-        $previousData = $this->getUsersData($previousMonth);
-
-        return response()->json([
-            'current_month' => [
-                'period' => $currentMonth->format('Y-m'),
-                'value' => $currentData['total'],
-                'breakdown' => $currentData,
-            ],
-            'previous_month' => [
-                'period' => $previousMonth->format('Y-m'),
-                'value' => $previousData['total'],
-                'breakdown' => $previousData,
-            ],
-        ]);
+        return $this->withValue($request, fn (Carbon $month) => $stats->forMonth($month), 'total');
     }
 
-    public function items(Request $request): JsonResponse
+    public function items(AdminStatsRequest $request, ItemStatsQuery $stats): AdminStatsResource
     {
-        $currentMonth = $this->parseMonth($request->query('month'));
-        $previousMonth = $currentMonth->copy()->subMonth();
-
-        $currentData = $this->getItemsData($currentMonth);
-        $previousData = $this->getItemsData($previousMonth);
-
-        return response()->json([
-            'current_month' => [
-                'period' => $currentMonth->format('Y-m'),
-                'value' => $currentData['added'],
-                'breakdown' => $currentData,
-            ],
-            'previous_month' => [
-                'period' => $previousMonth->format('Y-m'),
-                'value' => $previousData['added'],
-                'breakdown' => $previousData,
-            ],
-        ]);
+        return $this->withValue($request, fn (Carbon $month) => $stats->forMonth($month), 'added');
     }
 
-    public function lists(Request $request): JsonResponse
+    public function lists(AdminStatsRequest $request, ListStatsQuery $stats): AdminStatsResource
     {
-        $currentMonth = $this->parseMonth($request->query('month'));
-        $previousMonth = $currentMonth->copy()->subMonth();
-
-        $currentData = $this->getListsData($currentMonth);
-        $previousData = $this->getListsData($previousMonth);
-
-        return response()->json([
-            'current_month' => [
-                'period' => $currentMonth->format('Y-m'),
-                'value' => $currentData['created'],
-                'breakdown' => $currentData,
-            ],
-            'previous_month' => [
-                'period' => $previousMonth->format('Y-m'),
-                'value' => $previousData['created'],
-                'breakdown' => $previousData,
-            ],
-        ]);
+        return $this->withValue($request, fn (Carbon $month) => $stats->forMonth($month), 'created');
     }
 
     // Recipes and cookbooks: added in the month, and how many there are by its end
-    public function recipes(Request $request): JsonResponse
+    public function recipes(AdminStatsRequest $request, RecipeTotalsQuery $stats): AdminStatsResource
     {
-        $currentMonth = $this->parseMonth($request->query('month'));
-        $previousMonth = $currentMonth->copy()->subMonth();
-
-        $currentData = $this->getRecipesData($currentMonth);
-        $previousData = $this->getRecipesData($previousMonth);
-
-        return response()->json([
-            'current_month' => [
-                'period' => $currentMonth->format('Y-m'),
-                'value' => $currentData['added'],
-                'breakdown' => $currentData,
-            ],
-            'previous_month' => [
-                'period' => $previousMonth->format('Y-m'),
-                'value' => $previousData['added'],
-                'breakdown' => $previousData,
-            ],
-        ]);
+        return $this->withValue($request, fn (Carbon $month) => $stats->forMonth($month), 'added');
     }
 
-    public function activity(Request $request): JsonResponse
+    public function activity(AdminStatsRequest $request, DailyActivityQuery $daily, TopListsQuery $topLists): AdminStatsResource
     {
-        $currentMonth = $this->parseMonth($request->query('month'));
-        $previousMonth = $currentMonth->copy()->subMonth();
-
-        return response()->json([
-            'current_month' => [
-                'period' => $currentMonth->format('Y-m'),
-                'daily' => $this->getDailyActivity($currentMonth),
-                'top_lists' => $this->getTopLists($currentMonth),
-            ],
-            'previous_month' => [
-                'period' => $previousMonth->format('Y-m'),
-                'daily' => $this->getDailyActivity($previousMonth),
-                'top_lists' => $this->getTopLists($previousMonth),
-            ],
-        ]);
+        return new AdminStatsResource($request->months()->compare(fn (Carbon $month) => [
+            'daily' => $daily->forMonth($month),
+            'top_lists' => $topLists->forMonth($month),
+        ]));
     }
 
-    public function versions(Request $request): JsonResponse
+    public function versions(AdminStatsRequest $request, TermsVersionsQuery $stats): AdminStatsResource
     {
-        $currentMonth = $this->parseMonth($request->query('month'));
-        $previousMonth = $currentMonth->copy()->subMonth();
-
-        $currentData = $this->getVersionsData($currentMonth);
-        $previousData = $this->getVersionsData($previousMonth);
-
-        $currentOnLatest = $currentData['on_latest']['percentage'] ?? 0;
-        $previousOnLatest = $previousData['on_latest']['percentage'] ?? 0;
-
-        return response()->json([
-            'current_month' => [
-                'period' => $currentMonth->format('Y-m'),
-                ...$currentData,
-            ],
-            'previous_month' => [
-                'period' => $previousMonth->format('Y-m'),
-                ...$previousData,
-            ],
-        ]);
+        return new AdminStatsResource($request->months()->compare(fn (Carbon $month) => $stats->forMonth($month)));
     }
 
-    public function platforms(Request $request): JsonResponse
+    public function platforms(AdminStatsRequest $request, PlatformUsageQuery $stats): AdminStatsResource
     {
-        $currentMonth = $this->parseMonth($request->query('month'));
-        $previousMonth = $currentMonth->copy()->subMonth();
-
-        return response()->json([
-            'current_month' => [
-                'period' => $currentMonth->format('Y-m'),
-                ...$this->getPlatformsData($currentMonth),
-            ],
-            'previous_month' => [
-                'period' => $previousMonth->format('Y-m'),
-                ...$this->getPlatformsData($previousMonth),
-            ],
-        ]);
+        return new AdminStatsResource($request->months()->compare(fn (Carbon $month) => $stats->forMonth($month)));
     }
 
-    public function topItems(Request $request): JsonResponse
+    public function topItems(AdminStatsRequest $request, TopItemsQuery $stats): AdminStatsResource
     {
-        $currentMonth = $this->parseMonth($request->query('month'));
-        $previousMonth = $currentMonth->copy()->subMonth();
-
-        return response()->json([
-            'current_month' => [
-                'period' => $currentMonth->format('Y-m'),
-                'most_added' => $this->getMostAddedItems($currentMonth),
-                'most_checked' => $this->getMostCheckedItems($currentMonth),
-            ],
-            'previous_month' => [
-                'period' => $previousMonth->format('Y-m'),
-                'most_added' => $this->getMostAddedItems($previousMonth),
-                'most_checked' => $this->getMostCheckedItems($previousMonth),
-            ],
-        ]);
+        return new AdminStatsResource($request->months()->compare(fn (Carbon $month) => [
+            'most_added' => $stats->mostAdded($month),
+            'most_checked' => $stats->mostChecked($month),
+        ]));
     }
 
-    private function getMostAddedItems(Carbon $month, ?array $listIds = null, int $userId = null): array
+    public function spend(AdminStatsRequest $request, SpendQuery $spend): AdminStatsResource
     {
-        $query = GroceryListItem::selectRaw('LOWER(name) as name, SUM(quantity) as count, COUNT(DISTINCT list_id) as lists_count')
-            ->whereYear('created_at', $month->year)
-            ->whereMonth('created_at', $month->month)
-            ->when($userId, function ($query) use ($userId) {;
-                $query->where('created_by', $userId);
-            });
-
-        if ($listIds !== null) {
-            $query->whereIn('list_id', $listIds);
-        }
-
-        return $query->groupBy(DB::raw('LOWER(name)'))
-            ->orderByDesc('count')
-            ->limit($listIds !== null ? 5 : 10)
-            ->get()
-            ->map(function ($item) {
-                return [
-                    'name' => ucfirst($item->name),
-                    'count' => (int) $item->count,
-                    'lists_count' => (int) $item->lists_count,
-                ];
-            })
-            ->toArray();
+        return new AdminStatsResource($request->months()->compare(fn (Carbon $month) => ['total' => $spend->total($month)]));
     }
 
-    private function getMostCheckedItems(Carbon $month, ?array $listIds = null, int $userId = null): array
-    {
-        $query = GroceryListItem::selectRaw('LOWER(name) as name, SUM(quantity) as count')
-            ->where('checked', true)
-            ->whereYear('updated_at', $month->year)
-            ->whereMonth('updated_at', $month->month)
-            ->when($userId, function ($query) use ($userId) {;
-                $query->where('updated_by', $userId);
-            });
-
-        if ($listIds !== null) {
-            $query->whereIn('list_id', $listIds);
-        }
-
-        return $query->groupBy(DB::raw('LOWER(name)'))
-            ->orderByDesc('count')
-            ->limit($listIds !== null ? 5 : 10)
-            ->get()
-            ->map(function ($item) {
-                return [
-                    'name' => ucfirst($item->name),
-                    'count' => (int) $item->count,
-                ];
-            })
-            ->toArray();
-    }
-
-    public function spend(Request $request): JsonResponse
-    {
-        $currentMonth = $this->parseMonth($request->query('month'));
-        $previousMonth = $currentMonth->copy()->subMonth();
-
-        return response()->json([
-            'current_month' => [
-                'period' => $currentMonth->format('Y-m'),
-                'total'  => $this->getPlatformSpend($currentMonth),
-            ],
-            'previous_month' => [
-                'period' => $previousMonth->format('Y-m'),
-                'total'  => $this->getPlatformSpend($previousMonth),
-            ],
-        ]);
-    }
-
+    // Newest first
     public function usersList(): JsonResponse
     {
         $users = User::select('id', 'name', 'email', 'created_at', 'email_verified_at', 'accepted_terms_version', 'blocked')
             ->withActivity()
             ->orderByDesc('created_at')
-            ->get()
-            ->map(fn (User $user) => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'created_at' => $user->created_at,
-                'email_verified' => $user->email_verified_at !== null,
-                'terms_version' => $user->accepted_terms_version,
-                'last_active' => $user->last_active,
-                'lists_count' => (int) $user->lists_count,
-                'blocked' => $user->blocked,
-            ]);
+            ->get();
 
         return response()->json([
-            'users' => $users,
+            'users' => AdminUserRowResource::collection($users),
             'total' => $users->count(),
         ]);
     }
 
-    public function userDetail(Request $request, int $id, RecipeStats $recipeStats): JsonResponse
+    public function userDetail(AdminStatsRequest $request, int $id, UserActivityQuery $activity): AdminUserDetailResource|JsonResponse
     {
         $user = User::find($id);
-
         if (!$user) {
             return response()->json(['message' => 'User not found'], 404);
         }
 
-        $currentMonth = $this->parseMonth($request->query('month'));
-        $previousMonth = $currentMonth->copy()->subMonth();
-
-        $lastActive = $user->last_active_at;
-
-        $ownedLists = GroceryList::withoutGlobalScopes()
-            ->where('created_by', $user->id)
-            ->get();
-
-        $ownedListIds = $ownedLists->pluck('id');
-
-        $sharedListIds = GroceryListInvites::where('user_id', $user->id)
-            ->where('status', GroceryListInvitesStatus::ACCEPTED)
-            ->pluck('grocery_list_id');
-
-        $allAccessibleListIds = $ownedListIds->merge($sharedListIds)->unique();
-
-        $currentMonthItems = (int) GroceryListItem::whereIn('list_id', $allAccessibleListIds)
-            ->whereYear('created_at', $currentMonth->year)
-            ->whereMonth('created_at', $currentMonth->month)
-            ->where('created_by', $user->id)
-            ->sum('quantity');
-
-        $previousMonthItems = (int) GroceryListItem::whereIn('list_id', $allAccessibleListIds)
-            ->whereYear('created_at', $previousMonth->year)
-            ->whereMonth('created_at', $previousMonth->month)
-            ->where('created_by', $user->id)
-            ->sum('quantity');
-
-        $currentMonthChecked = (int) GroceryListItem::whereIn('list_id', $allAccessibleListIds)
-            ->where('checked', true)
-            ->whereYear('updated_at', $currentMonth->year)
-            ->whereMonth('updated_at', $currentMonth->month)
-            ->where('updated_by', $user->id)
-            ->sum('quantity');
-
-        $previousMonthChecked = (int) GroceryListItem::whereIn('list_id', $allAccessibleListIds)
-            ->where('checked', true)
-            ->whereYear('updated_at', $previousMonth->year)
-            ->whereMonth('updated_at', $previousMonth->month)
-            ->where('updated_by', $user->id)
-            ->sum('quantity');
-
-        $allAccessibleListIdsArray = $allAccessibleListIds->toArray();
-
-        $currentMonthSpend = round((float) GroceryListItem::selectRaw('COALESCE(SUM(quantity * unit_price), 0) as total')
-            ->whereIn('list_id', $allAccessibleListIds)
-            ->where('checked', true)
-            ->whereNotNull('unit_price')
-            ->whereYear('updated_at', $currentMonth->year)
-            ->whereMonth('updated_at', $currentMonth->month)
-            ->value('total'), 2);
-
-        $previousMonthSpend = round((float) GroceryListItem::selectRaw('COALESCE(SUM(quantity * unit_price), 0) as total')
-            ->whereIn('list_id', $allAccessibleListIds)
-            ->where('checked', true)
-            ->whereNotNull('unit_price')
-            ->whereYear('updated_at', $previousMonth->year)
-            ->whereMonth('updated_at', $previousMonth->month)
-            ->value('total'), 2);
-
-        return response()->json([
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'created_at' => $user->created_at,
-                'email_verified_at' => $user->email_verified_at,
-                'terms_version' => $user->accepted_terms_version,
-                'last_active' => $lastActive,
-                'blocked' => $user->blocked,
-            ],
-            // Newest first
-            'recent_logins' => $user->successfulLogins()
-                ->orderByDesc('logged_in_at')
-                ->limit(10)
-                ->get(['ip_address', 'client', 'app_version', 'logged_in_at']),
-            'lists' => [
-                'owned' => $ownedLists->count(),
-                'shared_with_user' => $sharedListIds->count(),
-                'total_access' => $allAccessibleListIds->count(),
-            ],
-            'recipes' => $recipeStats->forUser($user, $currentMonth, $previousMonth),
-            'items' => [
-                'current_month' => [
-                    'period' => $currentMonth->format('Y-m'),
-                    'added' => $currentMonthItems,
-                    'checked' => $currentMonthChecked,
-                ],
-                'previous_month' => [
-                    'period' => $previousMonth->format('Y-m'),
-                    'added' => $previousMonthItems,
-                    'checked' => $previousMonthChecked,
-                ],
-            ],
-            'top_items' => [
-                'current_month' => [
-                    'most_added' => $this->getMostAddedItems($currentMonth, $allAccessibleListIdsArray, $user->id),
-                    'most_checked' => $this->getMostCheckedItems($currentMonth, $allAccessibleListIdsArray, $user->id),
-                ],
-                'previous_month' => [
-                    'most_added' => $this->getMostAddedItems($previousMonth, $allAccessibleListIdsArray, $user->id),
-                    'most_checked' => $this->getMostCheckedItems($previousMonth, $allAccessibleListIdsArray, $user->id),
-                ],
-            ],
-            'spend' => [
-                'current_month'  => ['total' => $currentMonthSpend],
-                'previous_month' => ['total' => $previousMonthSpend],
-            ],
-            'invalid_loggin_attempts' => [
-                'current_month' => $user->invalidLoginAttempts()
-                    ->where('attempted_at', '>=', $currentMonth->copy()->startOfMonth())
-                    ->where('attempted_at', '<=', $currentMonth->copy()->endOfMonth())
-                    ->count(),
-                'previous_month' => $user->invalidLoginAttempts()
-                    ->where('attempted_at', '>=', $previousMonth->copy()->startOfMonth())
-                    ->where('attempted_at', '<=', $previousMonth->copy()->endOfMonth())
-                    ->count(),
-            ]
-        ]);
+        return new AdminUserDetailResource($user, $activity->forUser($user, $request->months()));
     }
 
+    // Blocks someone, or unblocks them
     public function block(int $id): JsonResponse
     {
         $user = User::find($id);
-
         if (!$user) {
             return response()->json(['message' => 'User not found'], 404);
         }
@@ -434,312 +122,17 @@ class AdminStatsController extends Controller
         return response()->json(['message' => 'User blocked successfully']);
     }
 
-    private function getUsersData(Carbon $month): array
-    {
-        $endOfMonth = $month->copy()->endOfMonth();
-        $total = User::where('created_at', '<=', $endOfMonth)->count();
-
-        $newRegistrations = User::whereYear('created_at', $month->year)
-            ->whereMonth('created_at', $month->month)
-            ->count();
-
-        // The current month counts who used the app in the last 30 days. last_active_at only holds the
-        // latest visit, so earlier months still come from the tokens (as close as that history goes).
-        if ($endOfMonth->isFuture()) {
-            $active = User::active()->count();
-        } else {
-            $active = PersonalAccessToken::where('tokenable_type', User::class)
-                ->where('last_used_at', '>=', $endOfMonth->copy()->subDays(30))
-                ->where('last_used_at', '<=', $endOfMonth)
-                ->distinct('tokenable_id')
-                ->count('tokenable_id');
-        }
-
-        $verifiedEmail = User::where('created_at', '<=', $endOfMonth)
-            ->whereNotNull('email_verified_at')
-            ->count();
-
-        $invalidLoginAttempts = InvalidLoginAttempt::whereYear('attempted_at', $month->year)
-            ->whereMonth('attempted_at', $month->month)
-            ->count();
-
-        return [
-            'total' => $total,
-            'new_registrations' => $newRegistrations,
-            'active' => $active,
-            'verified_email' => $verifiedEmail,
-            'invalid_login_attempts' => $invalidLoginAttempts
-        ];
-    }
-
-    private function getItemsData(Carbon $month): array
-    {
-        $endOfMonth = $month->copy()->endOfMonth();
-
-        $added = (int) GroceryListItem::whereYear('created_at', $month->year)
-            ->whereMonth('created_at', $month->month)
-            ->sum('quantity');
-
-        $checked = (int) GroceryListItem::where('checked', true)
-            ->whereYear('updated_at', $month->year)
-            ->whereMonth('updated_at', $month->month)
-            ->sum('quantity');
-
-        $thirtyDaysAgo = $endOfMonth->copy()->subDays(30);
-        $activeUserIds = PersonalAccessToken::where('tokenable_type', User::class)
-            ->where('last_used_at', '>=', $thirtyDaysAgo)
-            ->where('last_used_at', '<=', $endOfMonth)
-            ->distinct()
-            ->pluck('tokenable_id');
-
-        $activeUserCount = $activeUserIds->count();
-        $avgPerUser = $activeUserCount > 0 ? round($added / $activeUserCount, 1) : 0;
-
-        $listCount = GroceryList::withoutGlobalScopes()
-            ->where('created_at', '<=', $endOfMonth)
-            ->count();
-        $avgPerList = $listCount > 0 ? round($added / $listCount, 1) : 0;
-
-        return [
-            'added' => $added,
-            'checked' => $checked,
-            'avg_per_user' => $avgPerUser,
-            'avg_per_list' => $avgPerList,
-        ];
-    }
-
-    private function getRecipesData(Carbon $month): array
-    {
-        $endOfMonth = $month->copy()->endOfMonth();
-        $inMonth = fn ($query) => $query->whereYear('created_at', $month->year)->whereMonth('created_at', $month->month);
-
-        return [
-            'added' => $inMonth(Recipe::query())->count(),
-            'cookbooks_created' => $inMonth(Cookbook::query())->count(),
-            'total_recipes' => Recipe::where('created_at', '<=', $endOfMonth)->count(),
-            'total_cookbooks' => Cookbook::where('created_at', '<=', $endOfMonth)->count(),
-            'shared_cookbooks' => Cookbook::where('created_at', '<=', $endOfMonth)->has('acceptedInvites')->count(),
-        ];
-    }
-
-    private function getListsData(Carbon $month): array
-    {
-        $endOfMonth = $month->copy()->endOfMonth();
-
-        $created = GroceryList::withoutGlobalScopes()
-            ->whereYear('created_at', $month->year)
-            ->whereMonth('created_at', $month->month)
-            ->count();
-
-        $shared = GroceryList::withoutGlobalScopes()
-            ->whereHas('groceryListInvites', function ($query) {
-                $query->where('status', GroceryListInvitesStatus::ACCEPTED);
-            })
-            ->where('created_at', '<=', $endOfMonth)
-            ->count();
-
-        $totalItems = GroceryListItem::where('created_at', '<=', $endOfMonth)->count();
-        $totalLists = GroceryList::withoutGlobalScopes()
-            ->where('created_at', '<=', $endOfMonth)
-            ->count();
-        $avgItemsPerList = $totalLists > 0 ? round($totalItems / $totalLists, 1) : 0;
-
-        $sharedListIds = GroceryList::withoutGlobalScopes()
-            ->whereHas('groceryListInvites', function ($query) {
-                $query->where('status', GroceryListInvitesStatus::ACCEPTED);
-            })
-            ->where('created_at', '<=', $endOfMonth)
-            ->pluck('id');
-
-        $totalMembers = 0;
-        if ($sharedListIds->count() > 0) {
-            $totalMembers = GroceryListInvites::whereIn('grocery_list_id', $sharedListIds)
-                ->where('status', GroceryListInvitesStatus::ACCEPTED)
-                ->count();
-            $totalMembers += $sharedListIds->count();
-        }
-
-        $avgMembersPerSharedList = $sharedListIds->count() > 0
-            ? round($totalMembers / $sharedListIds->count(), 1)
-            : 0;
-
-        return [
-            'created' => $created,
-            'shared' => $shared,
-            'avg_items_per_list' => $avgItemsPerList,
-            'avg_members_per_shared_list' => $avgMembersPerSharedList,
-        ];
-    }
-
-    private function getDailyActivity(Carbon $month): array
-    {
-        $startOfMonth = $month->copy()->startOfMonth();
-        $endOfMonth = $month->copy()->endOfMonth();
-
-        $dailyAdded = GroceryListItem::select(
-                DB::raw('DATE(created_at) as date'),
-                DB::raw('SUM(quantity) as items_added')
-            )
-            ->whereYear('created_at', $month->year)
-            ->whereMonth('created_at', $month->month)
-            ->groupBy('date')
-            ->get()
-            ->keyBy('date');
-
-        $dailyChecked = GroceryListItem::select(
-                DB::raw('DATE(updated_at) as date'),
-                DB::raw('SUM(quantity) as items_checked')
-            )
-            ->where('checked', true)
-            ->whereYear('updated_at', $month->year)
-            ->whereMonth('updated_at', $month->month)
-            ->groupBy('date')
-            ->get()
-            ->keyBy('date');
-
-        $result = [];
-        $current = $startOfMonth->copy();
-        $today = Carbon::now();
-
-        while ($current <= $endOfMonth && $current <= $today) {
-            $dateStr = $current->format('Y-m-d');
-            $result[] = [
-                'date' => $dateStr,
-                'items_added' => $dailyAdded->get($dateStr)?->items_added ?? 0,
-                'items_checked' => $dailyChecked->get($dateStr)?->items_checked ?? 0,
-            ];
-            $current->addDay();
-        }
-
-        return $result;
-    }
-
-    private function getTopLists(Carbon $month): array
-    {
-        return GroceryList::withoutGlobalScopes()
-            ->select('grocery_lists.id', 'grocery_lists.name')
-            ->selectRaw('COALESCE(SUM(grocery_list_items.quantity), 0) as items_added')
-            ->leftJoin('grocery_list_items', function ($join) use ($month) {
-                $join->on('grocery_lists.id', '=', 'grocery_list_items.list_id')
-                    ->whereYear('grocery_list_items.created_at', $month->year)
-                    ->whereMonth('grocery_list_items.created_at', $month->month);
-            })
-            ->groupBy('grocery_lists.id', 'grocery_lists.name')
-            ->orderByDesc('items_added')
-            ->limit(10)
-            ->get()
-            ->map(function ($list) {
-                return [
-                    'id' => $list->id,
-                    'name' => $list->name,
-                    'items_added' => (int) $list->items_added,
-                ];
-            })
-            ->toArray();
-    }
-
-    private function getVersionsData(Carbon $month): array
-    {
-        $endOfMonth = $month->copy()->endOfMonth();
-
-        // The terms version that currently applies (not the highest one found, which sorts as text: "1.10" < "1.9")
-        $latestVersion = (string) config('app.terms_version');
-
-        $versionCounts = User::select('accepted_terms_version', DB::raw('COUNT(*) as count'))
-            ->where('created_at', '<=', $endOfMonth)
-            ->groupBy('accepted_terms_version')
-            ->get();
-
-        $total = $versionCounts->sum('count');
-
-        $breakdown = [];
-        $onLatestCount = 0;
-
-        foreach ($versionCounts as $version) {
-            $percentage = $total > 0 ? round(($version->count / $total) * 100, 1) : 0;
-            $breakdown[$version->accepted_terms_version ?? 'undefined'] = [
-                'count' => $version->count,
-                'percentage' => $percentage,
-            ];
-
-            if ($version->accepted_terms_version === $latestVersion) {
-                $onLatestCount = $version->count;
-            }
-        }
-
-        return [
-            'latest_version' => $latestVersion,
-            'breakdown' => $breakdown,
-            'on_latest' => [
-                'count' => $onLatestCount,
-                'percentage' => $total > 0 ? round(($onLatestCount / $total) * 100, 1) : 0,
-            ],
-        ];
-    }
-
     /**
-     * Who used the website, the iPhone app and the Android app in the same 30 days as "Active users". Someone on two
-     * platforms counts once on each, so the counts can add up to more than active_users (who are counted once).
-     * A token only remembers its latest use and goes on logout, so logins in the period count too.
+     * Both months, each with its figures (breakdown) and the one the dashboard shows big (value)
+     *
+     * @param callable(Carbon): array<string, mixed> $figures
      */
-    private function getPlatformsData(Carbon $month): array
+    private function withValue(AdminStatsRequest $request, callable $figures, string $value): AdminStatsResource
     {
-        $endOfMonth = $month->copy()->endOfMonth();
-        $until = $endOfMonth->isFuture() ? Carbon::now() : $endOfMonth;
-        $period = [$until->copy()->subDays(30), $until];
-        $clients = array_values(self::PLATFORM_CLIENTS);
+        return new AdminStatsResource($request->months()->compare(function (Carbon $month) use ($figures, $value) {
+            $breakdown = $figures($month);
 
-        // The union leaves one row per user and client
-        $usage = PersonalAccessToken::where('tokenable_type', User::class)
-            ->whereIn('name', $clients)
-            ->whereBetween('last_used_at', $period)
-            ->select('name as client', 'tokenable_id as user_id')
-            ->toBase()
-            ->union(
-                SuccessfulLogin::whereIn('client', $clients)
-                    ->whereBetween('logged_in_at', $period)
-                    ->select('client', 'user_id')
-                    ->toBase()
-            )
-            ->get();
-
-        $perUser = $usage->countBy('user_id');
-        $activeUsers = $perUser->count();
-
-        $breakdown = [];
-        foreach (self::PLATFORM_CLIENTS as $platform => $client) {
-            $count = $usage->where('client', $client)->count();
-            $breakdown[$platform] = [
-                'count' => $count,
-                'percentage' => $activeUsers > 0 ? round(($count / $activeUsers) * 100, 1) : 0,
-            ];
-        }
-
-        return [
-            'active_users' => $activeUsers,
-            'on_multiple_platforms' => $perUser->filter(fn (int $platforms) => $platforms > 1)->count(),
-            'breakdown' => $breakdown,
-        ];
-    }
-
-    private function getPlatformSpend(Carbon $month): float
-    {
-        $total = GroceryListItem::selectRaw('COALESCE(SUM(quantity * unit_price), 0) as total')
-            ->where('checked', true)
-            ->whereNotNull('unit_price')
-            ->whereYear('updated_at', $month->year)
-            ->whereMonth('updated_at', $month->month)
-            ->value('total');
-
-        return round((float) $total, 2);
-    }
-
-    private function parseMonth(?string $monthString): Carbon
-    {
-        if ($monthString && preg_match('/^\d{4}-\d{2}$/', $monthString)) {
-            // '!' sets the missing day to the 1st; otherwise today's day is used and the 31st overflows a month
-            return Carbon::createFromFormat('!Y-m', $monthString)->startOfMonth();
-        }
-        return Carbon::now()->startOfMonth();
+            return ['value' => $breakdown[$value], 'breakdown' => $breakdown];
+        }));
     }
 }

@@ -341,5 +341,8 @@ class CookbookTest extends TestCase
         $this->assertSame('De eenheid van een ingrediënt mag hoogstens 30 tekens hebben.', $errors['ingredients.0.unit'][0]);
         $this->postJson('/api/cookbooks/store', ['name' => str_repeat('x', 101)])
             ->assertUnprocessable()->assertJsonPath('errors.name.0', 'De naam mag hoogstens 100 tekens hebben.');
+        // Choosing the favorite without saying which (or none): asked in the user's language too
+        $this->postJson('/api/cookbooks/favorite', [])
+            ->assertUnprocessable()->assertJsonPath('errors.cookbook_id.0', 'Vul het kookboek in.');
     }
 }

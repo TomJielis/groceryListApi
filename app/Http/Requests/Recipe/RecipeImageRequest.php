@@ -3,30 +3,17 @@
 namespace App\Http\Requests\Recipe;
 
 use App\Services\RecipeImageStore;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
-class RecipeImageRequest extends FormRequest
+// A new photo as a data URL, like the cards send ("data:image/jpeg;base64,...")
+class RecipeImageRequest extends RecipeFormRequest
 {
+    private ?string $decoded = null;
 
     /**
-     * Determine if the user is authorized to make this request.
-     * Access to the recipe is checked by the controller (404 for someone else's recipe, see RecipeRequest).
-     *
-     * @return bool
-     */
-    public function authorize()
-    {
-        return true;
-    }
-
-    /**
-     * Get the validation rules that apply to the request.
-     * A data URL like the cards send ("data:image/jpeg;base64,...").
-     *
      * @return array<string, mixed>
      */
-    public function rules()
+    public function rules(): array
     {
         return [
             // ~14 MB of text is a photo of about 10 MB
@@ -34,31 +21,12 @@ class RecipeImageRequest extends FormRequest
         ];
     }
 
-    /**
-     * Custom message for validation
-     *
-     * @return array
-     */
-    public function messages()
+    protected function ownMessages(): array
     {
-        // In the user's language, like the push notifications
-        $language = $this->user()?->language ?: 'nl';
-
         return [
-            ...__('recipes.validation.rules', [], $language),
-            'image.required' => __('recipes.validation.image_required', [], $language),
-            'image.max'      => __('recipes.validation.image_too_large', [], $language),
+            'image.required' => 'recipes.validation.image_required',
+            'image.max'      => 'recipes.validation.image_too_large',
         ];
-    }
-
-    /**
-     * The field names in the messages, in the user's language
-     *
-     * @return array
-     */
-    public function attributes()
-    {
-        return __('recipes.validation.attributes', [], $this->user()?->language ?: 'nl');
     }
 
     /**
@@ -66,14 +34,24 @@ class RecipeImageRequest extends FormRequest
      *
      * @return array
      */
-    public function after()
+    public function after(): array
     {
         return [
             function (Validator $validator) {
-                if ($validator->errors()->isEmpty() && app(RecipeImageStore::class)->decodeDataUrl((string) $this->input('image')) === null) {
-                    $validator->errors()->add('image', __('recipes.image_invalid', [], $this->user()?->language ?: 'nl'));
+                if ($validator->errors()->isNotEmpty()) {
+                    return;
+                }
+                $this->decoded = app(RecipeImageStore::class)->decodeDataUrl((string) $this->input('image'));
+                if ($this->decoded === null) {
+                    $validator->errors()->add('image', __('recipes.image_invalid', [], $this->language()));
                 }
             },
         ];
+    }
+
+    // The picture itself (validation made sure it is one)
+    public function imageBytes(): string
+    {
+        return $this->decoded;
     }
 }

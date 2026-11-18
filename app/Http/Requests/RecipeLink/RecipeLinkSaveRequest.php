@@ -2,28 +2,16 @@
 
 namespace App\Http\Requests\RecipeLink;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\Http\Requests\Recipe\RecipeFormRequest;
 
-class RecipeLinkSaveRequest extends FormRequest
+// Saving a copy of a recipe (a shared link, or one planned in a week menu); a cookbook the user can't see answers 403 in
+// the controller
+class RecipeLinkSaveRequest extends RecipeFormRequest
 {
-
     /**
-     * Determine if the user is authorized to make this request.
-     * The cookbook is checked by the controller: one the user can't see answers 403.
-     *
-     * @return bool
-     */
-    public function authorize()
-    {
-        return true;
-    }
-
-    /**
-     * Get the validation rules that apply to the request.
-     *
      * @return array<string, mixed>
      */
-    public function rules()
+    public function rules(): array
     {
         return [
             // The user's cookbook the copy goes into
@@ -31,29 +19,15 @@ class RecipeLinkSaveRequest extends FormRequest
         ];
     }
 
-    /**
-     * Custom message for validation
-     *
-     * @return array
-     */
-    public function messages()
+    protected function ownMessages(): array
     {
-        // In the user's language, like the push notifications
-        $language = $this->user()?->language ?: 'nl';
-
         return [
-            ...__('recipes.validation.rules', [], $language),
-            'cookbook_id.required' => __('recipes.validation.cookbook_required', [], $language),
+            'cookbook_id.required' => 'recipes.validation.cookbook_required',
         ];
     }
 
-    /**
-     * The field names in the messages, in the user's language
-     *
-     * @return array
-     */
-    public function attributes()
+    public function cookbookId(): int
     {
-        return __('recipes.validation.attributes', [], $this->user()?->language ?: 'nl');
+        return (int) $this->validated('cookbook_id');
     }
 }

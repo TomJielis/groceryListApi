@@ -15,7 +15,7 @@ use App\Models\GroceryListInvitesStatus;
 use App\Models\InviteLink;
 use App\Models\User;
 use App\Models\WeekMenu;
-use App\Services\WeekMenuJoiner;
+use App\Services\WeekMenuJoinService;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -29,7 +29,7 @@ use Illuminate\Http\Request;
  */
 class InviteLinkController extends Controller
 {
-    public function __construct(private WeekMenuJoiner $weekMenus)
+    public function __construct(private WeekMenuJoinService $weekMenus)
     {
     }
 
@@ -124,10 +124,10 @@ class InviteLinkController extends Controller
                 } catch (LockTimeoutException) {
                     return response()->json(['message' => __('invite-links.busy', [], $language)], 429);
                 }
-                if ($result === WeekMenuJoiner::GONE) {
+                if ($result === WeekMenuJoinService::GONE) {
                     return response()->json(['message' => __('invite-links.not_found', [], $language)], 404);
                 }
-                if ($result === WeekMenuJoiner::MEMBER) {
+                if ($result === WeekMenuJoinService::MEMBER) {
                     return $this->joined($target, true, $language);
                 }
                 // To the recipes screen, which every app version has (a newer one opens the week menu from there)

@@ -15,6 +15,7 @@ return [
         // For every other rule: the field's name (attributes) in a general message
         'rules' => [
             'required' => 'Vul :attribute in.',
+            'present' => 'Vul :attribute in.',
             'string' => ':Attribute moet tekst zijn.',
             'integer' => ':Attribute moet een heel getal zijn.',
             'numeric' => ':Attribute moet een getal zijn.',

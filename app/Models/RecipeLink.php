@@ -12,6 +12,9 @@ class RecipeLink extends Model
     // How long a link works, like InviteLink
     public const DAYS_VALID = InviteLink::DAYS_VALID;
 
+    // What RecipeLinkViewResource shows: the recipe whole, and who shared it
+    public const PRESENTED_WITH = ['recipe.ingredients', 'recipe.steps', 'createdBy:id,name'];
+
     protected $fillable = [
         'token',
         'recipe_id',
@@ -70,5 +73,15 @@ class RecipeLink extends Model
             'created_by' => $user->id,
             'expires_at' => now()->addDays(self::DAYS_VALID),
         ]);
+    }
+
+    // The recipe's photo through the link itself (whoever opens it isn't in the recipe's cookbook), on the API's
+    // public address when set (API_URL), like Recipe::imageUrl
+    public function imageUrl(): string
+    {
+        $path = "/api/recipe-links/{$this->token}/image";
+        $apiUrl = rtrim((string) config('app.api_url'), '/');
+
+        return $apiUrl !== '' ? $apiUrl . $path : url($path);
     }
 }

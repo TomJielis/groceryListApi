@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\PushToken\PushTokenStoreRequest;
 use App\Models\PushToken;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,20 +15,11 @@ class PushTokenController extends Controller
      * A device that switches account moves to the new user, so pushes never reach the previous one.
      * It is tied to the login it was sent with: when that login ends, the device stops getting pushes.
      */
-    public function store(Request $request): JsonResponse
+    public function store(PushTokenStoreRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'token' => ['required', 'string', 'max:255', 'regex:/^Expo(nent)?PushToken\[.+\]$/'],
-        ]);
-
-        $accessToken = $request->user()->currentAccessToken();
-
         PushToken::updateOrCreate(
-            ['token' => $validated['token']],
-            [
-                'user_id' => auth()->id(),
-                'access_token_id' => $accessToken instanceof PersonalAccessToken ? $accessToken->id : null,
-            ],
+            ['token' => $request->token()],
+            ['user_id' => $request->user()->id, 'access_token_id' => $this->loginId($request)],
         );
 
         return response()->json(['message' => 'Push token opgeslagen']);
@@ -39,11 +31,19 @@ class PushTokenController extends Controller
      */
     public function destroyCurrent(Request $request): JsonResponse
     {
-        $accessToken = $request->user()->currentAccessToken();
-        if ($accessToken instanceof PersonalAccessToken) {
-            $request->user()->pushTokens()->where('access_token_id', $accessToken->id)->delete();
+        $loginId = $this->loginId($request);
+        if ($loginId !== null) {
+            $request->user()->pushTokens()->where('access_token_id', $loginId)->delete();
         }
 
         return response()->json(['message' => 'Push token verwijderd']);
+    }
+
+    // The login (Sanctum token) the request came with; none for a session or a test's actingAs
+    private function loginId(Request $request): ?int
+    {
+        $accessToken = $request->user()->currentAccessToken();
+
+        return $accessToken instanceof PersonalAccessToken ? $accessToken->id : null;
     }
 }

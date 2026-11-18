@@ -32,6 +32,18 @@ class AccountRulesTest extends TestCase
 
     // ---- S8: registration ----
 
+    public function test_registration_needs_the_accepted_terms_version(): void
+    {
+        // It used to be a server error, without an account; now the same answer as the other fields
+        $this->register(['acceptedTermsVersion' => null])
+            ->assertOk()
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('error', 'Accepteer de voorwaarden om verder te gaan.');
+        $this->register(['acceptedTermsVersion' => 'latest', 'language' => 'en'])
+            ->assertJsonPath('error', 'Please accept the terms to continue.');
+        $this->assertDatabaseMissing('users', ['email' => 'sam@example.com']);
+    }
+
     public function test_registration_checks_the_fields_in_the_users_language(): void
     {
         $this->register(['email' => 'not-an-email'])

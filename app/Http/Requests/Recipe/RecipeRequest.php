@@ -2,33 +2,18 @@
 
 namespace App\Http\Requests\Recipe;
 
+use App\Data\RecipeInput;
 use App\Enums\RecipeCategory;
 use App\Models\Recipe;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class RecipeRequest extends FormRequest
+// Saving and editing a recipe: the app always sends the whole recipe
+class RecipeRequest extends RecipeFormRequest
 {
-
     /**
-     * Determine if the user is authorized to make this request.
-     * Access to the recipe itself is checked by the controller: someone else's recipe answers 404 there, like one
-     * that doesn't exist (a 403 here would reveal that it does).
-     *
-     * @return bool
-     */
-    public function authorize()
-    {
-        return true;
-    }
-
-    /**
-     * Get the validation rules that apply to the request.
-     * The same for saving and editing: the app always sends the whole recipe.
-     *
      * @return array<string, mixed>
      */
-    public function rules()
+    public function rules(): array
     {
         return [
             // The cookbook it goes into (or moves to)
@@ -61,33 +46,28 @@ class RecipeRequest extends FormRequest
         ];
     }
 
-    /**
-     * Custom message for validation
-     *
-     * @return array
-     */
-    public function messages()
+    protected function ownMessages(): array
     {
-        // In the user's language, like the push notifications
-        $language = $this->user()?->language ?: 'nl';
-
         return [
-            ...__('recipes.validation.rules', [], $language),
-            'cookbook_id.required'        => __('recipes.validation.cookbook_required', [], $language),
-            'title.required'              => __('recipes.validation.title_required', [], $language),
-            'servings.min'                => __('recipes.validation.servings_min', [], $language),
-            'ingredients.*.name.required' => __('recipes.validation.ingredient_name_required', [], $language),
-            'steps.*.required'            => __('recipes.validation.step_required', [], $language),
+            'cookbook_id.required'        => 'recipes.validation.cookbook_required',
+            'title.required'              => 'recipes.validation.title_required',
+            'servings.min'                => 'recipes.validation.servings_min',
+            'ingredients.*.name.required' => 'recipes.validation.ingredient_name_required',
+            'steps.*.required'            => 'recipes.validation.step_required',
         ];
     }
 
-    /**
-     * The field names in the messages, in the user's language
-     *
-     * @return array
-     */
-    public function attributes()
+    public function recipe(): RecipeInput
     {
-        return __('recipes.validation.attributes', [], $this->user()?->language ?: 'nl');
+        return new RecipeInput(
+            cookbookId: (int) $this->validated('cookbook_id'),
+            fields: [
+                ...$this->safe()->except(['ingredients', 'steps', 'cookbook_id', 'categories', 'shown_in']),
+                'categories' => array_values($this->validated('categories')),
+            ],
+            ingredients: $this->validated('ingredients'),
+            steps: $this->validated('steps'),
+            shownIn: $this->has('shown_in') ? array_map('intval', $this->validated('shown_in') ?? []) : null,
+        );
     }
 }

@@ -17,6 +17,12 @@ class Recipe extends Model
     // Photos are on the private disk: the app gets them through RecipeController::image, for members only
     public const IMAGE_DISK = 'local';
 
+    // What the overview shows of each recipe (RecipeSummaryResource): only the ingredient names
+    public const SUMMARY_WITH = ['ingredients:id,recipe_id,name,position', 'favoritedBy:id', 'shownIn:id', 'categoryLinks:id,recipe_id,category'];
+
+    // What the recipe screen shows (RecipeResource)
+    public const PRESENTED_WITH = ['ingredients', 'steps', 'createdBy:id,name', 'favoritedBy:id', 'shownIn:id,name', 'cookbook:id,name', 'categoryLinks'];
+
     protected $fillable = [
         'cookbook_id',
         'created_by',

@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\JsonResponse;
+use App\Http\Resources\AppVersionResource;
 
 /**
  * The oldest app version (and build) that still works and where to update, per platform (config/app_version.php). The app asks
@@ -10,14 +10,8 @@ use Illuminate\Http\JsonResponse;
  */
 class AppVersionController extends Controller
 {
-    public function show(): JsonResponse
+    public function show(): AppVersionResource
     {
-        $platform = fn (string $name) => [
-            'minimum_version' => (string) config("app_version.minimum.$name"),
-            'minimum_build' => (int) config("app_version.minimum_build.$name"),
-            'update_url' => (string) config("app_version.update_url.$name"),
-        ];
-
-        return response()->json(['data' => ['ios' => $platform('ios'), 'android' => $platform('android')]]);
+        return new AppVersionResource(config('app_version'));
     }
 }

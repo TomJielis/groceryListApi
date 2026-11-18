@@ -10,4 +10,8 @@ return [
     'deleted' => 'De lijst is verwijderd.',
     'item_deleted' => 'Het product is verwijderd.',
     'only_owner_invites' => 'Alleen de maker van de lijst kan mensen uitnodigen.',
+    'validation' => [
+        'name_required' => 'Geef de lijst een naam.',
+        'name_too_long' => 'De naam mag hoogstens 255 tekens hebben.',
+    ],
 ];

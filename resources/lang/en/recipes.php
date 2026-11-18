@@ -15,6 +15,7 @@ return [
         // For every other rule: the field's name (attributes) in a general message
         'rules' => [
             'required' => 'Please enter :attribute.',
+            'present' => 'Please enter :attribute.',
             'string' => ':Attribute must be text.',
             'integer' => ':Attribute must be a whole number.',
             'numeric' => ':Attribute must be a number.',
