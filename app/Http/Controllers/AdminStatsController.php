@@ -11,6 +11,8 @@ use App\Models\InvalidLoginAttempt;
 use App\Models\Recipe;
 use App\Models\SuccessfulLogin;
 use App\Models\User;
+use App\Models\WeekMenu;
+use App\Models\WeekMenuEntry;
 use App\Services\RecipeStats;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -107,6 +109,29 @@ class AdminStatsController extends Controller
             'previous_month' => [
                 'period' => $previousMonth->format('Y-m'),
                 'value' => $previousData['added'],
+                'breakdown' => $previousData,
+            ],
+        ]);
+    }
+
+    // Week menus: how many there are by the end of the month, and the dishes planned in the month
+    public function weekMenus(Request $request): JsonResponse
+    {
+        $currentMonth = $this->parseMonth($request->query('month'));
+        $previousMonth = $currentMonth->copy()->subMonth();
+
+        $currentData = $this->getWeekMenusData($currentMonth);
+        $previousData = $this->getWeekMenusData($previousMonth);
+
+        return response()->json([
+            'current_month' => [
+                'period' => $currentMonth->format('Y-m'),
+                'value' => $currentData['total_menus'],
+                'breakdown' => $currentData,
+            ],
+            'previous_month' => [
+                'period' => $previousMonth->format('Y-m'),
+                'value' => $previousData['total_menus'],
                 'breakdown' => $previousData,
             ],
         ]);
@@ -519,6 +544,15 @@ class AdminStatsController extends Controller
             'total_recipes' => Recipe::where('created_at', '<=', $endOfMonth)->count(),
             'total_cookbooks' => Cookbook::where('created_at', '<=', $endOfMonth)->count(),
             'shared_cookbooks' => Cookbook::where('created_at', '<=', $endOfMonth)->has('acceptedInvites')->count(),
+        ];
+    }
+
+    private function getWeekMenusData(Carbon $month): array
+    {
+        return [
+            // How many there are by the end of the month
+            'total_menus' => WeekMenu::where('created_at', '<=', $month->copy()->endOfMonth())->count(),
+            'recipes_planned' => WeekMenuEntry::whereBetween('created_at', [$month->copy()->startOfMonth(), $month->copy()->endOfMonth()])->count(),
         ];
     }
 

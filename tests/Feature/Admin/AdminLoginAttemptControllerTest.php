@@ -79,6 +79,27 @@ class AdminLoginAttemptControllerTest extends TestCase
         $this->assertSame(1, $get('ip=198.51.100.7'));
     }
 
+    public function test_filters_by_calendar_month_like_the_dashboard(): void
+    {
+        $this->travelTo('2026-11-18 12:00:00');
+        $this->attempt(['attempted_at' => '2026-10-31 23:30:00']);
+        $this->attempt(['attempted_at' => '2026-11-01 00:10:00']);
+        $this->attempt(['attempted_at' => '2026-11-17 09:00:00']);
+
+        $get = fn (string $query) => $this->actingAs($this->admin, 'sanctum')
+            ->getJson('/api/admin/login-attempts?' . $query)
+            ->assertOk()
+            ->json('summary.attempts');
+
+        $this->assertSame(2, $get('month=2026-11'));
+        $this->assertSame(1, $get('month=2026-10'));
+        // The month counts the same as the dashboard's failed logins of that month
+        $this->assertSame(2, $this->actingAs($this->admin, 'sanctum')->getJson('/api/admin/stats/users?month=2026-11')->json('current_month.breakdown.invalid_login_attempts'));
+        // The month wins over a period sent along
+        $this->assertSame(2, $get('month=2026-11&period=24h'));
+        $this->actingAs($this->admin, 'sanctum')->getJson('/api/admin/login-attempts?month=november')->assertUnprocessable();
+    }
+
     public function test_rejects_an_unknown_period(): void
     {
         $this->actingAs($this->admin, 'sanctum')

@@ -28,6 +28,8 @@ class AdminLoginAttemptController extends Controller
     {
         $request->validate([
             'period' => 'sometimes|in:24h,7d,30d,all',
+            // A calendar month ("2026-11"), like the dashboard's statistics; instead of the period
+            'month' => 'sometimes|date_format:Y-m',
             'account' => 'sometimes|in:known,unknown',
             'email' => 'sometimes|string|max:255',
             'ip' => 'sometimes|string|max:45',
@@ -134,9 +136,12 @@ class AdminLoginAttemptController extends Controller
     private function filtered(Request $request): Builder
     {
         $period = $request->query('period', '7d');
+        // '!' sets the missing day to the 1st; otherwise today's day is used and the 31st overflows a month
+        $month = $request->filled('month') ? Carbon::createFromFormat('!Y-m', $request->query('month')) : null;
 
         return InvalidLoginAttempt::query()
-            ->when(isset(self::PERIODS[$period]), fn ($q) => $q->where('attempted_at', '>=', now()->subHours(self::PERIODS[$period])))
+            ->when($month, fn ($q) => $q->whereBetween('attempted_at', [$month->copy()->startOfMonth(), $month->copy()->endOfMonth()]))
+            ->when(!$month && isset(self::PERIODS[$period]), fn ($q) => $q->where('attempted_at', '>=', now()->subHours(self::PERIODS[$period])))
             ->when($request->query('account') === 'known', fn ($q) => $q->whereNotNull('user_id'))
             ->when($request->query('account') === 'unknown', fn ($q) => $q->whereNull('user_id'))
             ->when($request->filled('email'), fn ($q) => $q->where('username', 'like', '%' . $request->query('email') . '%'))

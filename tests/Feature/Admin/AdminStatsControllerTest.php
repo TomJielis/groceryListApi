@@ -11,6 +11,8 @@ use App\Models\GroceryListItem;
 use App\Models\Recipe;
 use App\Models\SuccessfulLogin;
 use App\Models\User;
+use App\Models\WeekMenu;
+use App\Models\WeekMenuEntry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
@@ -22,7 +24,7 @@ class AdminStatsControllerTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const ENDPOINTS = ['users', 'items', 'lists', 'recipes', 'activity', 'versions', 'platforms', 'top-items'];
+    private const ENDPOINTS = ['users', 'items', 'lists', 'recipes', 'week-menus', 'activity', 'versions', 'platforms', 'top-items'];
 
     private User $admin;
     private User $user;
@@ -250,4 +252,43 @@ class AdminStatsControllerTest extends TestCase
             ->assertJsonPath('previous_month.breakdown.android.count', 1)
             ->assertJsonPath('previous_month.breakdown.website.count', 0);
     }
+
+    public function test_week_menus_this_month_against_last_month(): void
+    {
+        $this->travelTo('2026-11-18 12:00:00');
+        $book = Cookbook::create(['created_by' => $this->user->id, 'name' => 'Mijn recepten']);
+        $pasta = Recipe::create(['cookbook_id' => $book->id, 'created_by' => $this->user->id, 'title' => 'Pasta', 'servings' => 2, 'difficulty' => 'easy']);
+        $plan = fn (WeekMenu $menu, string $at) => $this->travelTo($at, fn () => WeekMenuEntry::create([
+            'week_menu_id' => $menu->id, 'date' => '2026-11-20', 'recipe_id' => $pasta->id, 'servings' => 2, 'added_by' => $this->user->id,
+        ]));
+
+        // Last month: one menu, one dish; this month a second menu and three dishes
+        $menu = $this->travelTo('2026-10-10 09:00:00', fn () => WeekMenu::create(['name' => 'Thuis', 'created_by' => $this->user->id]));
+        $plan($menu, '2026-10-11 09:00:00');
+        $this->travelTo('2026-11-03 08:00:00', fn () => WeekMenu::create(['name' => 'Werk', 'created_by' => $this->admin->id]));
+        $plan($menu, '2026-11-04 10:00:00');
+        $plan($menu, '2026-11-10 10:00:00');
+        $plan($menu, '2026-11-17 10:00:00');
+
+        $this->stats('week-menus')
+            ->assertOk()
+            ->assertExactJsonStructure(['current_month' => self::WEEK_MENU_SHAPE, 'previous_month' => self::WEEK_MENU_SHAPE])
+            ->assertJsonPath('current_month.period', '2026-11')
+            ->assertJsonPath('current_month.value', 2)
+            ->assertJsonPath('current_month.breakdown.total_menus', 2)
+            ->assertJsonPath('current_month.breakdown.recipes_planned', 3)
+            ->assertJsonPath('previous_month.period', '2026-10')
+            ->assertJsonPath('previous_month.breakdown.total_menus', 1)
+            ->assertJsonPath('previous_month.breakdown.recipes_planned', 1);
+
+        // An earlier month, like the other statistics
+        $this->stats('week-menus', 'month=2026-10')
+            ->assertJsonPath('current_month.period', '2026-10')
+            ->assertJsonPath('current_month.breakdown.recipes_planned', 1)
+            ->assertJsonPath('previous_month.breakdown.total_menus', 0);
+
+        $this->actingAs($this->user, 'sanctum')->getJson('/api/admin/stats/week-menus')->assertForbidden();
+    }
+
+    private const WEEK_MENU_SHAPE = ['period', 'value', 'breakdown' => ['total_menus', 'recipes_planned']];
 }
