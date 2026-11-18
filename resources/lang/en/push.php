@@ -18,6 +18,10 @@ return [
         'title' => 'Invite accepted',
         'body' => ':user has joined your cookbook ":cookbook".',
     ],
+    'week_menu_invite_accepted' => [
+        'title' => 'Invite accepted',
+        'body' => ':user has joined your week menu ":menu".',
+    ],
     'cookbook_removed' => [
         'title' => 'Removed from cookbook',
         'body' => ':user removed you from the cookbook ":cookbook".',

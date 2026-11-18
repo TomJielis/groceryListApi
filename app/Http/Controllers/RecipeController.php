@@ -8,15 +8,19 @@ use App\Http\Requests\Recipe\RecipeFavoriteRequest;
 use App\Http\Requests\Recipe\RecipeImageRequest;
 use App\Http\Requests\Recipe\RecipeRequest;
 use App\Http\Requests\Recipe\RecipeShowManyInRequest;
+use App\Http\Requests\RecipeLink\RecipeLinkSaveRequest;
 use App\Jobs\SendListActivityPush;
 use App\Models\Cookbook;
 use App\Models\GroceryList;
 use App\Models\GroceryListItem;
 use App\Models\Recipe;
 use App\Models\RecipeIngredient;
+use App\Models\User;
 use App\Services\RecipeImageStore;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\Response;
@@ -51,7 +55,7 @@ class RecipeController extends Controller
 
     public function show(Request $request, int $id): JsonResponse
     {
-        return response()->json(['data' => $this->present($request, $this->ownRecipe($request, $id))]);
+        return response()->json(['data' => $this->present($request, $this->readableRecipe($request, $id))]);
     }
 
     public function store(RecipeRequest $request): JsonResponse
@@ -142,7 +146,7 @@ class RecipeController extends Controller
      */
     public function addToList(RecipeAddToListRequest $request, int $id): JsonResponse
     {
-        $this->ownRecipe($request, $id);
+        $this->readableRecipe($request, $id);
         // GroceryList's global scope only finds lists the user may see (own and accepted shares)
         $list = GroceryList::find($request->validated('list_id'));
         if (!$list) {
@@ -182,6 +186,41 @@ class RecipeController extends Controller
         return response()->json(['data' => $items->values()]);
     }
 
+    /**
+     * "Save in my cookbook": an own copy of a recipe the user can open but that isn't theirs (planned in a week menu by
+     * someone else), like saving a shared recipe link. Answers 409 when they have it already.
+     */
+    public function copy(RecipeLinkSaveRequest $request, int $id): JsonResponse
+    {
+        $user = $request->user();
+        $language = $this->language($request);
+        $original = $this->readableRecipe($request, $id);
+        $cookbook = Cookbook::visibleTo($user)->find($request->validated('cookbook_id'));
+        if (!$cookbook) {
+            return response()->json(['message' => __('recipes.no_cookbook_access', [], $language)], 403);
+        }
+        // One at a time per user and recipe: a double tap mustn't make two copies (the second finds the first)
+        try {
+            return Cache::lock("recipe-copy:{$user->id}:{$original->id}", 30)->block(10, fn () => $this->saveCopy($original, $user, $cookbook, $language));
+        } catch (LockTimeoutException) {
+            return response()->json(['message' => __('recipe-links.busy', [], $language)], 429);
+        }
+    }
+
+    private function saveCopy(Recipe $original, User $user, Cookbook $cookbook, string $language): JsonResponse
+    {
+        if ($already = $original->alreadySavedBy($user)) {
+            return response()->json(['message' => __('recipe-links.already_saved', [], $language), 'data' => $already], 409);
+        }
+
+        $copy = $original->copyInto($cookbook, $user, $this->images);
+
+        return response()->json([
+            'message' => __('recipe-links.saved', [], $language),
+            'data' => ['id' => $copy->id, 'cookbook_id' => $cookbook->id],
+        ], 201);
+    }
+
     // A new photo, as a data URL like the cards send ("data:image/jpeg;base64,...")
     public function storeImage(RecipeImageRequest $request, int $id): JsonResponse
     {
@@ -207,7 +246,7 @@ class RecipeController extends Controller
     // The photo, or with ?size=thumb its small copy for the overview
     public function image(Request $request, int $id): Response
     {
-        $recipe = $this->ownRecipe($request, $id);
+        $recipe = $this->readableRecipe($request, $id);
         $disk = Storage::disk(Recipe::IMAGE_DISK);
         abort_unless($recipe->image_path && $disk->exists($recipe->image_path), 404);
 
@@ -309,6 +348,12 @@ class RecipeController extends Controller
         return Recipe::visibleTo($request->user())->findOrFail($id);
     }
 
+    // One the user may open: also a recipe planned in a week menu they're in (read-only, not in their recipe book)
+    private function readableRecipe(Request $request, int $id): Recipe
+    {
+        return Recipe::readableBy($request->user())->findOrFail($id);
+    }
+
     // One the user may change: in a cookbook of theirs. Only shown to them: 403 with the reason
     private function editableRecipe(Request $request, int $id): Recipe
     {
@@ -338,15 +383,7 @@ class RecipeController extends Controller
     // look like plain http or localhost, and iOS doesn't load photos from such an address. (APP_URL is the website.)
     private function imageUrl(Recipe $recipe, bool $thumb = false): ?string
     {
-        if (!$recipe->image_path) {
-            return null;
-        }
-
-        $path = "/api/recipes/{$recipe->id}/image";
-        $apiUrl = rtrim((string) config('app.api_url'), '/');
-        $base = $apiUrl !== '' ? $apiUrl . $path : url($path);
-
-        return $base . '?v=' . substr(md5($recipe->image_path), 0, 8) . ($thumb ? '&size=thumb' : '');
+        return $recipe->imageUrl($thumb);
     }
 
     private function presentSummary(Request $request, Recipe $recipe): array
@@ -387,6 +424,7 @@ class RecipeController extends Controller
     {
         $recipe->loadMissing(['ingredients', 'steps', 'createdBy:id,name', 'favoritedBy:id', 'shownIn:id,name', 'cookbook:id,name', 'categoryLinks']);
         $editable = $this->isEditable($request, $recipe);
+        $inRecipeBook = Recipe::visibleTo($request->user())->whereKey($recipe->id)->exists();
 
         return [
             ...$this->presentSummary($request, $recipe),
@@ -396,8 +434,13 @@ class RecipeController extends Controller
             'fat' => $recipe->fat,
             'source_url' => $recipe->source_url,
             'created_by' => $recipe->createdBy,
+            // Not for a recipe only seen through a week menu: which (private) cookbook it lives in stays its owners'
+            'cookbook_id' => $inRecipeBook ? $recipe->cookbook_id : null,
             // The cookbook it lives in (shown with a recipe that's read-only for the user: "from 'Samen koken'")
-            'cookbook_name' => $recipe->cookbook?->name,
+            // Not for a recipe only seen through a week menu: the name of someone else's private cookbook stays theirs
+            'cookbook_name' => $inRecipeBook ? $recipe->cookbook?->name : null,
+            // False for a recipe the user only sees through a week menu: the app then offers saving a copy
+            'in_recipe_book' => $inRecipeBook,
             // For the people who change it: the cookbooks of others it's shown in (someone in its cookbook put it
             // there), so they see where it is and can take it out again
             'shown_elsewhere' => $editable

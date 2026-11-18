@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Mail\ResetPassword;
 use App\Models\SentEmail;
 use App\Models\User;
 use App\Services\MailService;
@@ -25,6 +26,10 @@ class SendMail implements ShouldQueue
     // The user (or ticket) the mail is about was deleted meanwhile: nothing to send any more
     public bool $deleteWhenMissingModels = true;
 
+    // Seconds one try may take, below the database queue's retry_after (90): a hanging mail server can't make a second
+    // worker send the same mail
+    public int $timeout = 60;
+
     public function __construct(
         public Mailable $mailable,
         public string $email,
@@ -37,11 +42,14 @@ class SendMail implements ShouldQueue
     public function handle(MailService $mail): void
     {
         // Not needed any more, e.g. a newer reset link was requested or the account was activated meanwhile
-        if ($this->attempts() > 1) {
+        // A reset mail every time (also the first, which may come late when the worker was down, and one sent again
+        // from failed_jobs): not when a newer one was asked for or it was used, otherwise its link works for an hour
+        // from now. Other mails only when they're tried again (the welcome mail command also mails activated users).
+        $reset = $this->mailable instanceof ResetPassword;
+        if ($reset || $this->attempts() > 1) {
             if (method_exists($this->mailable, 'stillWanted') && !$this->mailable->stillWanted()) {
                 return;
             }
-            // A reset link works for an hour from now
             if (method_exists($this->mailable, 'renewLink')) {
                 $this->mailable->renewLink();
             }
@@ -50,14 +58,15 @@ class SendMail implements ShouldQueue
         try {
             $mail->deliver($this->mailable, $this->email, $this->name, $this->triggeredBy);
         } catch (Throwable $e) {
-            // Logged once, at the first failure; the end result (sent or given up) is logged too
+            // Logged once, at the first failure; the end result (sent or given up) is logged too. Without a queue
+            // worker (sync) there's no retry: the caller gets the error
             if ($this->attempts() === 1) {
                 SentEmail::create([
                     'type' => $this->type(),
                     'recipient_email' => $this->email,
                     'recipient_name' => $this->name,
                     'status' => 'failed',
-                    'error_message' => $e->getMessage() . ' (will retry)',
+                    'error_message' => $e->getMessage() . ($this->withoutWorker() ? '' : ' (will retry)'),
                     'triggered_by_user_id' => $this->triggeredBy,
                 ]);
             }
@@ -81,6 +90,12 @@ class SendMail implements ShouldQueue
     // `php artisan queue:retry all` sends it once more.
     public function failed(?Throwable $e): void
     {
+        // Without a queue worker (sync, locally and in tests) the first failure ends here: already logged, and the
+        // caller got the error; no "gave up" or push to the admins
+        if ($this->withoutWorker()) {
+            return;
+        }
+
         SentEmail::create([
             'type' => $this->type(),
             'recipient_email' => $this->email,
@@ -93,6 +108,11 @@ class SendMail implements ShouldQueue
         foreach (User::where('is_admin', true)->pluck('id') as $adminId) {
             SendPushNotification::dispatch($adminId, 'mail_failed', ['type' => $this->type(), 'email' => $this->email], ['url' => '/admin/emails']);
         }
+    }
+
+    private function withoutWorker(): bool
+    {
+        return config('queue.default') === 'sync';
     }
 
     private function type(): string

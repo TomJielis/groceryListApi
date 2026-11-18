@@ -6,4 +6,5 @@ return [
     'not_found' => 'This recipe link does not exist.',
     'withdrawn' => 'The recipe link has been withdrawn.',
     'read_only' => "Only people in this recipe's cookbook can share it.",
+    'busy' => 'One moment, this is still being handled. Please try again shortly.',
 ];

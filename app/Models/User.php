@@ -57,7 +57,7 @@ class User extends Authenticatable implements MustVerifyEmail
      * (types are the keys in resources/lang/{nl,en}/push.php).
      */
     public const NOTIFICATION_SETTINGS = [
-        'invites' => ['invite_accepted', 'cookbook_invite_accepted'],
+        'invites' => ['invite_accepted', 'cookbook_invite_accepted', 'week_menu_invite_accepted'],
         'list_changes' => ['list_removed', 'list_deleted', 'cookbook_removed', 'cookbook_deleted'],
         'items_added' => ['items_added'],
         'items_checked' => ['items_checked'],

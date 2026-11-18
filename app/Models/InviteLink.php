@@ -2,11 +2,12 @@
 
 namespace App\Models;
 
+use App\Data\InviteTarget;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
 
-// A link that invites whoever opens it to a list or a cookbook, until it expires or is withdrawn
+// A link that invites whoever opens it to a list, a cookbook or a week menu, until it expires or is withdrawn
 class InviteLink extends Model
 {
     // How long a link works
@@ -17,6 +18,7 @@ class InviteLink extends Model
         'token',
         'grocery_list_id',
         'cookbook_id',
+        'week_menu_id',
         'created_by',
         'expires_at',
         'revoked_at',
@@ -41,6 +43,11 @@ class InviteLink extends Model
         return $this->belongsTo(Cookbook::class);
     }
 
+    public function weekMenu(): BelongsTo
+    {
+        return $this->belongsTo(WeekMenu::class);
+    }
+
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by', 'id');
@@ -49,6 +56,30 @@ class InviteLink extends Model
     public function isUsable(): bool
     {
         return $this->revoked_at === null && $this->expires_at->isFuture();
+    }
+
+    // What the link invites to, or null when that's gone (deleted meanwhile)
+    public function target(): ?InviteTarget
+    {
+        if ($this->weekMenu) {
+            return new InviteTarget(InviteTarget::WEEK_MENU, (int) $this->week_menu_id, $this->weekMenu->name);
+        }
+        if ($this->cookbook) {
+            return new InviteTarget(InviteTarget::COOKBOOK, (int) $this->cookbook_id, $this->cookbook->name);
+        }
+        if ($this->groceryList) {
+            return new InviteTarget(InviteTarget::LIST, (int) $this->grocery_list_id, $this->groceryList->name);
+        }
+
+        return null;
+    }
+
+    // Whether the user is in what the link invites to already
+    public function hasMember(int $userId): bool
+    {
+        $target = $this->weekMenu ?? $this->cookbook ?? $this->groceryList;
+
+        return $target !== null && in_array($userId, $target->memberIds(), true);
     }
 
     // The link someone opens: on the website, which hands it to the app when that's installed (apple-app-site-association)
@@ -60,7 +91,7 @@ class InviteLink extends Model
     /**
      * The working link of this maker for a list or cookbook, or a new one: sharing it again soon gives the same link
      *
-     * @param array{grocery_list_id?: int, cookbook_id?: int} $target
+     * @param array{grocery_list_id?: int, cookbook_id?: int, week_menu_id?: int} $target
      */
     public static function forTarget(array $target, User $user): self
     {

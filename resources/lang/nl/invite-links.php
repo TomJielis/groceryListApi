@@ -5,4 +5,5 @@ return [
     'expired' => 'Deze uitnodigingslink is verlopen of ingetrokken. Vraag om een nieuwe link.',
     'not_found' => 'Deze uitnodigingslink bestaat niet.',
     'withdrawn' => 'De uitnodigingslink is ingetrokken.',
+    'busy' => 'Even geduld, we zijn hier nog mee bezig. Probeer het zo opnieuw.',
 ];

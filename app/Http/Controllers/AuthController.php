@@ -121,6 +121,8 @@ class AuthController extends Controller
         // Never lower it: an older app accepting its own (older) version after a newer one was accepted elsewhere
         // would otherwise make the newer app and the website ask again, back and forth
         $version = (string) $request->get('acceptedTermsVersion');
+        // Only a version number ("1.4"): anything else would compare oddly, and stay forever as it's never lowered
+        abort_unless(preg_match('/^\d{1,3}(\.\d{1,3}){0,2}$/', $version) === 1, 422, 'Invalid terms version');
         $current = (string) $user->accepted_terms_version;
         if ($current === '' || version_compare($version, $current, '>')) {
             $user->accepted_terms_version = $version;

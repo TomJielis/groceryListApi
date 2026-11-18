@@ -9,4 +9,5 @@ return [
     'marked_favorite' => 'De lijst is gemarkeerd als favoriet.',
     'deleted' => 'De lijst is verwijderd.',
     'item_deleted' => 'Het product is verwijderd.',
+    'only_owner_invites' => 'Alleen de maker van de lijst kan mensen uitnodigen.',
 ];

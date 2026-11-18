@@ -18,6 +18,10 @@ return [
         'title' => 'Uitnodiging geaccepteerd',
         'body' => ':user doet nu mee met je kookboek ":cookbook".',
     ],
+    'week_menu_invite_accepted' => [
+        'title' => 'Uitnodiging geaccepteerd',
+        'body' => ':user doet nu mee met je weekmenu ":menu".',
+    ],
     'cookbook_removed' => [
         'title' => 'Verwijderd uit kookboek',
         'body' => ':user heeft je verwijderd uit het kookboek ":cookbook".',

@@ -6,4 +6,5 @@ return [
     'not_found' => 'Deze receptlink bestaat niet.',
     'withdrawn' => 'De receptlink is ingetrokken.',
     'read_only' => "Alleen wie in het kookboek van dit recept zit, kan het delen.",
+    'busy' => 'Even geduld, we zijn hier nog mee bezig. Probeer het zo opnieuw.',
 ];

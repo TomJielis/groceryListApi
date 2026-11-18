@@ -117,4 +117,14 @@ class InviteLinkTest extends TestCase
 
         $this->getJson("/api/invite-links/{$token}")->assertJsonPath('data.status', 'not_found');
     }
+
+    public function test_only_the_creator_of_a_list_invites_people(): void
+    {
+        $list = GroceryList::create(['name' => 'Weekend', 'created_by' => $this->owner->id]);
+        $token = $this->tokenOf($this->actingAs($this->owner, 'sanctum')->postJson("/api/grocery-list/{$list->id}/invite-link")->json('data.url'));
+        $this->actingAs($this->friend, 'sanctum')->postJson("/api/invite-links/{$token}/accept")->assertOk();
+
+        // In the list, but not its creator: no link
+        $this->actingAs($this->friend, 'sanctum')->postJson("/api/grocery-list/{$list->id}/invite-link")->assertForbidden();
+    }
 }

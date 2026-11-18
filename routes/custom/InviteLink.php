@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('grocery-list/{id}/invite-link', [InviteLinkController::class, 'storeForList'])->whereNumber('id')->middleware('throttle:share');
 Route::post('cookbooks/{id}/invite-link', [InviteLinkController::class, 'storeForCookbook'])->whereNumber('id')->middleware('throttle:share');
+Route::post('week-menus/{id}/invite-link', [InviteLinkController::class, 'storeForWeekMenu'])->whereNumber('id')->middleware('throttle:share');
 
 Route::group(['prefix' => 'invite-links', 'as' => 'invite-links.'], function () {
     // Also without being logged in: the screen that opens a link says what it's about before logging in

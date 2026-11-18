@@ -92,6 +92,9 @@ class E2eUser extends Command
                 $this->deleteLists([$userId]);
                 DB::table('cards')->where('user_id', $userId)->delete();
                 $this->leaveCookbooks([$userId]);
+                // Their week menus (with what's planned in them) and the ones they joined
+                DB::table('week_menus')->where('created_by', $userId)->delete();
+                DB::table('week_menu_members')->where('user_id', $userId)->delete();
             });
         }
         return self::SUCCESS;

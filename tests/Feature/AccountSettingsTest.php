@@ -67,6 +67,15 @@ class AccountSettingsTest extends TestCase
         $this->assertSame('1.10', $user->fresh()->accepted_terms_version);
     }
 
+    public function test_a_terms_version_must_be_a_version_number(): void
+    {
+        $user = User::factory()->create();
+        $user->forceFill(['accepted_terms' => true, 'accepted_terms_version' => '1.4'])->save();
+
+        $this->actingAs($user, 'sanctum')->postJson('/api/approve-terms', ['acceptedTermsVersion' => 'zzz'])->assertUnprocessable();
+        $this->assertSame('1.4', $user->fresh()->accepted_terms_version);
+    }
+
     public function test_the_settings_endpoints_need_a_login(): void
     {
         $this->postJson('/api/update', ['body' => ['name' => 'X']])->assertUnauthorized();

@@ -36,6 +36,8 @@ class MailServiceTest extends TestCase
 
     public function test_a_failed_try_is_logged_once_and_tried_again(): void
     {
+        // As on the server, with a queue worker
+        config(['queue.default' => 'database']);
         Mail::shouldReceive('to')->twice()->andThrow(new \Exception('SMTP failure'));
         $job = $this->job(new Welcome('http://example.com', User::factory()->create(['language' => 'nl', 'email_verified_at' => null])));
 
@@ -85,6 +87,7 @@ class MailServiceTest extends TestCase
 
     public function test_giving_up_is_logged_and_the_admins_are_told(): void
     {
+        config(['queue.default' => 'database']);
         Queue::fake();
         $admin = User::factory()->create(['is_admin' => true]);
         $job = new SendMail(new Welcome('http://example.com', User::factory()->create(['language' => 'nl', 'email_verified_at' => null])), 'to@example.com', null, null, now()->addDay());
@@ -167,6 +170,47 @@ class MailServiceTest extends TestCase
         $this->assertDatabaseHas('sent_emails', [
             'type' => 'welcome',
         ]);
+    }
+
+    public function test_without_a_queue_worker_a_failure_is_logged_once_and_nobody_is_pushed(): void
+    {
+        // Locally and in tests (sync): the caller gets the error, so no "will retry", no "gave up", no push
+        Queue::fake()->except(SendMail::class);
+        User::factory()->create(['is_admin' => true]);
+        Mail::shouldReceive('to')->once()->andThrow(new \Exception('SMTP failure'));
+
+        try {
+            app(MailService::class)->send(new Welcome('http://example.com', User::factory()->create(['language' => 'nl', 'email_verified_at' => null])), 'to@example.com');
+        } catch (\Exception) {
+        }
+
+        $this->assertSame(['SMTP failure'], SentEmail::pluck('error_message')->all());
+        Queue::assertNotPushed(SendPushNotification::class);
+    }
+
+    public function test_a_reset_mail_gets_its_hour_also_on_the_first_try(): void
+    {
+        // The worker was down for a while: the first try comes after the link would have expired
+        Mail::fake();
+        $user = User::factory()->create(['language' => 'nl']);
+        TemporaryPasswordCode::forceCreate(['user_id' => $user->id, 'code' => 'late', 'is_used' => false])
+            ->forceFill(['created_at' => now()->subHours(2)])->save();
+
+        $this->job(new ResetPassword('http://example.com/auth/password/late', $user, 'late'), $user->email)->handle(app(MailService::class));
+
+        Mail::assertSent(ResetPassword::class);
+        $this->postJson('/api/check-reset-link', ['token' => 'late'])->assertJsonPath('valid', true);
+    }
+
+    public function test_a_reset_mail_whose_link_was_used_is_not_sent_even_the_first_time(): void
+    {
+        Mail::fake();
+        $user = User::factory()->create(['language' => 'nl']);
+        TemporaryPasswordCode::forceCreate(['user_id' => $user->id, 'code' => 'used', 'is_used' => true]);
+
+        $this->job(new ResetPassword('http://example.com/auth/password/used', $user, 'used'), $user->email)->handle(app(MailService::class));
+
+        Mail::assertNothingSent();
     }
 
     private function job(\Illuminate\Mail\Mailable $mailable, string $email = 'to@example.com'): SendMail

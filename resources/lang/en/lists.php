@@ -9,4 +9,5 @@ return [
     'marked_favorite' => 'The list is marked as favourite.',
     'deleted' => 'The list has been deleted.',
     'item_deleted' => 'The item has been deleted.',
+    'only_owner_invites' => 'Only the creator of the list can invite people.',
 ];

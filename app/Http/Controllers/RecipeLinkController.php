@@ -10,7 +10,6 @@ use App\Models\RecipeLink;
 use App\Services\RecipeImageStore;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -73,7 +72,7 @@ class RecipeLinkController extends Controller
             'status' => 'valid',
             'shared_by' => $link->createdBy?->name,
             // Only known when logged in: whether they have it already, and where
-            'already' => $user ? $this->already($recipe, $user) : null,
+            'already' => $user ? $recipe->alreadySavedBy($user) : null,
             'expires_at' => $link->expires_at,
             'recipe' => [
                 'title' => $recipe->title,
@@ -140,58 +139,16 @@ class RecipeLinkController extends Controller
 
         $original = $link->recipe;
         // They have it already (a copy, or the recipe itself in a cookbook of theirs): no second copy
-        if ($already = $this->already($original, $user)) {
+        if ($already = $original->alreadySavedBy($user)) {
             return response()->json(['message' => __('recipe-links.already_saved', [], $language), 'data' => $already], 409);
         }
 
-        $disk = Storage::disk(Recipe::IMAGE_DISK);
-        $imagePath = $original->image_path && $disk->exists($original->image_path)
-            ? $this->images->store($disk->get($original->image_path))
-            : null;
-
-        $copy = DB::transaction(function () use ($original, $user, $cookbook, $imagePath) {
-            $copy = Recipe::create([
-                ...$original->only([
-                    'title', 'description', 'categories', 'servings', 'prep_minutes', 'cook_minutes', 'oven_minutes',
-                    'oven_celsius', 'difficulty', 'kcal', 'protein', 'carbs', 'fat', 'source_url',
-                ]),
-                'cookbook_id' => $cookbook->id,
-                'created_by' => $user->id,
-                'copied_from_recipe_id' => $original->id,
-                'image_path' => $imagePath,
-            ]);
-            $copy->replaceParts(
-                $original->ingredients->map(fn (RecipeIngredient $ingredient) => $ingredient->only(['name', 'amount', 'unit']))->all(),
-                $original->steps->pluck('body')->all(),
-            );
-
-            return $copy;
-        });
+        $copy = $original->copyInto($cookbook, $user, $this->images);
 
         return response()->json([
             'message' => __('recipe-links.saved', [], $language),
             'data' => ['id' => $copy->id, 'cookbook_id' => $cookbook->id],
         ], 201);
-    }
-
-    /**
-     * The user has the recipe already: it's in a cookbook of theirs (member, nothing to save), or they saved a copy
-     * of it before (copy). Null when neither.
-     */
-    private function already(Recipe $recipe, $user): ?array
-    {
-        $own = Recipe::editableBy($user)
-            ->where(fn ($query) => $query->whereKey($recipe->id)->orWhere('copied_from_recipe_id', $recipe->id))
-            // The original itself first
-            ->orderByRaw('id = ? desc', [$recipe->id])
-            ->with('cookbook:id,name')
-            ->first();
-
-        return $own ? [
-            'type' => $own->id === $recipe->id ? 'member' : 'copy',
-            'recipe_id' => $own->id,
-            'cookbook_name' => $own->cookbook?->name,
-        ] : null;
     }
 
     // On the API's public address when set (API_URL), like RecipeController's photo addresses

@@ -5,4 +5,5 @@ return [
     'expired' => 'This invite link has expired or was withdrawn. Ask for a new link.',
     'not_found' => 'This invite link does not exist.',
     'withdrawn' => 'The invite link has been withdrawn.',
+    'busy' => 'One moment, this is still being handled. Please try again shortly.',
 ];
