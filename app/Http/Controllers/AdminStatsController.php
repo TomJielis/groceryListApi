@@ -13,7 +13,6 @@ use App\Models\SuccessfulLogin;
 use App\Models\User;
 use App\Models\WeekMenu;
 use App\Models\WeekMenuEntry;
-use App\Models\WeekMenuMember;
 use App\Services\RecipeStats;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -115,7 +114,7 @@ class AdminStatsController extends Controller
         ]);
     }
 
-    // Week menus: who has one by the end of the month, who planned in one, and the dishes planned in the month
+    // Week menus: how many there are by the end of the month, and the dishes planned in the month
     public function weekMenus(Request $request): JsonResponse
     {
         $currentMonth = $this->parseMonth($request->query('month'));
@@ -127,12 +126,12 @@ class AdminStatsController extends Controller
         return response()->json([
             'current_month' => [
                 'period' => $currentMonth->format('Y-m'),
-                'value' => $currentData['users_with_menu'],
+                'value' => $currentData['total_menus'],
                 'breakdown' => $currentData,
             ],
             'previous_month' => [
                 'period' => $previousMonth->format('Y-m'),
-                'value' => $previousData['users_with_menu'],
+                'value' => $previousData['total_menus'],
                 'breakdown' => $previousData,
             ],
         ]);
@@ -550,24 +549,10 @@ class AdminStatsController extends Controller
 
     private function getWeekMenusData(Carbon $month): array
     {
-        $start = $month->copy()->startOfMonth();
-        $end = $month->copy()->endOfMonth();
-        $inMonth = fn ($query, string $column = 'created_at') => $query->whereBetween($column, [$start, $end]);
-
-        // Everyone in a menu by the end of the month: its creators and the people who joined
-        $creators = WeekMenu::where('created_at', '<=', $end)->select('created_by as user_id');
-        $members = WeekMenuMember::where('created_at', '<=', $end)->select('user_id');
-        $usersWithMenu = DB::query()->fromSub($creators->toBase()->union($members->toBase()), 'people')->count();
-
         return [
-            'users_with_menu' => $usersWithMenu,
-            // Who planned at least one dish in the month
-            'active_planners' => $inMonth(WeekMenuEntry::whereNotNull('added_by'))->distinct()->count('added_by'),
-            'menus_created' => $inMonth(WeekMenu::query())->count(),
-            'recipes_planned' => $inMonth(WeekMenuEntry::query())->count(),
-            'unique_recipes' => $inMonth(WeekMenuEntry::query())->distinct()->count('recipe_id'),
-            // Dishes whose ingredients were put on a list in the month
-            'put_on_list' => $inMonth(WeekMenuEntry::query(), 'added_to_list_at')->count(),
+            // How many there are by the end of the month
+            'total_menus' => WeekMenu::where('created_at', '<=', $month->copy()->endOfMonth())->count(),
+            'recipes_planned' => WeekMenuEntry::whereBetween('created_at', [$month->copy()->startOfMonth(), $month->copy()->endOfMonth()])->count(),
         ];
     }
 
